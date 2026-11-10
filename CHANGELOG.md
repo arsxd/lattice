@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.2 — 2026-11-10 (development preview)
+
+- Direct inline editing for blank/null cells.
+- Stable column positions when filling missing fields and renaming columns.
+- Source Apply/Discard controls only appear for changed drafts; discard reloads committed text.
+- CRLF-aware source synchronization avoids false draft changes.
+- Separate browser picker IDs remember Open and Save as folders where supported.
+- 73 automated tests pass; Windows/browser interaction confirmation remains pending.
+
+
 ## 0.1.1 — 2026-11-10 (development preview)
 
 - Explicit native dropdown option colours for dark mode; Windows visual confirmation pending.

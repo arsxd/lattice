@@ -389,3 +389,8 @@ Source Apply/Discard controls now render only for a real draft. CodeMirror uses 
 Blank/null/missing cells use a scalar input kind (consistent numeric/boolean/text hint, otherwise text) rather than falling into a null/object type dialog. Enter/F2 on blank cells and Details Edit value use the inline editor; the value bar shares the same kind resolution. Existing nonblank values retain their types. Unknown blank columns default to text; this is not automatic JSON type inference from arbitrary typed strings.
 
 Record projections retain an established per-table column order in worker memory, so inserting missing fields in early rows does not reorder the grid. Column rename preserves its position, including atomic batches and Undo. Order is session projection state, not an extra JSON property or schema; reopening a file can rediscover order from stored property order. Added regressions for missing-first-row fields, blank kind resolution and rename/Undo ordering. Actual browser entry/focus confirmation remains pending.
+
+
+### Release 0.1.2 — 2026-11-10
+
+Packaged the committed picker, source-draft, blank-cell and stable-column fixes into v0.1.2. Version metadata and README direct link updated. HTML, ZIP and checksums are development preview assets; real browser picker/source editing and Windows coverage remain incomplete.
