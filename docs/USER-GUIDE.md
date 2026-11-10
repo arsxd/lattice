@@ -1,0 +1,66 @@
+# Using Lattice
+
+## Start with the downloaded app
+
+Download `Lattice-Offline.html` from the repository Releases page and open it in a desktop browser. No companion files or server are needed. Replacing the HTML with a newer release does not update a currently open tab: save your work, close it and open the new file.
+
+Use a non-sensitive sample first to check your browser's Open, editing and Save/Download behavior. Corporate policies may restrict local HTML and file APIs.
+
+## Documents, sheets and nested data
+
+Open creates a document tab. Each document has its own worker and undo history. Bottom sheet tabs expose top-level containers and groups beneath single-object wrappers. Nested objects/record arrays open as tables; breadcrumbs return to parents. Simple primitive arrays display inside the cell and can be edited as JSON, e.g. `[1, 2, 3]`.
+
+Property tables show Key/Value; arrays show Index/Value. Type metadata is available in Details. A real JSON field named `type` remains ordinary data. Object Key cells can be renamed directly; array indices are generated and read-only. Duplicate object keys are rejected.
+
+## Enter and change data
+
+Click selects a cell. Type to replace; double-click/F2 edits. Enter commits and moves down; Shift+Enter moves up. Tab commits and moves right; Shift+Tab moves left. Click another cell to commit; Escape cancels. Invalid input stays in the editor with an error.
+
+Blank/null cells accept direct entry. A consistent existing column type guides numeric/boolean input; otherwise blank fields default to text. Existing values retain their type. Details provides explicit type-changing operations. Strings that resemble numbers/formulas remain strings. Numeric input uses JSON number syntax; boolean input uses `true` or `false`.
+
+Add row creates a blank record with existing fields. Right-click a row for insert above/below, duplicate and delete. Add column asks for a name. Column rename/delete affects the full object-row table and rejects name collisions.
+
+## Select, copy, paste and fill
+
+Drag over cells, Shift+click or use Shift+arrows. Copy exports quoted tab-separated values compatible with spreadsheet cells. If preparation is still running, retry Copy when ready.
+
+Paste starts at the selection's top-left cell. It validates before applying, rejects incompatible/read-only/nested targets and does not extend the table automatically. It cannot cross pages. A paste is one undo step. Blank pasted cells become null. Ctrl+D/Cmd+D or Fill down copies the top cell of each selected column down; it does not generate numeric sequences.
+
+## Sort, filter and freeze
+
+Header dropdowns contain ascending/descending sort, Clear sort, searchable value checklists and Apply/Cancel. Filters combine across columns. Sorting is view-only; header clicks do not move it to another column. The active column shows an arrow and a summary names the sort.
+
+The checklist contains at most 2,000 distinct values; a truncation notice appears when needed. Clear a column filter to include all its values. Global Find searches the table separately from checklist filters. Clear filters resets active filters.
+
+Freeze panes selects leading rows/columns. Row numbers stay frozen. Frozen rows refer to the current page and reset when changing document/path. Row freezing is disabled for pages exceeding 10,000 projected cells to limit rendering cost. Frozen columns are a workspace display preference.
+
+## Source and review
+
+Select a cell, then Source to locate its exact JSON token. The column menu can locate the first applicable field in visible rows. Missing fields have no source token. There is no separate source-jump row.
+
+Merely viewing source should not create a draft. Editing source reveals Apply source / Discard draft. Apply commits to the document engine; Discard reloads committed text. These are distinct from saving the file to disk.
+
+Review changes compares the last opened/saved baseline against the current committed text. It is a read-only aligned diff with navigation and collapsed unchanged areas, not a comparison against the newest disk file or a three-way merge tool.
+
+## Save and external editors
+
+Where browser APIs permit, Open retains a file handle, Save writes back, and Save as selects another destination. Cancelling or failed writes must not mark the document saved. A detected external file change blocks overwriting; no exclusive lock or automatic file watcher exists.
+
+Download exports a copy. The document stays dirty because the app cannot confirm the download was saved. Keep the exported file before closing. Browser file access is not guaranteed after page reload.
+
+Reload source refreshes from a retained handle or asks you to choose the source again. Confirming reload replaces only the active document and resets its history, filters/sort and navigation. Cancel retains your work.
+
+## Troubleshooting and reports
+
+| Symptom | Check |
+|---|---|
+| Old interface after updating | Close the old tab; open the downloaded HTML from the new release |
+| Open starts in the wrong folder | Newer builds supply a handle hint; local-origin storage or policy may still prevent persistence |
+| Save unavailable | Browser may not expose the file-picker API; use Download |
+| Save says externally changed | Keep your edits separately, then reload/reopen the source; do not overwrite blindly |
+| Source Apply/Discard appears without editing | Report line endings, browser and minimal JSON; CRLF regression checks exist |
+| Paste rejected | Check page bounds, target column types, metadata/container cells and rectangular clipboard shape |
+| A missing sheet tab | Provide a minimal nested JSON example; wrapper handling is heuristic |
+| No close/reload warning | Browsers can suppress beforeunload dialogs; it is not crash recovery |
+
+Report bugs through GitHub Issues. Include release version, OS/browser version, exact steps, expected/actual results, and a minimal sanitized JSON example. Never attach company files, credentials, paths or personal data you cannot share publicly. Screenshots should be redacted. See the issue template for a checklist.

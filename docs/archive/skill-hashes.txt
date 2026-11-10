@@ -1,2 +1,0 @@
-d91970639e9f5c37682ac7ab60094d35f1c7c1f38d731bd56396563aee10c1d3  ~/.codex/skills/frontend-design/SKILL.md
-0ffaabcc8e0990627c4725f18bf1c7955534a796c1c199e872909de2013ce6a8  ~/.codex/skills/playwright/SKILL.md

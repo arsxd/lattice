@@ -16,3 +16,6 @@ src-tauri/target/
 .vscode/
 .idea/
 *.log
+
+# Private development notes; never publish
+/.local-notes/

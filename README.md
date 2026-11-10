@@ -1,71 +1,84 @@
 # Lattice — JSON Workbench
 
-Edit JSON with a spreadsheet-style interface: document tabs, nested tables, inline cells, row/column operations, sorting, filters and source comparison.
+**Edit JSON using a spreadsheet-style interface.** Open a local file, work with cells and nested tables, and review the resulting source changes.
 
-**Development build.** Basic use has been tested by the project owner. Windows desktop execution, broad browser coverage and several newer UI interactions remain unverified. See [the handoff](docs/HANDOFF.md) for evidence and limitations.
+Lattice is built for people who are comfortable with spreadsheets and need to edit structured JSON. It runs as a self-contained HTML file in your browser—no npm, installation or local server is needed to use the downloaded app.
 
-## Use the offline app
+**Current release: v0.1.3, development preview.** Feedback and reproducible bug reports are welcome. This is an actively developed tool; keep a copy of important files.
 
-**No installation needed:** [download Lattice-Offline.html](https://github.com/arsxd/lattice/releases/download/v0.1.3/Lattice-Offline.html), then open the downloaded file in your browser. If no latest stable release exists, use the [Releases page](https://github.com/arsxd/lattice/releases) and select the offline HTML asset from the development preview. The optional ZIP contains the same HTML and brief instructions. Do not use GitHub’s source-code ZIP to run the app directly.
+## Download and run
 
-To build from source on a development machine:
+1. [Download Lattice-Offline.html](https://github.com/arsxd/lattice/releases/download/v0.1.3/Lattice-Offline.html).
+2. Open the downloaded file in a desktop browser. Start with Chrome or Edge; browser/platform coverage is incomplete.
+3. Click **Open…** and choose a JSON file, or explore the included example.
+4. Edit the table. Use **Save** when your browser supports direct file access, or **Download** to export a copy.
+
+Prefer a ZIP? [Download and extract it](https://github.com/arsxd/lattice/releases/download/v0.1.3/Lattice-Offline.zip), then open the HTML inside. The GitHub **Code → Download ZIP** option contains source code, not the ready-to-run app.
+
+[Release notes and checksums](https://github.com/arsxd/lattice/releases/tag/v0.1.3) · [User guide](docs/USER-GUIDE.md) · [Report a bug](https://github.com/arsxd/lattice/issues/new?template=bug_report.md)
+
+## What it does
+
+| Task | How Lattice handles it |
+|---|---|
+| Edit records | Inline cells, add/insert/duplicate/delete rows, editable object keys |
+| Work with columns | Add, rename, delete, sort, filter and freeze leading columns |
+| Copy spreadsheet data | Rectangular TSV copy/paste, range selection and fill-down |
+| Explore nested JSON | Sheet tabs, nested tables, breadcrumbs and inline simple arrays |
+| Work across files | Document tabs with separate edit histories |
+| Inspect changes | Source navigation and aligned highlighted before/after diff |
+| Preserve values | Exact numeric tokens, including large integers and exponents |
+
+## Editing basics
+
+- **Type** on a selected cell to replace it; **double-click/F2** to edit.
+- **Enter / Shift+Enter:** commit and move down/up.
+- **Tab / Shift+Tab:** commit and move right/left. **Escape:** cancel.
+- Drag, Shift+click or Shift+arrows to select a range. **Ctrl+D / Cmd+D:** fill down.
+- Right-click for row/column actions. Use the column-header dropdown to sort/filter.
+- Select a cell and click **Source** to locate its JSON value. Source edits are staged until **Apply source**; **Discard draft** restores committed text.
+
+See the [user guide](docs/USER-GUIDE.md) for saving, external edits and troubleshooting.
+
+## Files, permissions and privacy
+
+The application processes documents in browser memory. No document-upload endpoint or analytics integration is implemented. The downloaded HTML includes its application code, styles and document worker.
+
+Direct **Save** requires supported browser file APIs and your permission. Otherwise **Download** exports a copy and leaves the app marked unsaved because it cannot confirm the download was saved. Save checks for detected external changes; it does not lock the file. Browser folder memory and permissions may be limited for local HTML, private browsing or managed computers.
+
+**Reload source** reads the latest selected file and prompts before discarding edits. Browser reload/close requests a confirmation while documents are open, but the browser controls whether the warning appears. The browser version has no crash-recovery journal.
+
+## Current limits and verification
+
+- 500-row pages, 200 record fields, 10,000-cell bulk operations and up to 2,000 distinct checklist filter values.
+- Paste stays inside the current page; add rows/columns before pasting beyond the table.
+- Freeze rows applies to the current page, at most 10,000 projected cells. Sticky scrolling needs broader browser testing.
+- Existing scalar types are preserved. Unknown blank fields default to text unless the column provides a consistent scalar type.
+- No formula evaluation, complete Excel compatibility, ARXML importer or AUTOSAR validation.
+- v0.1.3 builds and 75 automated tests pass. These include engine behavior and browser-file mocks, not comprehensive UI/permission testing.
+- Basic use has been tested by the owner. Windows folder persistence, latest freeze-pane behavior, accessibility and IME coverage remain incomplete.
+- GitHub Actions has successfully built web, macOS and Windows artifacts for earlier checkpoints. A successful installer build does not establish installation/runtime correctness.
+
+## Build and contribute
+
+Development requires Node 24+; native desktop builds additionally require Rust and [platform prerequisites](https://v2.tauri.app/start/prerequisites/).
 
 ```sh
 npm ci
-npm run offline:build
+npm run web:dev
 ```
 
-Open `output/Lattice-Offline.html` in a browser. End users copy only that HTML file; they do not need Node, Rust or a local server. Browser restrictions may affect direct-file operation. Save/Save as requires supported file-picker APIs and user permission; other browsers use Download. There is no exclusive file lock or browser recovery journal.
-
-Generated apps are excluded from Git. Share them separately or attach reviewed artifacts to a release; do not commit company JSON files.
-
-## Develop
-
-Node 24+ is the documented development requirement. Install dependencies with `npm ci`.
-
-| Command | Purpose |
+| Command | Output / purpose |
 |---|---|
-| `npm run web:dev` | Local browser development, port 1420 |
+| `npm test` | Automated behavioral checks |
+| `npm run offline:build` | `output/Lattice-Offline.html` |
 | `npm run web:build` | Static site in `dist/` |
 | `npm run web:preview` | Preview the static build |
-| `npm run offline:build` | Single-file HTML in `output/` |
-| `npm run desktop` | Native development; Rust and platform prerequisites required |
-| `npm test` | Engine, clipboard, recovery and browser-save mock tests |
+| `npm run desktop` | Tauri desktop development |
 | `npm run bench` | Machine-specific engine benchmark |
 
-Native prerequisites and Windows instructions: [Windows](docs/WINDOWS.md). Web deployment: [web guide](docs/WEB.md). There is no hosted deployment or verified Windows installer yet.
+Generated output is excluded from Git and distributed through Releases. Never commit private JSON datasets, credentials or local recovery files.
 
-## Features and limits
+[Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md)
 
-- Separate documents and undo histories; top-level sheets and nested-table navigation.
-- Type-to-replace, F2/double-click editing, Enter/Tab movement, click-to-commit and Escape cancellation.
-- Range selection, rectangular TSV clipboard operations, fill-down and row/column menus.
-- Exact numeric token preservation; view-only sorting and combined filters.
-- Source jump and aligned text diff review.
-- Native conflict checks/recovery; capability-based browser saving with external-change checks.
-
-Limits include 500-row pages, 200 table fields, 10,000-cell bulk operations, and 2,000 distinct values in filter checklists. Paste cannot automatically extend the table or span pages. No formula evaluation, complete Excel compatibility, ARXML importer or AUTOSAR conformance validation is implemented.
-
-## Current interaction details
-
-- Column menus own filtering and sorting; header clicks do not move the active sort.
-- Source opens at the active cell; no separate source-jump row is rendered.
-- Reload source refreshes the active document, with an unsaved-edit prompt.
-- Browser reload/close requests confirmation while a document is open; browser rules apply.
-
-## Repository map
-
-```text
-src/                  React UI, grid, document engine, workers and platform adapter
-src-tauri/            Rust desktop host, icons and native configuration
-assets/               Editable source artwork
-scripts/              Offline packaging and benchmark scripts
-tests/                Automated behavioral checks
-docs/                Current handoff, interaction and deployment documentation
-docs/archive/        Original proposals, research and historical mockup
-.github/workflows/    Build and verification jobs
-```
-
-Start with [docs/HANDOFF.md](docs/HANDOFF.md). [CONTRIBUTING.md](CONTRIBUTING.md) describes checks and submission workflow. [CHANGELOG.md](CHANGELOG.md) records the current feature history.
-
-The owner selected Lattice as the product name, with JSON Workbench as its subtitle. The desktop identifier and local storage keys intentionally retain their legacy names for continuity. Naming availability and trademark clearance are unverified. No project license has been selected; publishing a repository does not itself grant an open-source license.
+No project license has been selected. Public source availability alone does not grant an open-source license.
