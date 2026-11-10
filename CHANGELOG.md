@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased — 0.1.0
+## 0.1.1 — 2026-11-10 (development preview)
+
+- Explicit native dropdown option colours for dark mode; Windows visual confirmation pending.
+- Primitive arrays display inline rather than as nested-table links.
+- Removed generated Type metadata columns; actual JSON type fields remain.
+- Nested sheet groups under single-object wrappers are exposed as tabs.
+- Added regression coverage; 67 automated tests pass.
+
+## 0.1.0 — 2026-11-10 (development preview)
 
 Project branding is Lattice — JSON Workbench, selected by the owner. JSON Ledger was an intermediate rejected proposal. Persistent desktop/storage identifiers are retained.
 

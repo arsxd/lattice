@@ -36,6 +36,7 @@ export type Query = {
   page: number;
 };
 export type Projection = {
+  sheets?: { label: string; path: Path; kind: Kind }[];
   filterOptions?: { key: string; label: string }[];
   filterOptionsTruncated?: boolean;
   revision: number;
@@ -590,14 +591,22 @@ export class DocumentEngine {
   private cell(n: Node | undefined, path: Path): Cell {
     if (!n)
       return { path, type: "missing", display: "missing", container: false };
-    const container = n.type === "object" || n.type === "array";
-    let display = container
-      ? `${n.type === "object" ? "Object" : "Array"} · ${n.children?.length ?? 0}`
-      : n.type === "string"
-        ? n.value === ""
-          ? '""'
-          : String(n.value)
-        : this.text.slice(n.offset, n.offset + n.length);
+    const primitiveArray =
+      n.type === "array" &&
+      (n.children ?? []).every(
+        (c) => c.type !== "object" && c.type !== "array",
+      );
+    const container =
+      n.type === "object" || (n.type === "array" && !primitiveArray);
+    let display = primitiveArray
+      ? this.text.slice(n.offset, n.offset + n.length)
+      : container
+        ? `${n.type === "object" ? "Object" : "Array"} · ${n.children?.length ?? 0}`
+        : n.type === "string"
+          ? n.value === ""
+            ? '""'
+            : String(n.value)
+          : this.text.slice(n.offset, n.offset + n.length);
     if (display.length > 240) display = display.slice(0, 237) + "…";
     return { path, type: n.type as Kind, display, container };
   }
@@ -610,7 +619,26 @@ export class DocumentEngine {
       path = [];
       n = this.root;
     }
+    let sheetRoot = this.root,
+      sheetPath: Path = [];
+    while (sheetRoot?.type === "object") {
+      const values = entries(sheetRoot);
+      if (values.length !== 1 || values[0][1].type !== "object") break;
+      sheetPath = [...sheetPath, values[0][0]];
+      sheetRoot = values[0][1];
+    }
+    const sheets = sheetRoot
+      ? entries(sheetRoot)
+          .filter(([, v]) => v.type === "object" || v.type === "array")
+          .slice(0, 200)
+          .map(([key, v]) => ({
+            label: String(key),
+            path: [...sheetPath, key],
+            kind: v.type as Kind,
+          }))
+      : [];
     const common = {
+      sheets,
       revision: this.revision,
       dirty: this.text !== this.saved,
       undo: !!this.past.length,
@@ -672,10 +700,10 @@ export class DocumentEngine {
     if (!records)
       headers =
         n.type === "object"
-          ? ["Key", "Type", "Value"]
+          ? ["Key", "Value"]
           : n.type === "array"
-            ? ["Index", "Type", "Value"]
-            : ["Type", "Value"];
+            ? ["Index", "Value"]
+            : ["Value"];
     // Keep only node references for the complete collection; construct cells for one page.
     const all = items.length
       ? items
@@ -716,13 +744,7 @@ export class DocumentEngine {
         }
         return result;
       }
-      if (headers.length === 2)
-        return column === 0 ? { ...c, display: c.type } : c;
-      return column === 0
-        ? { ...c, display: String(key) }
-        : column === 1
-          ? { ...c, display: c.type }
-          : c;
+      return column === headers.length - 1 ? c : { ...c, display: String(key) };
     };
     const total = all.length;
     const valueKey = (item: [string | number, Node], index: number) => {

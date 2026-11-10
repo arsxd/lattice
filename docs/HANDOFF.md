@@ -361,3 +361,16 @@ Project location is ~/projects/lattice (macOS resolves it as ~/Projects/lattice)
 ### Public download distribution — 2026-11-10
 
 GitHub repository is https://github.com/arsxd/lattice and is public. Offline HTML and a ZIP with instructions are distributed as development preview release assets; generated binaries remain excluded from source Git. Use the Releases page for prereleases: GitHub latest-release routes may not select a prerelease. End users need only the HTML, not the repository source archive. Browser restrictions and unverified platform behavior still apply.
+
+### Windows dropdown / primitive arrays / nested sheets — 2026-11-10
+
+Reported by user in Windows Chrome dark theme: native dropdown popup white with low-contrast text. Added explicit select/option/optgroup foreground/background and inherited color scheme. Windows native popup rendering remains unverified.
+
+Property/primitive-array tables now show Key/Value or Index/Value, and scalar roots Value only; generated Type metadata is removed. Actual JSON fields named type are retained. Details retains type information. Primitive-only arrays (including empty arrays) display their exact raw JSON inline and are not styled as nested-table links; expanded JSON editing remains available. Arrays containing objects/arrays retain table navigation. Value bar excludes arrays from scalar editing.
+
+Projection now supplies sheets after descending a chain of single-object wrappers; Feature_params and phy_params beneath swc_interface are exposed with full source paths. App tab highlighting compares the full sheet-path prefix. This is a wrapper heuristic, not arbitrary recursive flattening. Tests cover the supplied valid-equivalent structure, primitive-array display and removed metadata headers. Offline build and 67 tests passed; new UI/native popup behavior still needs user confirmation. No new GitHub release was published during this fix.
+
+
+### Release 0.1.1 publication — 2026-11-10
+
+Version metadata and README direct download point to v0.1.1. The Windows dropdown/primitive-array/metadata-column/nested-sheet fixes are packaged as a new development preview, preserving v0.1.0. Published assets are the HTML, ZIP with instructions, and SHA256SUMS.txt. Release publication is verified separately through GitHub CLI; Windows visual confirmation remains pending.

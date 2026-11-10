@@ -294,7 +294,7 @@ export default function App() {
       ? await client.current.call<Projection>("project", initialQuery)
       : p;
     if (id !== request.current) return;
-    setSheets(root.rootKind === "object" ? root.children : []);
+    setSheets(root.sheets ?? root.children);
     setTruncatedSheets(root.rootKind === "object" && root.truncatedChildren);
     if (p.diagnostics.length && mode === "table") await showSource();
   }
@@ -328,7 +328,7 @@ export default function App() {
         sourceBase: opened.text,
         sourceRevision: p.revision,
         review: null,
-        sheets: root.rootKind === "object" ? root.children : [],
+        sheets: root.sheets ?? root.children,
         truncatedSheets: root.rootKind === "object" && root.truncatedChildren,
       };
     } catch (e) {
@@ -1053,7 +1053,11 @@ export default function App() {
   }, [theme]);
   useEffect(() => {
     const before = (e: BeforeUnloadEvent) => {
-      if (latest.current.dirty || latest.current.busy || (!desktop && client.current !== null)) {
+      if (
+        latest.current.dirty ||
+        latest.current.busy ||
+        (!desktop && client.current !== null)
+      ) {
         e.preventDefault();
         e.returnValue = "";
       }
@@ -1631,6 +1635,7 @@ export default function App() {
                         !!activeCell &&
                         valueColumn(activeCell.column) &&
                         !selection.cell.container &&
+                        selection.cell.type !== "array" &&
                         selection.cell.writable !== false
                       }
                       onCommit={async (value) => {
@@ -2131,7 +2136,9 @@ export default function App() {
               <button
                 key={pointer(sheet.path)}
                 aria-current={
-                  query.path[0] === sheet.path[0] ? "page" : undefined
+                  sheet.path.every((part, i) => query.path[i] === part)
+                    ? "page"
+                    : undefined
                 }
                 disabled={busy || sourceDirty}
                 onClick={() => void navigate(sheet.path)}

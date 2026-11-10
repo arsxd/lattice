@@ -143,3 +143,23 @@ it("locates the exact selected value and its containing field", () => {
   const field = d.locate(["rows", 0, "a"], true);
   expect(d.text.slice(field.from, field.to)).toBe('"a":7');
 });
+it("shows primitive arrays inline and removes generated type columns", () => {
+  const d = new DocumentEngine('{"one":[100],"many":[1,2,3,4]}');
+  const p = d.project({ path: [], records: false, search: "", page: 0 });
+  expect(p.headers).toEqual(["Key", "Value"]);
+  expect(p.rows[0].cells[1]).toMatchObject({
+    display: "[100]",
+    container: false,
+  });
+  expect(p.rows[1].cells[1].display).toBe("[1,2,3,4]");
+});
+it("exposes array groups inside a single wrapper as sheets", () => {
+  const d = new DocumentEngine(
+    '{"swc_interface":{"Feature_params":[{"key":"val"}],"phy_params":[{"pin":1}]}}',
+  );
+  const p = d.project({ path: [], records: true, search: "", page: 0 });
+  expect(p.sheets?.map((s) => s.path)).toEqual([
+    ["swc_interface", "Feature_params"],
+    ["swc_interface", "phy_params"],
+  ]);
+});

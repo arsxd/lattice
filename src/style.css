@@ -1027,10 +1027,23 @@ select {
   outline-offset: 0;
 }
 
-
 /* Keep filter-search focus inside its existing bounds. */
 .column-menu input[aria-label="Search filter values"]:focus-visible {
   outline: none;
   border-color: var(--accent);
   box-shadow: inset 0 0 0 1px var(--accent);
+}
+/* Explicit option colours for native Windows/Chrome popup menus. */
+select {
+  color-scheme: inherit;
+  color: var(--text);
+  background-color: var(--surface);
+}
+select option,
+select optgroup {
+  color: var(--text);
+  background-color: var(--surface);
+}
+.select-inset select {
+  background-color: var(--surface);
 }

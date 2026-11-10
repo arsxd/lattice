@@ -238,7 +238,7 @@ describe("lossless document engine", () => {
       Array.from({ length: 201 }, (_, i) => ["key" + i, i]),
     );
     const d = new DocumentEngine(JSON.stringify([record]));
-    expect(d.project(q).headers).toEqual(["Index", "Type", "Value"]);
+    expect(d.project(q).headers).toEqual(["Index", "Value"]);
     expect(d.project({ ...q, path: [0], records: false }).total).toBe(201);
   });
   it("searches beyond truncated string previews", () => {
