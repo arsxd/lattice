@@ -1,0 +1,18 @@
+.playwright-cli/
+.DS_Store
+node_modules/
+dist/
+src-tauri/target/
+*.local
+*.tsbuildinfo
+
+# Generated handoffs, local fixtures, screenshots and native schemas
+/output/
+/src-tauri/gen/
+# Local environment and editor state
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/
+*.log

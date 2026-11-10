@@ -1,0 +1,44 @@
+{
+  "name": "lattice-json-workbench",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -b && vite build",
+    "test": "vitest run",
+    "bench": "tsx scripts/benchmark.ts",
+    "tauri": "tauri",
+    "desktop": "tauri dev",
+    "desktop:build": "tauri build",
+    "web:dev": "vite --host 127.0.0.1",
+    "web:build": "tsc -b && vite build --base=./",
+    "web:preview": "vite preview --host 127.0.0.1",
+    "offline:build": "npm run web:build && node scripts/build-offline.mjs"
+  },
+  "dependencies": {
+    "@codemirror/commands": "6.11.1",
+    "@codemirror/lang-json": "6.0.2",
+    "@codemirror/language": "6.13.1",
+    "@codemirror/merge": "6.12.3",
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.43.15",
+    "@tauri-apps/api": "2.12.4",
+    "jsonc-parser": "3.3.1",
+    "react": "19.3.1",
+    "react-data-grid": "7.0.0-beta.64",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.12.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.2.1",
+    "fast-check": "4.10.2",
+    "prettier": "3.9.10",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vite": "8.3.6",
+    "vitest": "5.1.0"
+  }
+}
