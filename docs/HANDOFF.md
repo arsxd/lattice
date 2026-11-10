@@ -356,3 +356,8 @@ Browser beforeunload now calls preventDefault and assigns returnValue for compat
 ### Documentation/initial commit preparation — 2026-11-10
 
 Project location is ~/projects/lattice (macOS resolves it as ~/Projects/lattice). README, WEB and CHANGELOG were reconciled with current behavior. Source is ready for an initial local commit; generated output and local fixtures are excluded. At preparation time there was no GitHub remote configured. A destination repository URL was requested from the owner; do not invent one or claim a push succeeded without evidence. No project license has been selected. Historical no-commit/no-remote statements elsewhere in this log describe earlier checkpoints; use current Git state.
+
+
+### Public download distribution — 2026-11-10
+
+GitHub repository is https://github.com/arsxd/lattice and is public. Offline HTML and a ZIP with instructions are distributed as development preview release assets; generated binaries remain excluded from source Git. Use the Releases page for prereleases: GitHub latest-release routes may not select a prerelease. End users need only the HTML, not the repository source archive. Browser restrictions and unverified platform behavior still apply.
