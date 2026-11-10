@@ -1,3 +1,4 @@
+import { sourceLineSeparator, sourceTextMatches } from "./sourceText";
 import { useEffect, useRef } from "react";
 import { EditorState } from "@codemirror/state";
 import {
@@ -24,6 +25,7 @@ export function SourceEditor({
 }) {
   const parent = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView>(null);
+  const syncing = useRef(false);
   const callback = useRef(onChange);
   callback.current = onChange;
   useEffect(() => {
@@ -33,6 +35,7 @@ export function SourceEditor({
       state: EditorState.create({
         doc: value,
         extensions: [
+          EditorState.lineSeparator.of(sourceLineSeparator(value)),
           lineNumbers(),
           drawSelection(),
           highlightActiveLine(),
@@ -40,8 +43,8 @@ export function SourceEditor({
           syntaxHighlighting(defaultHighlightStyle),
           keymap.of([...defaultKeymap, indentWithTab]),
           EditorView.updateListener.of((update) => {
-            if (update.docChanged)
-              callback.current(update.state.doc.toString());
+            if (update.docChanged && !syncing.current)
+              callback.current(update.state.sliceDoc());
           }),
           EditorView.contentAttributes.of({
             "aria-label": "JSON source draft",
@@ -67,10 +70,16 @@ export function SourceEditor({
   }, []);
   useEffect(() => {
     const editor = view.current;
-    if (editor && editor.state.doc.toString() !== value)
-      editor.dispatch({
-        changes: { from: 0, to: editor.state.doc.length, insert: value },
-      });
+    if (editor && !sourceTextMatches(editor.state, value)) {
+      syncing.current = true;
+      try {
+        editor.dispatch({
+          changes: { from: 0, to: editor.state.doc.length, insert: value },
+        });
+      } finally {
+        syncing.current = false;
+      }
+    }
   }, [value]);
   useEffect(() => {
     const editor = view.current;

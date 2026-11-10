@@ -1,4 +1,4 @@
-import type { Kind } from "../document/engine";
+import type { Kind, Cell } from "../document/engine";
 export function scalarText(kind: Kind, value: string): string {
   if (kind === "string") return JSON.stringify(value);
   if (
@@ -12,4 +12,13 @@ export function scalarText(kind: Kind, value: string): string {
   throw new Error(
     `Enter a valid JSON ${kind}. Use the inspector to change its type.`,
   );
+}
+
+export function cellInputKind(cell: Cell): Kind {
+  if (cell.type !== "null" && cell.type !== "missing") return cell.type;
+  return cell.inputKind === "number" ||
+    cell.inputKind === "boolean" ||
+    cell.inputKind === "string"
+    ? cell.inputKind
+    : "string";
 }

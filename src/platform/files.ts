@@ -38,6 +38,7 @@ export async function prepareBrowserSave(
   if (!browserSave || (!as && doc.handle)) return doc;
   try {
     const handle = await pickers.showSaveFilePicker!({
+      id: "lattice-save-json",
       suggestedName: doc.name,
       types: [
         { description: "JSON", accept: { "application/json": [".json"] } },
@@ -59,6 +60,7 @@ export async function openFile(): Promise<Opened | null> {
   if (pickers.showOpenFilePicker) {
     try {
       const [handle] = await pickers.showOpenFilePicker({
+        id: "lattice-open-json",
         multiple: false,
         types: [
           { description: "JSON", accept: { "application/json": [".json"] } },

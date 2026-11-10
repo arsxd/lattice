@@ -212,6 +212,7 @@ export function compareNumbers(a: string, b: string) {
 }
 
 export class DocumentEngine {
+  private columnOrder = new Map<string, string[]>();
   text: string;
   revision = 0;
   private saved: string;
@@ -344,9 +345,13 @@ export class DocumentEngine {
       if (command.commands.length > 10000)
         throw new Error("Select at most 10,000 cells per operation.");
       const draft = new DocumentEngine(this.text);
+      draft.columnOrder = new Map(
+        [...this.columnOrder].map(([key, values]) => [key, [...values]]),
+      );
       for (const operation of command.commands)
         draft.mutate(operation, draft.revision);
       this.commit(draft.text, true);
+      this.columnOrder = draft.columnOrder;
       return;
     }
     const n = this.node(command.path);
@@ -371,6 +376,18 @@ export class DocumentEngine {
         );
       }
       this.commit(draft.text, true);
+      if (command.name !== undefined) {
+        const id = pointer(command.path),
+          order = this.columnOrder.get(id);
+        if (order)
+          this.columnOrder.set(id, [
+            ...new Set(
+              order.flatMap((key) =>
+                key === command.key ? [command.name!, key] : [key],
+              ),
+            ),
+          ]);
+      }
       return;
     }
     if (command.action === "relative-row") {
@@ -686,7 +703,13 @@ export class DocumentEngine {
       }
       for (const [key, set] of kinds)
         if (set.size === 1) inputKinds.set(key, [...set][0]);
-      keys = [...discovered];
+      const tableId = pointer(path);
+      const established = this.columnOrder.get(tableId) ?? [];
+      keys = [
+        ...established.filter((k) => discovered.has(k)),
+        ...[...discovered].filter((k) => !established.includes(k)),
+      ];
+      this.columnOrder.set(tableId, [...new Set([...established, ...keys])]);
       if (keys.length > 200) {
         records = false;
         recordsAvailable = false;

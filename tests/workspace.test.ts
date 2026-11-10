@@ -58,3 +58,28 @@ describe("workspace recovery", () => {
       expect(() => unpackRecovery({ name: WORKSPACE_NAME, text })).toThrow();
   });
 });
+
+it("uses inline scalar types for blank cells instead of the null type editor", async () => {
+  const { cellInputKind } = await import("../src/editor/scalar");
+  expect(
+    cellInputKind({ path: [], type: "null", display: "", container: false }),
+  ).toBe("string");
+  expect(
+    cellInputKind({
+      path: [],
+      type: "missing",
+      display: "",
+      container: false,
+      inputKind: "number",
+    }),
+  ).toBe("number");
+  expect(
+    cellInputKind({
+      path: [],
+      type: "null",
+      display: "",
+      container: false,
+      inputKind: "object",
+    }),
+  ).toBe("string");
+});

@@ -65,3 +65,21 @@ it("reloads latest browser file contents and refreshes its conflict baseline", a
   expect(loaded?.diskText).toBe(loaded?.text);
   expect(loaded?.handle).toBe(handle);
 });
+
+it("uses a stable Open picker ID so the browser can remember its directory", async () => {
+  const { openFile } = await import("../src/platform/files");
+  const { handle } = fixture("{}");
+  const picker = vi.fn(async () => [handle]);
+  vi.stubGlobal("showOpenFilePicker", picker);
+  try {
+    await openFile();
+    await openFile();
+    expect(picker).toHaveBeenCalledTimes(2);
+    for (const [options] of picker.mock.calls as unknown as [
+      Record<string, unknown>,
+    ][])
+      expect(options.id).toBe("lattice-open-json");
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});

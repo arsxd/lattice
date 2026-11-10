@@ -32,7 +32,7 @@ import {
   type Opened,
 } from "./platform/files";
 import { SourceEditor } from "./editor/SourceEditor";
-import { scalarText } from "./editor/scalar";
+import { scalarText, cellInputKind } from "./editor/scalar";
 import {
   packRecovery,
   unpackRecovery,
@@ -576,10 +576,7 @@ export default function App() {
   ) {
     if (!view || !client.current || busy || cell.writable === false) return;
     const blank = cell.type === "missing" || cell.type === "null";
-    const kind: Kind =
-      cell.type === "missing" || cell.type === "null"
-        ? (cell.inputKind ?? "string")
-        : cell.type;
+    const kind = cellInputKind(cell);
     if (cell.container || kind === "object" || kind === "array") {
       await edit(cell);
       return;
@@ -1641,10 +1638,7 @@ export default function App() {
                       onCommit={async (value) => {
                         if (!selection) return;
                         const c = selection.cell;
-                        const kind =
-                          c.type === "missing" || c.type === "null"
-                            ? (c.inputKind ?? "string")
-                            : c.type;
+                        const kind = cellInputKind(c);
                         const raw =
                           value === "" && kind !== "string"
                             ? "null"
@@ -1926,7 +1920,16 @@ export default function App() {
                         if (event.key === "Enter" || event.key === "F2") {
                           event.preventGridDefault();
                           event.preventDefault();
-                          if (cell.container && event.key === "Enter")
+                          if (
+                            (cell.type === "null" || cell.type === "missing") &&
+                            valueColumn(Number(args.column.key))
+                          )
+                            void startInline(
+                              cell,
+                              args.rowIdx,
+                              Number(args.column.key),
+                            );
+                          else if (cell.container && event.key === "Enter")
                             void navigate(cell.path);
                           else if (cell.container) void edit(cell);
                           else if (event.key === "Enter")
@@ -1985,37 +1988,39 @@ export default function App() {
               )}
               {mode === "source" && (
                 <>
-                  <div className="source-actions">
-                    <span>
-                      {sourceDirty
-                        ? "Source draft has unapplied changes"
-                        : "Source matches the document"}
-                    </span>
-                    <div className="spacer" />
-                    <button
-                      disabled={!sourceDirty || busy}
-                      onClick={() => setSource(sourceBase)}
-                    >
-                      Discard draft
-                    </button>
-                    <button
-                      className="primary"
-                      disabled={!sourceDirty || busy}
-                      onClick={() =>
-                        void run(async () => {
-                          await client.current!.call("source", {
-                            text: source,
-                            revision: sourceRevision,
-                          });
-                          setSelection(null);
-                          await refresh();
-                          await showSource();
-                        })
-                      }
-                    >
-                      Apply source
-                    </button>
-                  </div>
+                  {sourceDirty && (
+                    <div className="source-actions">
+                      <span>
+                        {sourceDirty
+                          ? "Source draft has unapplied changes"
+                          : "Source matches the document"}
+                      </span>
+                      <div className="spacer" />
+                      <button
+                        disabled={!sourceDirty || busy}
+                        onClick={() => void run(showSource)}
+                      >
+                        Discard draft
+                      </button>
+                      <button
+                        className="primary"
+                        disabled={!sourceDirty || busy}
+                        onClick={() =>
+                          void run(async () => {
+                            await client.current!.call("source", {
+                              text: source,
+                              revision: sourceRevision,
+                            });
+                            setSelection(null);
+                            await refresh();
+                            await showSource();
+                          })
+                        }
+                      >
+                        Apply source
+                      </button>
+                    </div>
+                  )}
                   <SourceEditor
                     value={source}
                     onChange={setSource}
@@ -2057,7 +2062,19 @@ export default function App() {
                       <button
                         className="primary"
                         disabled={busy}
-                        onClick={() => void edit(selection.cell)}
+                        onClick={() => {
+                          if (
+                            activeCell &&
+                            (selection.cell.type === "null" ||
+                              selection.cell.type === "missing")
+                          )
+                            void startInline(
+                              selection.cell,
+                              activeCell.row,
+                              activeCell.column,
+                            );
+                          else void edit(selection.cell);
+                        }}
                       >
                         Edit value
                       </button>

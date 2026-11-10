@@ -163,3 +163,31 @@ it("exposes array groups inside a single wrapper as sheets", () => {
     ["swc_interface", "phy_params"],
   ]);
 });
+it("keeps established columns when filling a field missing from the first row", () => {
+  const d = new DocumentEngine('[{}, {"a":1,"b":2}]');
+  const q = { path: [], records: true, search: "", page: 0 };
+  const before = d.project(q).headers;
+  d.mutate({ action: "insert", path: [0], key: "b", raw: "9" }, 0);
+  expect(d.project(q).headers).toEqual(before);
+  d.mutate({ action: "insert", path: [0], key: "a", raw: "8" }, d.revision);
+  expect(d.project(q).headers).toEqual(before);
+  d.undo();
+  expect(d.project(q).headers).toEqual(before);
+});
+it("retains the renamed column position through batch and Undo", () => {
+  const d = new DocumentEngine('[{"a":1,"b":2}]');
+  const q = { path: [], records: true, search: "", page: 0 };
+  d.project(q);
+  d.mutate(
+    {
+      action: "batch",
+      commands: [
+        { action: "column-edit", path: [], key: "a", name: "renamed" },
+      ],
+    },
+    0,
+  );
+  expect(d.project(q).headers).toEqual(["Index", "renamed", "b"]);
+  d.undo();
+  expect(d.project(q).headers).toEqual(["Index", "a", "b"]);
+});

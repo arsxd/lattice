@@ -374,3 +374,18 @@ Projection now supplies sheets after descending a chain of single-object wrapper
 ### Release 0.1.1 publication — 2026-11-10
 
 Version metadata and README direct download point to v0.1.1. The Windows dropdown/primitive-array/metadata-column/nested-sheet fixes are packaged as a new development preview, preserving v0.1.0. Published assets are the HTML, ZIP with instructions, and SHA256SUMS.txt. Release publication is verified separately through GitHub CLI; Windows visual confirmation remains pending.
+
+
+### Remember browser picker folders — 2026-11-10
+
+Browser Open now passes stable id lattice-open-json. Save as uses the separate lattice-save-json ID. Chromium can retain last-used directories per picker ID without the app storing absolute filesystem paths. This is browser-managed state, not a cross-browser or cross-origin guarantee. Moving the offline HTML, clearing browser data, private mode, unsupported APIs or managed policies may reset/prevent it. Fallback HTML file inputs remain controlled by the browser. Added mocked Open options regression test; actual Windows dialog persistence still needs user confirmation.
+
+### Source draft controls / CRLF correction — 2026-11-10
+
+Source Apply/Discard controls now render only for a real draft. CodeMirror uses the initial document's LF/CRLF line separator and sliceDoc for emitted changes; state.toText equality avoids rewriting normalized CRLF text when merely opening Source. Prop-driven editor synchronization is guarded so it does not emit user-edit callbacks. Discard draft reloads canonical worker text and revision through showSource rather than relying only on a potentially stale draft baseline. Added CRLF open/equality and restore regression tests. Real browser source-edit/discard interaction still requires confirmation. Picker-folder IDs from the previous change are included in this local build; GitHub v0.1.1 assets do not yet contain these subsequent fixes.
+
+### Null cell entry and stable columns — 2026-11-10
+
+Blank/null/missing cells use a scalar input kind (consistent numeric/boolean/text hint, otherwise text) rather than falling into a null/object type dialog. Enter/F2 on blank cells and Details Edit value use the inline editor; the value bar shares the same kind resolution. Existing nonblank values retain their types. Unknown blank columns default to text; this is not automatic JSON type inference from arbitrary typed strings.
+
+Record projections retain an established per-table column order in worker memory, so inserting missing fields in early rows does not reorder the grid. Column rename preserves its position, including atomic batches and Undo. Order is session projection state, not an extra JSON property or schema; reopening a file can rediscover order from stored property order. Added regressions for missing-first-row fields, blank kind resolution and rename/Undo ordering. Actual browser entry/focus confirmation remains pending.
