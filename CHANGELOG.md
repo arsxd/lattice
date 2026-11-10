@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.5 — 2026-11-11 (web development preview)
+
+- Replaced work-specific demo themes with a fictional bookshop catalogue, store orders and application settings.
+- Added downloadable generic examples, value-shape fixtures, before/after review pair and screenshot recipes.
+- Bundled demo now opens the books sheet from the canonical example JSON.
+- 79 automated tests pass, including example validity and exact numeric token preservation.
+
+
 ## 0.1.4 — 2026-11-11 (web development preview)
 
 - Web-only release line on main; native desktop and experimental work retained on dev.

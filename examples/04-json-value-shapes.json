@@ -1,0 +1,8 @@
+{
+  "scalars": {"text":"Notebook", "empty_text":"", "number":42, "zero":0, "enabled":true, "disabled":false, "unset":null},
+  "simple_arrays": {"single":[100], "numbers":[1,2,3,4], "states":["open","closed","unknown"], "mixed":["text",42,false,null], "empty":[]},
+  "optional_fields": [{"name":"Primary","limit":100,"note":"Configured"},{"name":"Secondary","limit":null},{"name":"Spare","note":"Limit deliberately absent"}],
+  "precision": {"large_id":9007199254740993,"large_exponent":1e400,"negative_zero":-0,"decimal":0.123456789012345678901,"numeric_text":"00127"},
+  "nested_array": [[1,2],[3,4]],
+  "empty_object": {}
+}

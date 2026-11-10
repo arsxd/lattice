@@ -4,7 +4,7 @@ Edit JSON with a spreadsheet-style interface. Open a local file, work with cells
 
 ## Download and run
 
-1. [Download Lattice-Offline.html](https://github.com/arsxd/lattice/releases/download/v0.1.4/Lattice-Offline.html).
+1. [Download Lattice-Offline.html](https://github.com/arsxd/lattice/releases/download/v0.1.5/Lattice-Offline.html).
 2. Open the downloaded file in your browser.
 3. Choose **Open…** for your data, or **Explore sample workspace** to try the features.
 4. Save using supported browser file access, or Download an edited copy.
@@ -30,13 +30,15 @@ The public release line is `main` and distributes the browser/offline client onl
 
 Experimental features and the native desktop project are retained on `dev`. They are not part of the current release. Freeze panes was removed from the release line after reported problems.
 
-Limits: 500-row pages, 200 record fields, 10,000-cell bulk operations, and 2,000 distinct checklist values. Paste cannot grow the table or span pages. No formula evaluation, full Excel compatibility, ARXML importer or AUTOSAR validation.
+Limits: 500-row pages, 200 record fields, 10,000-cell bulk operations, and 2,000 distinct checklist values. Paste cannot grow the table or span pages. No formula evaluation, full Excel compatibility or schema validation.
 
 ## Sample workspace
 
-The bundled synthetic workspace includes a keyed signal table, an interface array, primitive-array cells, blank values, booleans, nested mappings, precision-sensitive numbers and nested parameter groups. It contains no proprietary data and makes no AUTOSAR conformance claim.
+[Downloadable examples and screenshot recipes](examples/README.md) cover a fictional bookshop, store orders, application settings, JSON value shapes and a before/after review pair.
 
-For a screenshot: open the sample, select the signals sheet, choose a useful column filter or nested mapping, and capture the actual UI. Use the interfaces sheet for an array-of-records example. Screenshots should reflect the released app; none are fabricated or included as unverified mockups.
+The bundled fictional bookshop contains a keyed catalogue, orders, reading lists, simple arrays, blanks, nested details and precision-sensitive numbers. No work-specific schemas or datasets are used.
+
+For a screenshot: open the sample, select the books sheet, choose a useful column filter or nested book details, and capture the actual UI. Use the orders sheet for an array-of-records example. Screenshots should reflect the released app; none are fabricated or included as unverified mockups.
 
 ## Develop
 

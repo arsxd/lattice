@@ -1,0 +1,49 @@
+{
+  "application": {
+    "appearance": [
+      {
+        "name": "theme",
+        "value": "system",
+        "enabled": true
+      },
+      {
+        "name": "font_size",
+        "value": 14,
+        "enabled": true
+      },
+      {
+        "name": "compact_mode",
+        "value": false,
+        "enabled": true
+      }
+    ],
+    "notifications": [
+      {
+        "name": "email_digest",
+        "frequency": "weekly",
+        "enabled": true,
+        "days": [
+          "Monday"
+        ]
+      },
+      {
+        "name": "desktop_alerts",
+        "frequency": "instant",
+        "enabled": false,
+        "days": []
+      }
+    ],
+    "environments": {
+      "local": {
+        "url": "http://localhost:3000",
+        "retries": 0,
+        "enabled": true
+      },
+      "preview": {
+        "url": "https://preview.example.com",
+        "retries": 3,
+        "enabled": false
+      }
+    }
+  }
+}

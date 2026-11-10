@@ -1,0 +1,458 @@
+{
+  "books": {
+    "BK-001": {
+      "title": "The Lantern Atlas",
+      "category": "Fiction",
+      "price": 14.5,
+      "stock": 24,
+      "available": true,
+      "tags": [
+        "fiction",
+        "hardcover"
+      ],
+      "details": {
+        "edition": 1,
+        "pages": 160,
+        "language": "en",
+        "note": null
+      }
+    },
+    "BK-002": {
+      "title": "Small Garden Notebook",
+      "category": "Gardening",
+      "price": 22,
+      "stock": 8,
+      "available": true,
+      "tags": [
+        "gardening",
+        "paperback"
+      ],
+      "details": {
+        "edition": 2,
+        "pages": 172,
+        "language": "en",
+        "note": ""
+      }
+    },
+    "BK-003": {
+      "title": "Paper Cities",
+      "category": "Travel",
+      "price": 18.75,
+      "stock": 0,
+      "available": false,
+      "tags": [
+        "travel",
+        "paperback"
+      ],
+      "details": {
+        "edition": 3,
+        "pages": 184,
+        "language": "en",
+        "note": ""
+      }
+    },
+    "BK-004": {
+      "title": "A Quiet Kitchen",
+      "category": "Cooking",
+      "price": 26,
+      "stock": 16,
+      "available": true,
+      "tags": [
+        "cooking",
+        "hardcover"
+      ],
+      "details": {
+        "edition": 1,
+        "pages": 196,
+        "language": "en",
+        "note": ""
+      }
+    },
+    "BK-005": {
+      "title": "The Last Postcard",
+      "category": "Fiction",
+      "price": 12,
+      "stock": 35,
+      "available": true,
+      "tags": [
+        "fiction",
+        "paperback"
+      ],
+      "details": {
+        "edition": 2,
+        "pages": 208,
+        "language": "en",
+        "note": null
+      }
+    },
+    "BK-006": {
+      "title": "Patterns in Nature",
+      "category": "Science",
+      "price": 29.95,
+      "stock": 4,
+      "available": true,
+      "tags": [
+        "science",
+        "paperback"
+      ],
+      "details": {
+        "edition": 3,
+        "pages": 220,
+        "language": "en",
+        "note": ""
+      }
+    },
+    "BK-007": {
+      "title": "The Weekend Baker",
+      "category": "Cooking",
+      "price": 24,
+      "stock": 12,
+      "available": true,
+      "tags": [
+        "cooking",
+        "hardcover"
+      ],
+      "details": {
+        "edition": 1,
+        "pages": 232,
+        "language": "en",
+        "note": ""
+      }
+    },
+    "BK-008": {
+      "title": "Maps of Tomorrow",
+      "category": "Design",
+      "price": 32,
+      "stock": 0,
+      "available": false,
+      "tags": [
+        "design",
+        "paperback"
+      ],
+      "details": {
+        "edition": 2,
+        "pages": 244,
+        "language": "en",
+        "note": ""
+      }
+    },
+    "BK-009": {
+      "title": "The Glass Orchard",
+      "category": "Fiction",
+      "price": 16.5,
+      "stock": 18,
+      "available": true,
+      "tags": [
+        "fiction",
+        "paperback"
+      ],
+      "details": {
+        "edition": 3,
+        "pages": 256,
+        "language": "en",
+        "note": null
+      }
+    },
+    "BK-010": {
+      "title": "Everyday Sketching",
+      "category": "Art",
+      "price": 19,
+      "stock": 7,
+      "available": true,
+      "tags": [
+        "art",
+        "hardcover"
+      ],
+      "details": {
+        "edition": 1,
+        "pages": 268,
+        "language": "en",
+        "note": ""
+      }
+    },
+    "BK-011": {
+      "title": "The Midnight Library Cart",
+      "category": "Fiction",
+      "price": 15,
+      "stock": 11,
+      "available": true,
+      "tags": [
+        "fiction",
+        "paperback"
+      ],
+      "details": {
+        "edition": 2,
+        "pages": 280,
+        "language": "en",
+        "note": ""
+      }
+    },
+    "BK-012": {
+      "title": "Cloud Watching",
+      "category": "Science",
+      "price": 21.5,
+      "stock": 6,
+      "available": true,
+      "tags": [
+        "science",
+        "paperback"
+      ],
+      "details": {
+        "edition": 3,
+        "pages": 292,
+        "language": "en",
+        "note": ""
+      }
+    },
+    "BK-013": {
+      "title": "The Copper Compass",
+      "category": "Travel",
+      "price": 18,
+      "stock": 20,
+      "available": true,
+      "tags": [
+        "travel",
+        "hardcover"
+      ],
+      "details": {
+        "edition": 1,
+        "pages": 304,
+        "language": "en",
+        "note": null
+      }
+    },
+    "BK-014": {
+      "title": "A House of Pages",
+      "category": "Design",
+      "price": 27,
+      "stock": 9,
+      "available": true,
+      "tags": [
+        "design",
+        "paperback"
+      ],
+      "details": {
+        "edition": 2,
+        "pages": 316,
+        "language": "en",
+        "note": ""
+      }
+    },
+    "BK-015": {
+      "title": "The Curious Teapot",
+      "category": "Fiction",
+      "price": 13.5,
+      "stock": 28,
+      "available": true,
+      "tags": [
+        "fiction",
+        "paperback"
+      ],
+      "details": {
+        "edition": 3,
+        "pages": 328,
+        "language": "en",
+        "note": ""
+      }
+    },
+    "BK-016": {
+      "title": "Walking the Coast",
+      "category": "Travel",
+      "price": 23,
+      "stock": 5,
+      "available": true,
+      "tags": [
+        "travel",
+        "hardcover"
+      ],
+      "details": {
+        "edition": 1,
+        "pages": 340,
+        "language": "en",
+        "note": ""
+      }
+    }
+  },
+  "orders": [
+    {
+      "order_id": "ORD-1001",
+      "book_id": "BK-001",
+      "quantity": 1,
+      "status": "Packed",
+      "paid": true,
+      "shipping": {
+        "method": "Standard",
+        "gift": true
+      },
+      "note": "Gift wrap requested"
+    },
+    {
+      "order_id": "ORD-1002",
+      "book_id": "BK-002",
+      "quantity": 2,
+      "status": "Shipped",
+      "paid": true,
+      "shipping": {
+        "method": "Express",
+        "gift": false
+      },
+      "note": null
+    },
+    {
+      "order_id": "ORD-1003",
+      "book_id": "BK-003",
+      "quantity": 3,
+      "status": "Pending",
+      "paid": false,
+      "shipping": {
+        "method": "Standard",
+        "gift": false
+      },
+      "note": null
+    },
+    {
+      "order_id": "ORD-1004",
+      "book_id": "BK-004",
+      "quantity": 1,
+      "status": "Delivered",
+      "paid": true,
+      "shipping": {
+        "method": "Express",
+        "gift": true
+      },
+      "note": "Gift wrap requested"
+    },
+    {
+      "order_id": "ORD-1005",
+      "book_id": "BK-005",
+      "quantity": 2,
+      "status": "Packed",
+      "paid": true,
+      "shipping": {
+        "method": "Standard",
+        "gift": false
+      },
+      "note": null
+    },
+    {
+      "order_id": "ORD-1006",
+      "book_id": "BK-006",
+      "quantity": 3,
+      "status": "Shipped",
+      "paid": true,
+      "shipping": {
+        "method": "Express",
+        "gift": false
+      },
+      "note": null
+    },
+    {
+      "order_id": "ORD-1007",
+      "book_id": "BK-007",
+      "quantity": 1,
+      "status": "Pending",
+      "paid": false,
+      "shipping": {
+        "method": "Standard",
+        "gift": true
+      },
+      "note": "Gift wrap requested"
+    },
+    {
+      "order_id": "ORD-1008",
+      "book_id": "BK-008",
+      "quantity": 2,
+      "status": "Delivered",
+      "paid": true,
+      "shipping": {
+        "method": "Express",
+        "gift": false
+      },
+      "note": null
+    },
+    {
+      "order_id": "ORD-1009",
+      "book_id": "BK-009",
+      "quantity": 3,
+      "status": "Packed",
+      "paid": true,
+      "shipping": {
+        "method": "Standard",
+        "gift": false
+      },
+      "note": null
+    },
+    {
+      "order_id": "ORD-1010",
+      "book_id": "BK-010",
+      "quantity": 1,
+      "status": "Shipped",
+      "paid": true,
+      "shipping": {
+        "method": "Express",
+        "gift": true
+      },
+      "note": "Gift wrap requested"
+    },
+    {
+      "order_id": "ORD-1011",
+      "book_id": "BK-011",
+      "quantity": 2,
+      "status": "Pending",
+      "paid": false,
+      "shipping": {
+        "method": "Standard",
+        "gift": false
+      },
+      "note": null
+    },
+    {
+      "order_id": "ORD-1012",
+      "book_id": "BK-012",
+      "quantity": 3,
+      "status": "Delivered",
+      "paid": true,
+      "shipping": {
+        "method": "Express",
+        "gift": false
+      },
+      "note": null
+    }
+  ],
+  "reading_lists": {
+    "weekend": {
+      "name": "Weekend reading",
+      "book_ids": [
+        "BK-001",
+        "BK-005",
+        "BK-012"
+      ],
+      "public": true
+    },
+    "cookbook_club": {
+      "name": "Cookbook club",
+      "book_ids": [
+        "BK-004",
+        "BK-007"
+      ],
+      "public": false
+    },
+    "next_month": {
+      "name": "Next month",
+      "book_ids": [],
+      "public": false
+    }
+  },
+  "precision": {
+    "large_id": 9007199254740993,
+    "large_exponent": 1e400,
+    "negative_zero": -0,
+    "decimal": 0.123456789012345678901,
+    "numeric_text": "00127"
+  },
+  "about": {
+    "name": "Papertrail Bookshop",
+    "synthetic": true,
+    "notice": "All titles, prices and orders are fictional demonstration data."
+  }
+}

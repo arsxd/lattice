@@ -1368,8 +1368,8 @@ export default function App() {
             disabled={busy}
             onClick={() =>
               void run(() =>
-                load({ name: "sample-workspace.json", text: sample }, [
-                  "signals",
+                load({ name: "bookshop-workspace.json", text: sample }, [
+                  "books",
                 ]),
               )
             }

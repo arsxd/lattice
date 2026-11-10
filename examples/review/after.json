@@ -1,0 +1,20 @@
+{
+  "books": {
+    "BK-001": {
+      "title": "The Lantern Atlas",
+      "price": 15.5,
+      "stock": 21
+    },
+    "BK-002": {
+      "title": "Small Garden Notebook",
+      "price": 20,
+      "stock": 8
+    },
+    "BK-004": {
+      "title": "A Quiet Kitchen",
+      "price": 26,
+      "stock": 16
+    }
+  },
+  "revision": "catalog-02"
+}
