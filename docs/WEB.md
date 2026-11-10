@@ -42,6 +42,6 @@ While a document is open, or an operation/unsaved state exists, beforeunload req
 
 ## Verification and artifacts
 
-Current automated suite: 65 tests, including mocked browser Save and reload, engine data integrity, TSV/batch atomicity and exact source ranges. Offline build passed. These tests are not real browser permission or visual checks. See HANDOFF.md for the complete evidence and limitations.
+Current automated suite: 77 tests, including mocked browser Save and reload, engine data integrity, TSV/batch atomicity and exact source ranges. Offline build passed. These tests are not real browser permission or visual checks. See USER-GUIDE.md for supported behavior and limitations.
 
 Generated output, screenshots, dependencies, native target folders and local fixtures are excluded from Git. Rebuild artifacts from the committed source rather than committing local binaries.

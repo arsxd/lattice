@@ -132,8 +132,6 @@ export default function App() {
   const suppressPointerClick = useRef(false);
   const replayingClick = useRef(false);
   const grid = useRef<DataGridHandle>(null);
-  const [frozenRows, setFrozenRows] = useState(0);
-  const [frozenColumns, setFrozenColumns] = useState(1);
   const sessions = useRef(new Map<string, Session>());
   const [activeId, setActiveId] = useState("");
   const [tabVersion, setTabVersion] = useState(0);
@@ -151,7 +149,6 @@ export default function App() {
   const [headerMenu, setHeaderMenu] = useState<number | null>(null);
   useEffect(() => {
     setActiveCell(null);
-    setFrozenRows(0);
     setHeaderMenu(null);
   }, [activeId, query.path.join("\0")]);
   const [selection, setSelection] = useState<Selection | null>(null);
@@ -163,10 +160,6 @@ export default function App() {
     to: number;
     id: number;
   } | null>(null);
-  useEffect(() => {
-    if (view && view.rows.length * (view.headers.length + 1) > 10000)
-      setFrozenRows(0);
-  }, [view?.rows.length, view?.headers.length]);
   const [source, setSource] = useState("");
   const [sourceBase, setSourceBase] = useState("");
   const [sourceRevision, setSourceRevision] = useState(0);
@@ -861,7 +854,7 @@ export default function App() {
               minWidth: i === 0 && view.kind === "array" ? 48 : 80,
               resizable: true,
               sortable: false,
-              frozen: i < frozenColumns,
+              frozen: false,
               renderCell: ({ row, rowIdx }) => {
                 if (inline && inline.row === rowIdx && inline.column === i)
                   return (
@@ -933,7 +926,7 @@ export default function App() {
             })),
           ]
         : [],
-    [view, inline, operationBusy, query, headerMenu, frozenColumns],
+    [view, inline, operationBusy, query, headerMenu],
   );
   const sortColumns: SortColumn[] = query.sort
     ? [
@@ -1375,13 +1368,13 @@ export default function App() {
             disabled={busy}
             onClick={() =>
               void run(() =>
-                load({ name: "example-signals.json", text: sample }, [
+                load({ name: "sample-workspace.json", text: sample }, [
                   "signals",
                 ]),
               )
             }
           >
-            Explore illustrative engineering data
+            Explore sample workspace
           </button>
           <p className="small">
             Local files only. Build limits: UTF-8 input, 64 MiB files, 256
@@ -1567,12 +1560,14 @@ export default function App() {
                     Source
                   </button>
                 </div>
-                <button
-                  aria-label="Toggle value inspector"
-                  onClick={() => setInspector(!inspector)}
-                >
-                  Details
-                </button>
+                {mode === "table" && (
+                  <button
+                    aria-label="Toggle value inspector"
+                    onClick={() => setInspector(!inspector)}
+                  >
+                    Details
+                  </button>
+                )}
               </div>
               {!!view?.diagnostics.length && (
                 <div className="diagnostics" role="alert">
@@ -1688,15 +1683,6 @@ export default function App() {
                       }}
                     />
                   )}
-                  {frozenRows > 0 && (
-                    <style>
-                      {Array.from(
-                        { length: Math.min(frozenRows, view.rows.length) },
-                        (_, r) =>
-                          `.data-grid [role=row][aria-rowindex="${r + 2}"] > [role=gridcell] {position:sticky;inset-block-start:${48 + r * 28}px;z-index:4;background:var(--surface);} .data-grid [role=row][aria-rowindex="${r + 2}"] > [role=gridcell]:nth-child(-n+${frozenColumns + 1}){z-index:5;}`,
-                      ).join("")}
-                    </style>
-                  )}
                   <div className="table-tools">
                     <input
                       id="find"
@@ -1742,56 +1728,6 @@ export default function App() {
                         Clear filters
                       </button>
                     )}
-                    <details className="freeze-controls">
-                      <summary>Freeze panes</summary>
-                      <div>
-                        <label>
-                          Rows{" "}
-                          <select
-                            aria-label="Freeze rows"
-                            value={frozenRows}
-                            disabled={busy}
-                            onChange={(e) => {
-                              const count = Number(e.target.value);
-                              if (
-                                count &&
-                                view.rows.length * (view.headers.length + 1) >
-                                  10000
-                              ) {
-                                setError(
-                                  "Freezing rows is limited to pages with at most 10,000 cells.",
-                                );
-                                return;
-                              }
-                              setFrozenRows(count);
-                            }}
-                          >
-                            {[0, 1, 2, 3, 5].map((n) => (
-                              <option key={n} value={n}>
-                                {n === 0 ? "None" : `First ${n}`}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <label>
-                          Columns{" "}
-                          <select
-                            aria-label="Freeze columns"
-                            value={frozenColumns}
-                            disabled={busy}
-                            onChange={(e) =>
-                              setFrozenColumns(Number(e.target.value))
-                            }
-                          >
-                            {[0, 1, 2, 3, 5].map((n) => (
-                              <option key={n} value={n}>
-                                {n === 0 ? "None" : `First ${n}`}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      </div>
-                    </details>
                     <div className="spacer" />
                     {((query.records && view.recordsAvailable) ||
                       view.total === 0) &&
@@ -1916,7 +1852,6 @@ export default function App() {
                   >
                     <DataGrid<Row>
                       ref={grid}
-                      enableVirtualization={frozenRows === 0}
                       className="data-grid"
                       columns={columns}
                       rows={view.rows}

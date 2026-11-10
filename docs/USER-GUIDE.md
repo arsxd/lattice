@@ -26,13 +26,11 @@ Drag over cells, Shift+click or use Shift+arrows. Copy exports quoted tab-separa
 
 Paste starts at the selection's top-left cell. It validates before applying, rejects incompatible/read-only/nested targets and does not extend the table automatically. It cannot cross pages. A paste is one undo step. Blank pasted cells become null. Ctrl+D/Cmd+D or Fill down copies the top cell of each selected column down; it does not generate numeric sequences.
 
-## Sort, filter and freeze
+## Sort and filter
 
 Header dropdowns contain ascending/descending sort, Clear sort, searchable value checklists and Apply/Cancel. Filters combine across columns. Sorting is view-only; header clicks do not move it to another column. The active column shows an arrow and a summary names the sort.
 
 The checklist contains at most 2,000 distinct values; a truncation notice appears when needed. Clear a column filter to include all its values. Global Find searches the table separately from checklist filters. Clear filters resets active filters.
-
-Freeze panes selects leading rows/columns. Row numbers stay frozen. Frozen rows refer to the current page and reset when changing document/path. Row freezing is disabled for pages exceeding 10,000 projected cells to limit rendering cost. Frozen columns are a workspace display preference.
 
 ## Source and review
 
