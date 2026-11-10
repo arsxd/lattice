@@ -75,6 +75,10 @@ it("uses a stable Open picker ID so the browser can remember its directory", asy
     await openFile();
     await openFile();
     expect(picker).toHaveBeenCalledTimes(2);
+    expect(
+      (picker.mock.calls as unknown as [Record<string, unknown>][])[1][0]
+        .startIn,
+    ).toBe(handle);
     for (const [options] of picker.mock.calls as unknown as [
       Record<string, unknown>,
     ][])

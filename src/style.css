@@ -1047,3 +1047,32 @@ select optgroup {
 .select-inset select {
   background-color: var(--surface);
 }
+.freeze-controls {
+  position: relative;
+}
+.freeze-controls summary {
+  cursor: pointer;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+}
+.freeze-controls > div {
+  position: absolute;
+  z-index: 100;
+  top: 100%;
+  left: 0;
+  min-width: 210px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 12px #0002;
+}
+.freeze-controls label {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}

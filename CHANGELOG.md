@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.3 — 2026-11-10 (development preview)
+
+- Inline editing for object row keys with duplicate-key protection.
+- Explicit last-opened-file folder hint and optional browser handle persistence.
+- Narrower array Index column.
+- Direct primitive-array editing with strict validation and exact numeric tokens.
+- Freeze-pane controls for leading rows/columns; row freezing is page-local and bounded to 10,000 projected cells.
+- 75 automated tests pass; Windows picker persistence and freeze-pane interactions still need runtime confirmation.
+
+
 ## 0.1.2 — 2026-11-10 (development preview)
 
 - Direct inline editing for blank/null cells.

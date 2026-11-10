@@ -83,3 +83,10 @@ it("uses inline scalar types for blank cells instead of the null type editor", a
     }),
   ).toBe("string");
 });
+it("validates inline primitive arrays without converting precise numeric tokens", () => {
+  expect(scalarText("array", '[9007199254740993, 1e400, "001", null]')).toBe(
+    '[9007199254740993, 1e400, "001", null]',
+  );
+  for (const value of ["[1,]", "[01]", '[{"a":1}]', "[[1]]", "[1] true"])
+    expect(() => scalarText("array", value)).toThrow();
+});

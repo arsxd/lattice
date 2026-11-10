@@ -69,6 +69,7 @@ type Session = {
 };
 const sessionDirty = (s: Session) => s.view.dirty || s.source !== s.sourceBase;
 type InlineEdit = {
+  rename?: boolean;
   cell: Cell;
   kind: Kind;
   selectAll: boolean;
@@ -131,6 +132,8 @@ export default function App() {
   const suppressPointerClick = useRef(false);
   const replayingClick = useRef(false);
   const grid = useRef<DataGridHandle>(null);
+  const [frozenRows, setFrozenRows] = useState(0);
+  const [frozenColumns, setFrozenColumns] = useState(1);
   const sessions = useRef(new Map<string, Session>());
   const [activeId, setActiveId] = useState("");
   const [tabVersion, setTabVersion] = useState(0);
@@ -148,6 +151,7 @@ export default function App() {
   const [headerMenu, setHeaderMenu] = useState<number | null>(null);
   useEffect(() => {
     setActiveCell(null);
+    setFrozenRows(0);
     setHeaderMenu(null);
   }, [activeId, query.path.join("\0")]);
   const [selection, setSelection] = useState<Selection | null>(null);
@@ -159,6 +163,10 @@ export default function App() {
     to: number;
     id: number;
   } | null>(null);
+  useEffect(() => {
+    if (view && view.rows.length * (view.headers.length + 1) > 10000)
+      setFrozenRows(0);
+  }, [view?.rows.length, view?.headers.length]);
   const [source, setSource] = useState("");
   const [sourceBase, setSourceBase] = useState("");
   const [sourceRevision, setSourceRevision] = useState(0);
@@ -568,6 +576,23 @@ export default function App() {
       ? index > 0
       : index === (view?.headers.length ?? 0) - 1;
   }
+  function keyEditable(column: number) {
+    return column === 0 && view?.kind === "object" && view.headers.length > 1;
+  }
+  function startKey(cell: Cell, row: number, initial?: string) {
+    if (!view || busy) return;
+    setInline({
+      cell,
+      kind: "string",
+      rename: true,
+      selectAll: initial === undefined,
+      revision: view.revision,
+      value: initial ?? String(cell.path.at(-1) ?? ""),
+      row,
+      column: 0,
+      error: "",
+    });
+  }
   async function startInline(
     cell: Cell,
     row: number,
@@ -577,7 +602,7 @@ export default function App() {
     if (!view || !client.current || busy || cell.writable === false) return;
     const blank = cell.type === "missing" || cell.type === "null";
     const kind = cellInputKind(cell);
-    if (cell.container || kind === "object" || kind === "array") {
+    if (cell.container || kind === "object") {
       await edit(cell);
       return;
     }
@@ -599,7 +624,11 @@ export default function App() {
         ? ""
         : await client.current!.call<string>("raw", { path: cell.path });
       const value =
-        !blank && kind === "string" ? (JSON.parse(raw) as string) : raw;
+        kind === "array"
+          ? raw.replace(/[\r\n\t]+/g, " ")
+          : !blank && kind === "string"
+            ? (JSON.parse(raw) as string)
+            : raw;
       if (value.includes("\n") || value.includes("\r")) {
         setEditing({
           action: "replace",
@@ -708,14 +737,16 @@ export default function App() {
             ? "null"
             : scalarText(current.kind, current.value);
         await mutate(
-          current.cell.type === "missing"
-            ? {
-                action: "insert",
-                path: current.cell.path.slice(0, -1),
-                key: String(current.cell.path.at(-1)),
-                raw,
-              }
-            : { action: "replace", path: current.cell.path, raw },
+          current.rename
+            ? { action: "rename", path: current.cell.path, key: current.value }
+            : current.cell.type === "missing"
+              ? {
+                  action: "insert",
+                  path: current.cell.path.slice(0, -1),
+                  key: String(current.cell.path.at(-1)),
+                  raw,
+                }
+              : { action: "replace", path: current.cell.path, raw },
           current.revision,
         );
         setInline(null);
@@ -826,10 +857,11 @@ export default function App() {
                   </button>
                 </div>
               ),
-              width: i === 0 ? 190 : 155,
+              width: i === 0 ? (view.kind === "array" ? 64 : 150) : 155,
+              minWidth: i === 0 && view.kind === "array" ? 48 : 80,
               resizable: true,
               sortable: false,
-              frozen: i === 0,
+              frozen: i < frozenColumns,
               renderCell: ({ row, rowIdx }) => {
                 if (inline && inline.row === rowIdx && inline.column === i)
                   return (
@@ -901,7 +933,7 @@ export default function App() {
             })),
           ]
         : [],
-    [view, inline, operationBusy, query, headerMenu],
+    [view, inline, operationBusy, query, headerMenu, frozenColumns],
   );
   const sortColumns: SortColumn[] = query.sort
     ? [
@@ -1632,7 +1664,6 @@ export default function App() {
                         !!activeCell &&
                         valueColumn(activeCell.column) &&
                         !selection.cell.container &&
-                        selection.cell.type !== "array" &&
                         selection.cell.writable !== false
                       }
                       onCommit={async (value) => {
@@ -1656,6 +1687,15 @@ export default function App() {
                         );
                       }}
                     />
+                  )}
+                  {frozenRows > 0 && (
+                    <style>
+                      {Array.from(
+                        { length: Math.min(frozenRows, view.rows.length) },
+                        (_, r) =>
+                          `.data-grid [role=row][aria-rowindex="${r + 2}"] > [role=gridcell] {position:sticky;inset-block-start:${48 + r * 28}px;z-index:4;background:var(--surface);} .data-grid [role=row][aria-rowindex="${r + 2}"] > [role=gridcell]:nth-child(-n+${frozenColumns + 1}){z-index:5;}`,
+                      ).join("")}
+                    </style>
                   )}
                   <div className="table-tools">
                     <input
@@ -1702,6 +1742,56 @@ export default function App() {
                         Clear filters
                       </button>
                     )}
+                    <details className="freeze-controls">
+                      <summary>Freeze panes</summary>
+                      <div>
+                        <label>
+                          Rows{" "}
+                          <select
+                            aria-label="Freeze rows"
+                            value={frozenRows}
+                            disabled={busy}
+                            onChange={(e) => {
+                              const count = Number(e.target.value);
+                              if (
+                                count &&
+                                view.rows.length * (view.headers.length + 1) >
+                                  10000
+                              ) {
+                                setError(
+                                  "Freezing rows is limited to pages with at most 10,000 cells.",
+                                );
+                                return;
+                              }
+                              setFrozenRows(count);
+                            }}
+                          >
+                            {[0, 1, 2, 3, 5].map((n) => (
+                              <option key={n} value={n}>
+                                {n === 0 ? "None" : `First ${n}`}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          Columns{" "}
+                          <select
+                            aria-label="Freeze columns"
+                            value={frozenColumns}
+                            disabled={busy}
+                            onChange={(e) =>
+                              setFrozenColumns(Number(e.target.value))
+                            }
+                          >
+                            {[0, 1, 2, 3, 5].map((n) => (
+                              <option key={n} value={n}>
+                                {n === 0 ? "None" : `First ${n}`}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                    </details>
                     <div className="spacer" />
                     {((query.records && view.recordsAvailable) ||
                       view.total === 0) &&
@@ -1826,6 +1916,7 @@ export default function App() {
                   >
                     <DataGrid<Row>
                       ref={grid}
+                      enableVirtualization={frozenRows === 0}
                       className="data-grid"
                       columns={columns}
                       rows={view.rows}
@@ -1865,7 +1956,9 @@ export default function App() {
                       onCellDoubleClick={({ row, rowIdx, column }) => {
                         if (busy || Number(column.key) < 0) return;
                         const cell = row.cells[Number(column.key)];
-                        if (cell.container) void navigate(cell.path);
+                        if (keyEditable(Number(column.key)))
+                          startKey(cell, rowIdx);
+                        else if (cell.container) void navigate(cell.path);
                         else if (valueColumn(Number(column.key)))
                           void startInline(cell, rowIdx, Number(column.key));
                       }}
@@ -1875,6 +1968,26 @@ export default function App() {
                           return;
                         if (Number(args.column.key) < 0) return;
                         const cell = args.row.cells[Number(args.column.key)];
+                        if (
+                          keyEditable(Number(args.column.key)) &&
+                          (event.key === "F2" ||
+                            event.key === "Enter" ||
+                            (event.key.length === 1 &&
+                              !event.metaKey &&
+                              !event.ctrlKey &&
+                              !event.altKey &&
+                              !event.nativeEvent.isComposing))
+                        ) {
+                          event.preventGridDefault();
+                          event.preventDefault();
+                          startKey(
+                            cell,
+                            args.rowIdx,
+                            event.key.length === 1 ? event.key : undefined,
+                          );
+                          return;
+                        }
+
                         if (
                           event.key.length === 1 &&
                           !event.metaKey &&

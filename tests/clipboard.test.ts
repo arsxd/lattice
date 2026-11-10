@@ -191,3 +191,17 @@ it("retains the renamed column position through batch and Undo", () => {
   d.undo();
   expect(d.project(q).headers).toEqual(["Index", "a", "b"]);
 });
+it("renames a newly added object row without changing values and rejects duplicate keys", () => {
+  const d = new DocumentEngine('{"1":{"v":9007199254740993}}');
+  d.mutate({ action: "add-row", path: [] }, 0);
+  d.mutate({ action: "rename", path: ["2"], key: "SignalName" }, d.revision);
+  expect(d.raw(["SignalName"])).toBe('{"v": null}');
+  expect(d.raw(["1", "v"])).toBe("9007199254740993");
+  const before = d.text;
+  expect(() =>
+    d.mutate({ action: "rename", path: ["SignalName"], key: "1" }, d.revision),
+  ).toThrow();
+  expect(d.text).toBe(before);
+  d.undo();
+  expect(d.raw(["2", "v"])).toBe("null");
+});

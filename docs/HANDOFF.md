@@ -394,3 +394,22 @@ Record projections retain an established per-table column order in worker memory
 ### Release 0.1.2 — 2026-11-10
 
 Packaged the committed picker, source-draft, blank-cell and stable-column fixes into v0.1.2. Version metadata and README direct link updated. HTML, ZIP and checksums are development preview assets; real browser picker/source editing and Windows coverage remain incomplete.
+
+### Inline object row keys — 2026-11-10
+
+Object-backed table Key cells now support direct typing, double-click and Enter/F2 inline renaming, including generated new-row identifiers. Renames use the existing revision-guarded engine operation, preserving row contents and rejecting duplicate sibling keys. Array indices and scalar-root labels remain read-only. Escape cancels; standard cell commit/movement applies. Added add-row/rename/duplicate-key/Undo regression. Browser focus/typing behavior still needs confirmation.
+
+### Explicit browser Open-folder hint — 2026-11-10
+
+Owner reported the stable picker ID did not retain the Windows folder. Open now passes startIn with the last successfully opened file handle. The handle is kept immediately in memory and saved best-effort in IndexedDB by src/platform/pickerMemory.ts. Initial preload does not delay the user-gesture picker call; first Open before preload finishes can fall back to the stable ID. Storage failure does not prevent opening files. This stores a browser capability handle locally, not document contents or a guessed filesystem path. File-origin storage, private mode, moved HTML copies and managed policy may prevent persistence; no Windows end-to-end success is claimed. Existing picker options test also checks the second Open receives the previous handle.
+
+### Index width, primitive-array editing and freeze panes — 2026-11-10
+
+User's “free rows or columns” was interpreted as freeze panes. Array Index columns use a 64px preferred width/48px minimum; object Key columns prefer 150px. Primitive-only array cells now edit inline (and via the value bar) using strict JSON validation that preserves raw numeric tokens. Pretty-print whitespace is flattened for the single-line editor; objects/nested arrays retain expanded editing/navigation. Invalid/trailing-comma/nested array input is rejected by the primitive-array editor.
+
+Freeze panes controls select first 0/1/2/3/5 rows and data columns. UI row numbers remain frozen. Rows pin within the current 500-row page, not across the whole document. Row freezing disables grid virtualization so pinned rows remain mounted; it is refused/cleared above 10,000 projected cells. Row pinning resets on document/path changes; column preference is workspace UI state. Freeze controls do not modify JSON. Build and 75 tests passed, including precision/invalid-array validation; sticky row scrolling, column positioning and input focus still need visual runtime confirmation. No new release published in this pass.
+
+
+### Release 0.1.3 — 2026-11-10
+
+Packaged pending inline key editing, explicit picker folder hints/persistence, primitive-array editing, narrower Index and freeze-pane controls into a new development preview. Release assets contain HTML, ZIP and checksums; Windows persistence and sticky-row UI behavior remain unverified. Version metadata and README link updated to v0.1.3.

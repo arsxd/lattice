@@ -1,3 +1,4 @@
+import { readPickerHandle, rememberPickerHandle } from "./pickerMemory";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 export const desktop = isTauri();
 type BrowserHandle = {
@@ -14,6 +15,16 @@ type Pickers = {
   showSaveFilePicker?: (options: unknown) => Promise<BrowserHandle>;
 };
 const pickers = globalThis as unknown as Pickers;
+let lastOpenHandle: BrowserHandle | undefined;
+if (!desktop)
+  void readPickerHandle().then((handle) => {
+    if (
+      !lastOpenHandle &&
+      handle &&
+      typeof (handle as BrowserHandle).getFile === "function"
+    )
+      lastOpenHandle = handle as BrowserHandle;
+  });
 export const browserSave =
   !desktop && typeof pickers.showSaveFilePicker === "function";
 export type Opened = {
@@ -61,12 +72,15 @@ export async function openFile(): Promise<Opened | null> {
     try {
       const [handle] = await pickers.showOpenFilePicker({
         id: "lattice-open-json",
+        ...(lastOpenHandle ? { startIn: lastOpenHandle } : {}),
         multiple: false,
         types: [
           { description: "JSON", accept: { "application/json": [".json"] } },
         ],
       });
       const text = await readBrowserFile(handle);
+      lastOpenHandle = handle;
+      void rememberPickerHandle(handle);
       return { name: handle.name, text, handle, diskText: text };
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") return null;
