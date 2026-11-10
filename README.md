@@ -6,7 +6,7 @@ Edit JSON with a spreadsheet-style interface: document tabs, nested tables, inli
 
 ## Use the offline app
 
-**No installation needed:** [download Lattice-Offline.html](https://github.com/arsxd/lattice/releases/latest/download/Lattice-Offline.html), then open the downloaded file in your browser. If no latest stable release exists, use the [Releases page](https://github.com/arsxd/lattice/releases) and select the offline HTML asset from the development preview. The optional ZIP contains the same HTML and brief instructions. Do not use GitHub’s source-code ZIP to run the app directly.
+**No installation needed:** [download Lattice-Offline.html](https://github.com/arsxd/lattice/releases/download/v0.1.0/Lattice-Offline.html), then open the downloaded file in your browser. If no latest stable release exists, use the [Releases page](https://github.com/arsxd/lattice/releases) and select the offline HTML asset from the development preview. The optional ZIP contains the same HTML and brief instructions. Do not use GitHub’s source-code ZIP to run the app directly.
 
 To build from source on a development machine:
 
