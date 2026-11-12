@@ -19,3 +19,7 @@ src-tauri/target/
 
 # Private development notes; never publish
 /.local-notes/
+
+# Browser test artifacts
+/playwright-report/
+/test-results/

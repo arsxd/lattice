@@ -6,7 +6,7 @@ Edit JSON with a spreadsheet-style interface. Open a local file, work with cells
 
 ## Download and run
 
-1. [Download Lattice-Offline.html](https://github.com/arsxd/lattice/releases/download/v0.1.5/Lattice-Offline.html).
+1. [Download Lattice-Offline.html](https://github.com/arsxd/lattice/releases/download/v0.1.6/Lattice-Offline.html).
 2. Open the downloaded file in your browser.
 3. Choose **Open…** for your data, or **Explore sample workspace** to try the features.
 4. Save using supported browser file access, or Download an edited copy.
@@ -22,15 +22,17 @@ No npm, installation or local server is needed to use the downloaded HTML. The r
 - Range selection, TSV copy/paste and fill-down.
 - Column sorting and combined value filters.
 - Simple arrays inside cells, exact numeric tokens and source navigation.
-- Read-only before/after source diff.
+- Editable before/after review with validation, undoable per-change restore and atomic Apply.
+- Frozen rows/columns, resizable panes and compact multiline previews.
+- Optional on-device draft recovery and passive PWA update notifications.
 
-Documents are processed locally. No upload endpoint or analytics integration is implemented. Browser Save requires support and permission; Download is the fallback. The app detects some external-file conflicts but does not lock files or provide browser crash recovery. Browser close/reload warnings are best effort.
+Documents are processed locally. No upload endpoint or analytics integration is implemented. Browser Save requires support and permission; Download is the fallback. The app detects some external-file conflicts but does not lock files. Optional local recovery stores unsaved drafts in this browser, off by default; it does not replace saving. Browser close/reload warnings are best effort.
 
 ## Release scope
 
 The public release line is `main` and distributes the browser/offline client only. The owner tested basic web workflows with real JSON on Windows at work. Broader coverage remains incomplete; keep backups of important files. Automated tests do not establish every browser permission, clipboard, focus or accessibility behavior.
 
-Experimental features and the native desktop project are retained on `dev`. They are not part of the current release. Freeze panes was removed from the release line after reported problems.
+The native desktop project and older experiments remain on `dev` and are not distributed. The current freeze implementation uses measured row heights; row freezing is bounded to 10,000 rendered cells per page and 40% of the grid height. Wider pages retain virtualization and column freezing.
 
 Limits: 500-row pages, 200 record fields, 10,000-cell bulk operations, and 2,000 distinct checklist values. Paste can span pages but cannot grow the table. No formula evaluation, full Excel compatibility or schema validation.
 
@@ -53,7 +55,8 @@ npm run web:dev
 
 | Command | Purpose |
 |---|---|
-| `npm test` | Behavioral checks |
+| `npm test` | Unit/regression checks |
+| `npm run test:browser` | Chromium browser workflows; CI runs Windows and Linux |
 | `npm run offline:build` | Self-contained `output/Lattice-Offline.html` |
 | `npm run web:build` | Static site in `dist/` |
 | `npm run web:preview` | Preview the built site |
@@ -66,3 +69,5 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md), [the web guide](docs/WEB.md) and [CHANG
 Open [Lattice](https://arsxd.github.io/lattice/) in Chrome or Edge and use the browser’s address-bar install icon or install command in its menu. It opens in a separate app window. After the first successful load it can run offline. Installation may be restricted by corporate browser policy. Your JSON stays in your browser. The single-file offline download remains available.
 
 The hosted welcome page includes dismissible installation guidance. It shows **Install Lattice** when the browser offers a direct prompt, and browser-menu instructions otherwise. It stays out of the editing workspace; **Not now** hides it for the browser session.
+
+Updates wait until every Lattice window/tab closes. **Update available** in the status bar explains how to save and reopen; it never forces a reload. See the [Windows verification guide](docs/WINDOWS.md) for managed-laptop checks and the distinction between automated Windows testing and corporate-policy verification.

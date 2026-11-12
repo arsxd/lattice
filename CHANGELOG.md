@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.1.6 — 2026-11-13
+
+- Editable validated Review with draft undo/redo, per-region Restore and strict atomic Apply; LF/CRLF-safe synchronization and tab continuity.
+- Reload preserves compatible query, page, active cell and scroll, with removed-field safeguards.
+- Measured-height frozen rows and native frozen columns with explicit rendering/viewport bounds.
+- Opt-in per-window IndexedDB recovery with Web Locks, durable adoption and incomplete-draft recovery.
+- Passive PWA update-ready status; no forced reload.
+- Windows/Linux Chromium browser checks gate deployment; updated offline download and verification guide.
+
 
 - Fixed squeezed Details tables with readable column widths, single-line headers, three-line value previews and bounded internal scrolling.
 

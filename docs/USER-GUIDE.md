@@ -40,7 +40,9 @@ Select a cell, then Source to locate its exact JSON token. Missing fields have n
 
 Merely viewing source should not create a draft. Editing source reveals Apply source / Discard draft. Apply commits to the document engine; Discard reloads committed text. These are distinct from saving the file to disk.
 
-Review changes compares the last opened/saved baseline against the current committed text. It is a read-only aligned diff with navigation and collapsed unchanged areas, not a comparison against the newest disk file or a three-way merge tool.
+Review changes compares the opened/saved baseline on the left with an editable current draft on the right. **Restore** beside a changed region copies that baseline region into the draft; it does not save or immediately change the table. **Undo draft / Redo draft** and the usual editor shortcuts undo draft changes, including Restore. **Validate** checks JSON syntax and existing size/depth limits in a worker. **Apply changes** is enabled only for a valid changed draft and commits it as one document undo step. **Discard draft** restores the committed document, keeping edits already made in the table.
+
+Previous/Next change highlights changed regions. Show/Hide unchanged lines can be toggled repeatedly without losing draft edits. Drafts survive document-tab switching. Apply or discard a Review draft before switching to Table/Source or saving. This compares against the baseline, not a newly modified disk file; it is not a three-way merge tool.
 
 ## Save and external editors
 
@@ -48,7 +50,7 @@ Where browser APIs permit, Open retains a file handle, Save writes back, and Sav
 
 Download exports a copy. The document stays dirty because the app cannot confirm the download was saved. Keep the exported file before closing. Browser file access is not guaranteed after page reload.
 
-Reload source refreshes from a retained handle or asks you to choose the source again. Confirming reload replaces only the active document and resets undo history. It retains the current nested location (or its nearest existing parent), with sort and filters retained when columns are compatible; the page resets to the first page. Cancel retains your work.
+Reload source refreshes from a retained handle or asks you to choose the source again. Confirming reload replaces only the active document and resets undo history. It retains the current nested location (or its nearest existing parent), with sort/filter columns remapped by name and column role. It restores the selected row/cell path and its page when still present, plus scroll position when that row remains on the page. Missing cells clear selection; multi-cell ranges collapse to their active cell. Array indices retain positions, not semantic record identity if an external editor reorders array elements. Cancel retains your work.
 
 ## Troubleshooting and reports
 
@@ -91,11 +93,11 @@ History resets after source reload or applying a source draft. If an earlier loc
 
 The home icon opens the document root. The sidebar and status bar show the current filename; the breadcrumb shows the JSON location. Browser file handles do not expose an absolute disk path, so the app does not invent one.
 
-## Freeze panes status
+## Freeze panes
 
-Custom freeze rows/columns remains experimental on `dev` and is absent from the public app. The old implementation used fixed row offsets and is incompatible with the new variable row heights. The row-number gutter remains pinned; this is separate from custom freeze panes.
+Use **Freeze** beside Wrap text for **Freeze first row**, **Freeze first column**, or **Freeze above and left of selection**. The last option keeps rows above and columns left of the active cell visible. **Unfreeze panes** clears both. The row-number gutter stays pinned independently.
 
-Find is on the right of the bottom bar alongside wrapping and page navigation. Ctrl+F / Cmd+F focuses it in Table view. Add actions, wrapping, pagination, Find and active sort/filter summaries share that bottom bar. Row/column counts and selection size appear in the bottom status bar, separate from action buttons. Document tabs align with the table area when Browse is open; the Browse control stays above its pane.
+Freeze is a view setting for the current document/table, not JSON data. It follows displayed positions after sorting/filtering and applies to each displayed page. Row offsets use the current wrapped/manual heights. Frozen rows may occupy at most 40% of the grid height; frozen columns must leave at least 40% of the width scrollable. Row freezing supports pages with at most 10,000 rendered cells, including the gutter. This mode renders the bounded page to retain editable frozen rows. Wider pages keep virtualization and column freezing. If resizing or wrapping makes a stored freeze unsafe, the menu reports that it is paused; reduce the freeze or unfreeze.
 
 ## Large selected values
 
@@ -114,3 +116,15 @@ Double-click or Enter on a nested collection name opens its table; F2 renames an
 **Browse** sits above the left pane; **Details** stays beside Review changes. Drag either pane boundary to resize it. Focus the boundary and use Left/Right for keyboard resizing, or Home/double-click to reset. Only pane widths are stored locally, never JSON content. The right pane overlays the workspace at narrower window sizes. Column titles wrap to two lines when needed, independently of data wrapping.
 
 Long-running actions show a small ring spinning in place after a brief delay. Reload confirmation uses a compact status toast without moving the grid. Busy actions remain disabled to prevent repeated requests.
+
+## Optional local recovery
+
+**Local recovery** is off by default and can be enabled on the welcome screen or bottom status bar. It stores raw unsaved document contents in this browser's IndexedDB on this device; no upload occurs. Enable it only when retaining local copies is appropriate. It requires Web Locks for safe separation between active app windows. Storage/policy failures are shown as errors, not reported as saved work.
+
+After edits settle for two seconds, committed table edits and Source/Review drafts are checkpointed, including incomplete JSON. In-progress cell input is not checkpointed until committed. On reopening after an interrupted session, choose **Restore draft** to open recovered documents as unsaved new tabs, or **Discard recovered draft**. Restore durably adopts the drafts before deleting the older checkpoint. Files must be saved again; recovery does not reconnect a file handle or restore undo history. Saved/closed documents leave the next checkpoint. Turning recovery off removes stored recovery drafts; open documents are unaffected.
+
+Recovery is best effort: a crash before the debounce, browser data deletion/eviction, storage denial or private mode may prevent recovery. Per-document recovery data is limited to 64 MiB of UTF-16 text/name memory, with 128 MiB total across windows; these differ from file-byte limits. Active windows use separate slots and are excluded from recovery prompts.
+
+## Installed-app updates
+
+When a newer cached application waits to activate, the status bar shows **Update available**. It explains how to save and close every Lattice window/tab, then reopen. **Keep working** dismisses the explanation without reloading or discarding your work. The app checks periodically and when it becomes visible. Offline checks may wait until connectivity returns. The downloaded HTML is updated by downloading the newer release file instead.

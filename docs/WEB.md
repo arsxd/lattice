@@ -1,71 +1,40 @@
-# Lattice web and offline clients
+# Web architecture and verification
 
-Current application: **Lattice — JSON Workbench**. Updated 2026-11-13.
+Lattice 0.1.6 distributes a hosted PWA and a single-file offline HTML. Native apps are not released. Node 24 is for development only; end users need only a supported desktop browser.
 
-## Offline use
+## Build and verification
 
-Build on a developer machine with `npm ci` then `npm run offline:build`. Transfer `output/Lattice-Offline.html` to the end-user computer and open it in a browser. Node, Rust and a local server are not required there. The HTML embeds application code, styles, favicon and document worker. The packager also refreshes the old JSON-Workbench/JSON-Ledger filenames locally; Lattice is the canonical filename.
+- `npm ci`, `npm test`: engine, state and platform regression checks.
+- `npm run test:browser`: Playwright Chromium workflow checks against a dedicated local preview server. CI runs these on Windows and Linux and gates Pages deployment on both jobs.
+- `npm run offline:build`: builds `output/Lattice-Offline.html`, embedding code, styles, favicon, document/validation workers.
+- `npm run pwa:build`: creates `dist` with a manifest, icons and hashed-cache service worker.
 
-The project owner reported basic browser use works. That does not verify all Windows, corporate-policy, permission, clipboard or focus scenarios. Browsers may restrict file URLs and downloads; never bypass managed security controls. The hosted app is at https://arsxd.github.io/lattice/. No document-upload endpoint is implemented.
+GitHub Pages deploys only `main` after verification. Feature-branch workflow dispatch verifies without deployment. Generated output, traces, local fixtures and private development notes are ignored by Git.
 
-## Development and static hosting
+## Data and revisions
 
-```sh
-npm ci
-npm run web:dev
-```
+Each document has its own worker-backed text/AST engine. Mutations and bulk operations guard the canonical revision; numbers and string tokens are retained as text. Review validation uses a separate worker. Its baseline is read-only, current pane editable; per-hunk restore changes only the draft. Strict review Apply validates again in the canonical worker and creates one undoable document commit. Source can still represent invalid repair drafts. LF/CRLF replacement and cross-pane restoration use CodeMirror Text to avoid doubled carriage returns.
 
-For a static server build:
+Reload retains the nearest available nested location, remaps query columns by name and role, locates the previous row once after filtering/sorting, and restores its page/active cell and compatible scroll position. Deleted cells clear selection. Multi-cell ranges collapse to the active cell. Array paths are positional; no heuristic record identity is invented. Reload resets undo/navigation history.
 
-```sh
-npm run web:build
-npm run web:preview
-```
+## Local persistence and file access
 
-Host `dist/` over HTTP(S). The multi-file dist entry point is not the offline deliverable; use the packaged HTML for direct-file use. For installation/offline caching, build with `npm run pwa:build`; the generated service worker caches application assets only.
+Browser file handles provide Save when supported and authorized. Save checks decoded disk contents against the baseline before writing and confirms success only after stream closure. This is conflict detection, not an exclusive lock; external races remain possible. Other browsers use file input and Download, retaining dirty state because downloading is not confirmed disk saving. Browser handles do not reveal absolute paths.
 
-## Open, Save and external changes
+Picker hints and layout preferences are optional metadata. JSON recovery is separate and OFF by default. Enabling **Local recovery** stores raw unsaved name/text records in IndexedDB after a two-second debounce. Per-window UUID keys and held Web Locks prevent overwriting or recovering a live window. Startup restore checkpoints the adopted workspace before deleting older records. Disable clears recovery data; save/close removes clean documents from subsequent snapshots. Invalid source/review drafts can be recovered. Uncommitted cell input, undo history and file handles are not recovered. Quota, unsupported APIs or damaged records produce visible errors and retain previous valid snapshots where possible. Recovery is not a crash-proof disk save.
 
-Supported browser picker APIs retain a file handle. Save writes back after checking current decoded contents against the baseline; Save as selects a destination. Success is reported only after writable-stream closure. External-change detection is not a file lock and cannot eliminate races. Unsupported browsers use a file input and Download, which exports a copy and retains dirty state because successful saving cannot be confirmed. Real permission/revocation and file:// Save flows remain incompletely verified.
+## Installation, updates and privacy
 
-Reload source reads the retained handle, or asks the user to choose the file again. It prompts before discarding edits and resets history, sorting, filters and navigation for that document. It does not watch the source continuously.
+[Hosted app](https://arsxd.github.io/lattice/) installation uses the browser's own prompt/menu. Welcome guidance is dismissible and stays out of the editor toolbar. A waiting service worker exposes **Update available** in the existing status area. Updates never call skipWaiting or force reload; save and close all app tabs/windows before reopening. Hourly/visibility update checks carry no document content.
 
-## Selection, source and filters
+The service worker caches application assets, not JSON files. Once successfully cached, the shell works offline. JSON recovery, if explicitly enabled, is local IndexedDB storage independent of that asset cache. The standalone HTML has no manifest, does not register a service worker and shows no install/update guidance, even when served over HTTP. No document-upload endpoint or analytics integration is implemented. This cannot establish what corporate endpoint software observes; see [Windows checks](WINDOWS.md).
 
-Header menus are the column-filter/sort entry point. Global Find and Clear filters remain; the duplicate toolbar column-filter input is removed. Sorting changes only through the menu, with a persistent arrow and summary. Source navigates to the active selected cell; there is no standalone source-jump row. The source editor draws the located selection. Right-click menus dismiss on outside click or Escape.
+## Rendering and freeze limits
 
-The value bar appears for a selected cell. Header filter menus anchor to their trigger, adjust near viewport edges, and use an inset search focus border. Visual/browser confirmation of the latest changes is still pending.
+The table uses 500-row pages and virtualized columns/rows. Frozen columns use the grid's native support. Frozen rows use the public editable Row renderer with measured cumulative heights and bounded page rendering: at most 10,000 cells including the gutter, at most 40% viewport height. Larger pages retain virtualization and column freezing. Resizing/wrapping can pause unsafe freezes; no fixed-height row offsets or private grid internals are used.
 
-## Leaving the page
+Details tables cap 20 rows, 10 columns, 100 cells, 32,768 source characters and 12 AST levels. The scroll region is at most 288px high; headers stay single-line and values at most three lines. Raw JSON previews cap 8,192 characters, value-bar previews 4,096; truncated scalar previews are read-only. Exact Source/Copy JSON remain available. These bounds do not guarantee every accepted 64 MiB file will feel equally responsive.
 
-While a document is open, or an operation/unsaved state exists, beforeunload requests the browser's reload/close confirmation. The browser owns the text and may suppress the dialog. There is no browser recovery journal and no guarantee against crash, process termination or every mobile lifecycle event. Save work before leaving.
+## Verification boundaries
 
-## Verification and artifacts
-
-Current automated suite: 102 tests, including mocked browser Save and reload, engine data integrity, TSV/batch atomicity and exact source ranges. Offline build passed. These tests are not real browser permission or visual checks. See USER-GUIDE.md for supported behavior and limitations.
-
-Generated output, screenshots, dependencies, native target folders and local fixtures are excluded from Git. Rebuild artifacts from the committed source rather than committing local binaries.
-
-## Hosted installation and offline use
-
-Open https://arsxd.github.io/lattice/ over HTTPS. Use Chrome or Edge’s address-bar install icon or browser install menu. Lattice does not add a persistent install button to the editing toolbar. Installation and file access remain subject to browser and corporate policy.
-
-The service worker caches the application shell, not your JSON files. Load the app online once before using it offline. It does not persist unsaved documents across closures. Save your work before closing. Updates wait until all app windows/tabs close; there is no forced reload while editing.
-
-The downloaded HTML remains self-contained and does not register a service worker. Developers build hosted assets with `npm run pwa:build`. GitHub Actions tests and builds both distributions, then deploys `dist` through GitHub Pages on `main`. Pull requests verify without deploying.
-
-## Current polish changes
-
-Reload retains the current nested location, falling back to its nearest existing parent when removed. Sort and filters are retained when column names and order match; the row page resets to the first page. Undo history resets because the source is reopened. Scroll restoration is not implemented.
-
-Details now has a persistent pressed state beside Review changes in table mode. Column-source navigation was removed because it only pointed to the first value; selected-cell source navigation remains. Active value filters appear in the table summary. Diff navigation selects and scrolls both versions and shows the current change number; unchanged lines can be expanded and collapsed again.
-
-The hosted welcome page includes dismissible installation guidance. It shows **Install Lattice** when the browser offers a direct prompt, and browser-menu instructions otherwise. It stays out of the editing workspace; **Not now** hides it for the browser session.
-
-## Consistency pass verification
-
-The 2026-11-13 suite includes full filtered-column selection across 500-row pages, cross-page atomic paste, stale-revision guards, generated-column collisions and bounded lossless previews. Local macOS Chromium checks verified 620-row column copy, Shift row selection, Source/Table selection retention, container-name navigation, keyboard pane resizing and light/dark rendering. With the browser context offline, cached startup, local-file opening, nested navigation and Details rendering passed; only the in-memory `blob:` document worker request was observed during that workflow. This does not verify corporate endpoint monitoring or real Windows file/clipboard permissions.
-
-Small Details tables are capped at 20 rows, 10 columns, 100 rendered cells, 32,768 source characters and 12 AST levels. Large JSON previews retain the existing 8,192-character limit; the value bar remains bounded and marks truncated scalar text read-only. Numeric previews use source tokens rather than floating-point serialization. Grid copy is capped at 10,000 cells and 16,777,216 value characters. These are operational limits, not a claim that every accepted 64 MiB file will remain responsive.
-
-The standalone HTML was also smoke-tested over localhost: local file opening, Enter on a scalar-array name, pointer pane resizing and narrow dark layout passed, with no service-worker registration. Automated `file:` navigation is blocked by the browser tooling, so direct-file execution was not reverified in this pass. The standalone build suppresses installation guidance and service-worker registration even when served over HTTP.
+Unit tests cover revision/atomicity, exact numeric tokens, CRLF, partial drafts, reload remapping, freeze geometry, recovery ownership/storage errors and update lifecycle. Browser tests cover actual input, selection, draft validation/restore, tab continuity, frozen scrolling, recovery after refresh, offline startup and a real waiting worker. GitHub-hosted Windows automation does not verify managed corporate browser policy, installation approval, endpoint monitoring or actual file-picker permission prompts. Direct file: execution must be checked manually because the local browser automation tool blocks file: URLs.
