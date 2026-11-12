@@ -151,7 +151,7 @@ it("shows primitive arrays inline and removes generated type columns", () => {
     display: "[100]",
     container: false,
   });
-  expect(p.rows[1].cells[1].display).toBe("[1,2,3,4]");
+  expect(p.rows[1].cells[1].display).toBe("[1, 2, 3, 4]");
 });
 it("exposes array groups inside a single wrapper as sheets", () => {
   const d = new DocumentEngine(

@@ -6,6 +6,9 @@ type InstallOffer = Event & {
 };
 
 export function useOfflineApp() {
+  const hosted =
+    /^https?:$/.test(location.protocol) &&
+    document.querySelector('link[rel="manifest"]') !== null;
   const [offer, setOffer] = useState<InstallOffer | null>(null);
   const [pending, setPending] = useState(false);
   const [hidden, setHidden] = useState(() => {
@@ -24,11 +27,7 @@ export function useOfflineApp() {
     }
   }
   useEffect(() => {
-    if (
-      !/^https?:$/.test(location.protocol) ||
-      !("serviceWorker" in navigator) ||
-      import.meta.env.DEV
-    )
+    if (!hosted || !("serviceWorker" in navigator) || import.meta.env.DEV)
       return;
     const capture = (event: Event) => {
       event.preventDefault();
@@ -48,7 +47,7 @@ export function useOfflineApp() {
     };
   }, []);
   if (
-    !/^https?:$/.test(location.protocol) ||
+    !hosted ||
     hidden ||
     window.matchMedia("(display-mode: standalone)").matches
   )

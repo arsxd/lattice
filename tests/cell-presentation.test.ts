@@ -91,3 +91,13 @@ it("marks oversized scalar previews read-only instead of exposing truncation as 
     ),
   ).toEqual({ text: "42", previewOnly: false });
 });
+it("compacts array formatting without changing string spaces or exact numbers", () => {
+  const engine = new DocumentEngine('{"tags":[ 1,\n -0, 1e400, "a  b" ]}');
+  const cell = engine.project({ path: [], records: false, search: "", page: 0 })
+    .rows[0].cells[1];
+  expect(cell.display).toBe('[1, -0, 1e400, "a  b"]');
+  expect(valueBarPresentation(cell, engine.raw(["tags"]))).toEqual({
+    text: '[1, -0, 1e400, "a  b"]',
+    previewOnly: false,
+  });
+});

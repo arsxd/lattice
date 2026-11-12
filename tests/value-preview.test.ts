@@ -37,6 +37,32 @@ it("summarizes objects without rounding numeric tokens", () => {
 it("bounds details preview rows and skips very large selections", () => {
   const values = Array.from({ length: 40 }, (_, i) => i);
   expect(objectPreview(JSON.stringify(values))).toMatchObject({ total: 40 });
-  expect(objectPreview(JSON.stringify(values))?.rows).toHaveLength(30);
+  expect(objectPreview(JSON.stringify(values))?.rows).toHaveLength(20);
   expect(objectPreview('"' + "x".repeat(128 * 1024) + '"')).toBeNull();
+});
+it("previews small heterogeneous records with bounded columns and exact scalar tokens", () => {
+  const preview = objectPreview(
+    '[{"id":9007199254740993,"tags":[1,-0,1e400]},{"name":"two"}]',
+  );
+  expect(preview?.headers).toEqual(["Key / index", "id", "tags", "name"]);
+  expect(preview?.cells).toEqual([
+    ["0", "9007199254740993", "[1, -0, 1e400]", ""],
+    ["1", "", "", '"two"'],
+  ]);
+  const large = objectPreview(
+    JSON.stringify(
+      Array.from({ length: 40 }, (_, id) => ({
+        id,
+        a: 1,
+        b: 2,
+        c: 3,
+        d: 4,
+        e: 5,
+      })),
+    ),
+  );
+  expect(large!.cells.length * large!.headers.length).toBeLessThanOrEqual(100);
+  expect(
+    objectPreview("[" + "[".repeat(20) + "0" + "]".repeat(20) + "]"),
+  ).toBeNull();
 });

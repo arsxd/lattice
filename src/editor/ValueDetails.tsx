@@ -11,15 +11,23 @@ export function ValueDetails({ raw }: { raw: string }) {
           <table aria-label="Selected value contents">
             <thead>
               <tr>
-                <th>Key / index</th>
-                <th>Value</th>
+                {preview.headers.map((header, index) => (
+                  <th key={index}>{header}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {preview.rows.map((row) => (
-                <tr key={row.key}>
-                  <th scope="row">{row.key}</th>
-                  <td>{row.value}</td>
+              {preview.cells.map((row, index) => (
+                <tr key={index}>
+                  {row.map((value, column) =>
+                    column === 0 ? (
+                      <th key={column} scope="row">
+                        {value}
+                      </th>
+                    ) : (
+                      <td key={column}>{value}</td>
+                    ),
+                  )}
                 </tr>
               ))}
             </tbody>

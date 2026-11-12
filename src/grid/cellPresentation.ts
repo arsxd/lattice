@@ -1,3 +1,4 @@
+import { compactJson } from "../document/compactJson";
 import type { Cell } from "../document/engine";
 export function blankState(cell: Cell): string | null {
   if (cell.type === "missing") return "Property not set";
@@ -66,7 +67,12 @@ export function valueBarPresentation(
 ): { text: string; previewOnly: boolean } {
   if (blankState(cell)) return { text: "", previewOnly: false };
   if (cell.container) return { text: cell.display, previewOnly: true };
-  const text = cell.type === "string" ? (JSON.parse(raw) as string) : raw;
+  const text =
+    cell.type === "string"
+      ? (JSON.parse(raw) as string)
+      : cell.type === "array" && raw.length <= VALUE_BAR_PREVIEW_LIMIT
+        ? compactJson(raw)
+        : raw;
   return text.length > VALUE_BAR_PREVIEW_LIMIT
     ? { text: text.slice(0, VALUE_BAR_PREVIEW_LIMIT) + "…", previewOnly: true }
     : { text, previewOnly: false };

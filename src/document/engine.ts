@@ -1,8 +1,5 @@
-import {
-  selectedCellCount,
-  selectionContains,
-  type SheetSelection,
-} from "./sheetSelection";
+import { compactJson } from "./compactJson";
+import { selectedCellCount, type SheetSelection } from "./sheetSelection";
 import {
   createScanner,
   SyntaxKind,
@@ -659,8 +656,18 @@ export class DocumentEngine {
     const describe = (value: Node): string => {
       if (value.type === "object")
         return `{${value.children?.length ?? 0} fields}`;
-      if (value.type === "array")
+      if (value.type === "array") {
+        if (
+          value.length <= 120 &&
+          (value.children ?? []).every(
+            (child) => child.type !== "object" && child.type !== "array",
+          )
+        )
+          return compactJson(
+            this.text.slice(value.offset, value.offset + value.length),
+          );
         return `[${value.children?.length ?? 0} items]`;
+      }
       const raw = this.text.slice(
         value.offset,
         value.offset + Math.min(value.length, 40),
@@ -681,7 +688,9 @@ export class DocumentEngine {
       n.type === "object"
         ? objectPreview
         : primitiveArray
-          ? this.text.slice(n.offset, n.offset + n.length)
+          ? compactJson(
+              this.text.slice(n.offset, n.offset + Math.min(n.length, 1024)),
+            ) + (n.length > 1024 ? "…" : "")
           : container
             ? `Array · ${n.children?.length ?? 0}`
             : n.type === "string"
@@ -969,27 +978,38 @@ export class DocumentEngine {
         throw new Error(
           "Select at most 10,000 cells for clipboard operations.",
         );
-      selectedCells = [];
-      for (let r = 0; r < filtered.length; r++) {
-        const cells: SelectedCell[] = [];
-        for (let c = 0; c < headers.length; c++)
-          if (
-            selectionContains(
-              selection,
-              { r, c },
-              filtered.length,
-              headers.length,
-            )
-          ) {
-            cells.push({
+      // Visit only selected coordinates after the cell-count guard. A one-cell copy
+      // must not scan every column of every row in a large document.
+      const indices = (axis: "rows" | "columns", limit: number): number[] => {
+        const key = axis === "rows" ? "r" : "c";
+        const spans =
+          selection.mode === axis
+            ? selection.spans
+            : selection.mode === "cells"
+              ? [
+                  [
+                    Math.min(selection.anchor[key], selection.end[key]),
+                    Math.max(selection.anchor[key], selection.end[key]),
+                  ],
+                ]
+              : [[0, limit - 1]];
+        const result: number[] = [];
+        for (const [start, end] of spans)
+          for (let i = Math.max(0, start); i <= Math.min(limit - 1, end); i++)
+            result.push(i);
+        return result;
+      };
+      const columns = indices("columns", headers.length);
+      selectedCells = columns.length
+        ? indices("rows", filtered.length).map((r) =>
+            columns.map((c) => ({
               cell: getCell(filtered[r], c),
               ...(c === 0 && headers.length > 1
                 ? { identifier: String(filtered[r][0]) }
                 : {}),
-            });
-          }
-        if (cells.length) selectedCells.push(cells);
-      }
+            })),
+          )
+        : [];
     }
     const matched = filtered.length,
       pages = Math.max(1, Math.ceil(matched / PAGE_SIZE)),
