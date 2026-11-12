@@ -1088,3 +1088,8 @@ select optgroup {
 .document-filename { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .outline-node .tree-label { min-width: 0; white-space: nowrap; }
+
+.sheet-menu { max-height: calc(100dvh - 16px); overflow-y: auto; max-width: calc(100vw - 16px); }
+.sheet-menu button { display: flex; justify-content: space-between; align-items: center; gap: 24px; }
+.sheet-menu kbd { color: var(--muted); font: inherit; font-size: 11px; }
+.sheet-menu hr { width: 100%; border: 0; border-top: 1px solid var(--line); margin: 4px 0; }

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Context-menu Copy/Paste with platform shortcut hints and permission-error recovery.
+- Keyboard movement updates clipboard selection; right-click preserves an existing range or targets the clicked cell.
+- Context-menu positioning and keyboard navigation improved; exact scalar-root copy fixed.
+
 - Per-document Back/Forward table navigation with search/sort/filter history.
 - Lazy expandable document sidebar with current-location highlighting and stable sibling branches.
 - Larger root navigation target and visible document filename.

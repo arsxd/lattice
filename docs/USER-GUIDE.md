@@ -22,7 +22,9 @@ Add row creates a blank record with existing fields. Right-click a row for inser
 
 ## Select, copy, paste and fill
 
-Drag over cells, Shift+click or use Shift+arrows. Copy exports quoted tab-separated values compatible with spreadsheet cells. If preparation is still running, retry Copy when ready.
+Click a cell, drag over a range, Shift+click or use Shift+arrows. **Ctrl+C / Cmd+C** copies the selected values; **Ctrl+V / Cmd+V** pastes. Arrow-key navigation updates the copy target. Copy exports quoted tab-separated values compatible with spreadsheet cells, using complete values rather than truncated previews. If preparation is still running, retry Copy when ready.
+
+Right-click a cell for **Copy** and **Paste**, with shortcut hints. Right-clicking inside a range keeps the range; right-clicking outside selects the clicked cell. Menu clipboard actions require browser permission. If blocked, close the menu and use the keyboard shortcuts. Inside a text editor, the browser’s normal text-selection clipboard behavior applies.
 
 Paste starts at the selection's top-left cell. It validates before applying, rejects incompatible/read-only/nested targets and does not extend the table automatically. It cannot cross pages. A paste is one undo step. Blank pasted cells become null. Ctrl+D/Cmd+D or Fill down copies the top cell of each selected column down; it does not generate numeric sequences.
 
@@ -88,3 +90,7 @@ While editing a string cell, **Alt+Enter** inserts a line break, **Enter** commi
 History resets after source reload or applying a source draft. If an earlier location has been removed through table editing, revisiting it opens the nearest available parent. Navigation is paused while a source draft has unapplied changes.
 
 The home icon opens the document root. The sidebar and status bar show the current filename; the breadcrumb shows the JSON location. Browser file handles do not expose an absolute disk path, so the app does not invent one.
+
+## Freeze panes status
+
+Custom freeze rows/columns remains experimental on `dev` and is absent from the public app. The old implementation used fixed row offsets and is incompatible with the new variable row heights. The row-number gutter remains pinned; this is separate from custom freeze panes.

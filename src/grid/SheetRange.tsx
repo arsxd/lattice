@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import type {
   Projection,
   AtomicMutation,
@@ -6,7 +12,7 @@ import type {
   Kind,
 } from "../document/engine";
 import { scalarText } from "../editor/scalar";
-import { parseTSV, toTSV } from "./clipboard";
+import { parseTSV, readRange } from "./clipboard";
 type Point = { r: number; c: number };
 export function SheetRange({
   view,
@@ -37,6 +43,37 @@ export function SheetRange({
       c: number;
     } | null>(null);
   const menuElement = useRef<HTMLDivElement>(null);
+  const contextTarget = useRef<HTMLElement | null>(null);
+  const restoringFocus = useRef(false);
+  const contextOpening = useRef(false);
+  const clipboardBusy = useRef(false);
+  const [menuPosition, setMenuPosition] = useState({ left: 8, top: 8 });
+  const shortcut = navigator.userAgent.includes("Mac") ? "⌘" : "Ctrl+";
+  function closeMenu(restore = false) {
+    setMenu(null);
+    if (restore) {
+      restoringFocus.current = true;
+      requestAnimationFrame(() => {
+        const target = contextTarget.current;
+        if (target?.isConnected) {
+          target.tabIndex = -1;
+          target.focus();
+        }
+        restoringFocus.current = false;
+      });
+    }
+  }
+  useLayoutEffect(() => {
+    if (!menu || !menuElement.current) return;
+    const rect = menuElement.current.getBoundingClientRect();
+    setMenuPosition({
+      left: Math.max(8, Math.min(menu.x, innerWidth - rect.width - 8)),
+      top: Math.max(8, Math.min(menu.y, innerHeight - rect.height - 8)),
+    });
+    menuElement.current
+      .querySelector<HTMLButtonElement>("button:not(:disabled)")
+      ?.focus();
+  }, [menu]);
   useEffect(() => {
     if (!menu) return;
     const outside = (event: PointerEvent) => {
@@ -47,7 +84,7 @@ export function SheetRange({
         setMenu(null);
     };
     const escape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMenu(null);
+      if (event.key === "Escape") closeMenu(true);
     };
     document.addEventListener("pointerdown", outside, true);
     document.addEventListener("keydown", escape);
@@ -73,7 +110,7 @@ export function SheetRange({
     setAnchor(null);
     setEnd(null);
     setMenu(null);
-  }, [view.path.join("\0"), view.page, view.revision]);
+  }, [view]);
   useEffect(() => {
     let cancelled = false;
     ready.current = false;
@@ -85,33 +122,20 @@ export function SheetRange({
       return;
     }
     if (bounds)
-      void (async () => {
-        const result: string[][] = [];
-        for (let r = bounds.r1; r <= bounds.r2; r++) {
-          const row: string[] = [];
-          for (let c = bounds.c1; c <= bounds.c2; c++) {
-            const cell = view.rows[r]?.cells[c];
-            if (!cell) continue;
-            const raw = cell.type === "missing" ? "" : await read(cell.path);
-            row.push(
-              c === 0
-                ? view.rows[r].label
-                : cell.type === "string"
-                  ? JSON.parse(raw)
-                  : raw,
-            );
+      void readRange(view, bounds, read)
+        .then((text) => {
+          if (!cancelled) {
+            clip.current = text;
+            ready.current = true;
           }
-          result.push(row);
-        }
-        if (!cancelled) {
-          clip.current = toTSV(result);
-          ready.current = true;
-        }
-      })().catch((e) => setMessage(String(e)));
+        })
+        .catch((error) => {
+          if (!cancelled) setMessage(String(error));
+        });
     return () => {
       cancelled = true;
     };
-  }, [key, view.revision]);
+  }, [key, view]);
   useEffect(() => {
     const up = () => {
       dragging.current = false;
@@ -129,6 +153,29 @@ export function SheetRange({
       c: Number(cell.getAttribute("aria-colindex")) - 2,
     };
     return p.c >= 0 ? p : null;
+  }
+  async function clipboardAction(action: "copy" | "paste") {
+    if (clipboardBusy.current || !bounds) return;
+    clipboardBusy.current = true;
+    closeMenu(true);
+    try {
+      if (action === "copy") {
+        const text = ready.current
+          ? clip.current
+          : await readRange(view, bounds, read);
+        await navigator.clipboard.writeText(text);
+        setMessage("");
+      } else {
+        const text = await navigator.clipboard.readText();
+        await paste(text);
+      }
+    } catch {
+      setMessage(
+        `Clipboard access is unavailable. Select the cells and use ${shortcut}${action === "copy" ? "C" : "V"} instead.`,
+      );
+    } finally {
+      clipboardBusy.current = false;
+    }
   }
   async function paste(text: string) {
     if (!bounds) return;
@@ -260,7 +307,23 @@ export function SheetRange({
   return (
     <div
       className="range-sheet"
+      onFocusCapture={(e) => {
+        if (
+          restoringFocus.current ||
+          contextOpening.current ||
+          dragging.current ||
+          (e.target as Element).closest("input,textarea,[data-row-resizer]")
+        )
+          return;
+        const p = point(e.target);
+        if (p) {
+          setAnchor(p);
+          setEnd(p);
+        }
+      }}
       onPointerDownCapture={(e) => {
+        contextOpening.current = e.button === 2;
+        if (e.button !== 0) return;
         if ((e.target as Element).closest("input,textarea,[data-row-resizer]"))
           return;
         const p = point(e.target);
@@ -331,7 +394,9 @@ export function SheetRange({
         void paste(e.clipboardData.getData("text/plain"));
       }}
       onContextMenu={(e) => {
+        contextOpening.current = false;
         const target = e.target as Element;
+        if (target.closest("input,textarea,[data-row-resizer]")) return;
         const p = point(target);
         const header = target.closest("[role=columnheader]");
         const row = target.closest("[role=row]");
@@ -340,6 +405,19 @@ export function SheetRange({
           : (p?.c ?? -1);
         if (!p && !header && !row) return;
         e.preventDefault();
+        contextTarget.current =
+          target.closest<HTMLElement>('[role="gridcell"]');
+        if (
+          p &&
+          (!bounds ||
+            p.r < bounds.r1 ||
+            p.r > bounds.r2 ||
+            p.c < bounds.c1 ||
+            p.c > bounds.c2)
+        ) {
+          setAnchor(p);
+          setEnd(p);
+        }
         setMenu({
           x: e.clientX,
           y: e.clientY,
@@ -363,16 +441,61 @@ export function SheetRange({
           ref={menuElement}
           className="sheet-menu"
           role="menu"
-          style={{
-            left: Math.min(menu.x, window.innerWidth - 220),
-            top: Math.min(menu.y, window.innerHeight - 220),
-          }}
+          style={menuPosition}
           onKeyDown={(e) => {
-            if (e.key === "Escape") setMenu(null);
+            if (e.key === "Escape") {
+              e.stopPropagation();
+              closeMenu(true);
+            }
+            if (["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) {
+              e.preventDefault();
+              const items = [
+                ...e.currentTarget.querySelectorAll<HTMLButtonElement>(
+                  "button:not(:disabled)",
+                ),
+              ];
+              const index = items.indexOf(
+                document.activeElement as HTMLButtonElement,
+              );
+              const next =
+                e.key === "Home"
+                  ? 0
+                  : e.key === "End"
+                    ? items.length - 1
+                    : (index +
+                        (e.key === "ArrowDown" ? 1 : -1) +
+                        items.length) %
+                      items.length;
+              items[next]?.focus();
+            }
+            if (e.key === "Tab") closeMenu();
           }}
         >
+          {menu.r >= 0 && menu.c >= 0 && (
+            <>
+              <button
+                role="menuitem"
+                tabIndex={-1}
+                aria-keyshortcuts="Control+C Meta+C"
+                onClick={() => void clipboardAction("copy")}
+              >
+                Copy <kbd>{shortcut}C</kbd>
+              </button>
+              <button
+                role="menuitem"
+                tabIndex={-1}
+                aria-keyshortcuts="Control+V Meta+V"
+                disabled={!isValueColumn(menu.c)}
+                onClick={() => void clipboardAction("paste")}
+              >
+                Paste <kbd>{shortcut}V</kbd>
+              </button>
+              <hr />
+            </>
+          )}
           <button
             role="menuitem"
+            tabIndex={-1}
             onClick={() => {
               onAddRow();
               setMenu(null);
@@ -382,6 +505,7 @@ export function SheetRange({
           </button>
           <button
             role="menuitem"
+            tabIndex={-1}
             onClick={() => {
               onAddColumn();
               setMenu(null);
@@ -393,15 +517,21 @@ export function SheetRange({
             <>
               <button
                 role="menuitem"
+                tabIndex={-1}
                 onClick={() => void relativeRow("before")}
               >
                 Insert row above
               </button>
-              <button role="menuitem" onClick={() => void relativeRow("after")}>
+              <button
+                role="menuitem"
+                tabIndex={-1}
+                onClick={() => void relativeRow("after")}
+              >
                 Insert row below
               </button>
               <button
                 role="menuitem"
+                tabIndex={-1}
                 onClick={() => void relativeRow("after", true)}
               >
                 Duplicate row
@@ -411,6 +541,7 @@ export function SheetRange({
           {bounds && bounds.r2 > bounds.r1 && (
             <button
               role="menuitem"
+              tabIndex={-1}
               onClick={() => {
                 void fillDown();
                 setMenu(null);
@@ -422,6 +553,7 @@ export function SheetRange({
           {menu.r >= 0 && (
             <button
               role="menuitem"
+              tabIndex={-1}
               onClick={() => {
                 void apply([
                   { action: "remove", path: view.rows[menu.r].path },
@@ -434,15 +566,23 @@ export function SheetRange({
           )}
           {menu.c > 0 && recordMode && (
             <>
-              <button role="menuitem" onClick={() => void columnAction(true)}>
+              <button
+                role="menuitem"
+                tabIndex={-1}
+                onClick={() => void columnAction(true)}
+              >
                 Rename column…
               </button>
-              <button role="menuitem" onClick={() => void columnAction(false)}>
+              <button
+                role="menuitem"
+                tabIndex={-1}
+                onClick={() => void columnAction(false)}
+              >
                 Delete column
               </button>
             </>
           )}
-          <button role="menuitem" onClick={() => setMenu(null)}>
+          <button role="menuitem" tabIndex={-1} onClick={() => closeMenu(true)}>
             Close
           </button>
         </div>

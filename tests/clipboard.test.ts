@@ -1,5 +1,5 @@
 import { it, expect } from "vitest";
-import { parseTSV, toTSV } from "../src/grid/clipboard";
+import { parseTSV, toTSV, readRange } from "../src/grid/clipboard";
 import { DocumentEngine } from "../src/document/engine";
 it("round trips spreadsheet quotes, tabs, newlines and blanks", () => {
   const cells = [
@@ -204,4 +204,42 @@ it("renames a newly added object row without changing values and rejects duplica
   expect(d.text).toBe(before);
   d.undo();
   expect(d.raw(["2", "v"])).toBe("null");
+});
+
+it("copies exact values rather than truncated displays, including scalar roots", async () => {
+  const text =
+    '[{"s":"first\\nsecond","n":9007199254740993,"a":[1,2]},{"n":1e400}]';
+  const engine = new DocumentEngine(text);
+  const view = engine.project({ path: [], records: true, search: "", page: 0 });
+  const result = await readRange(
+    view,
+    { r1: 0, r2: 1, c1: 1, c2: 3 },
+    async (path) => engine.raw(path),
+  );
+  expect(parseTSV(result)).toEqual([
+    ["first\nsecond", "9007199254740993", "[1,2]"],
+    ["", "1e400", ""],
+  ]);
+  const scalar = new DocumentEngine('"literal"');
+  expect(
+    await readRange(
+      scalar.project({ path: [], records: false, search: "", page: 0 }),
+      { r1: 0, r2: 0, c1: 0, c2: 0 },
+      async (path) => scalar.raw(path),
+    ),
+  ).toBe("literal");
+});
+it("rejects unavailable or oversized copy ranges rather than silently truncating", async () => {
+  const engine = new DocumentEngine("[1]");
+  const view = engine.project({ path: [], records: true, search: "", page: 0 });
+  await expect(
+    readRange(view, { r1: 0, r2: 1, c1: 1, c2: 1 }, async (path) =>
+      engine.raw(path),
+    ),
+  ).rejects.toThrow("no longer available");
+  await expect(
+    readRange(view, { r1: 0, r2: 10000, c1: 0, c2: 0 }, async (path) =>
+      engine.raw(path),
+    ),
+  ).rejects.toThrow("10,000");
 });

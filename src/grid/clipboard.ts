@@ -37,3 +37,32 @@ export function toTSV(rows: string[][]) {
     )
     .join("\r\n");
 }
+
+export type CellRange = { r1: number; r2: number; c1: number; c2: number };
+export async function readRange(
+  view: Pick<import("../document/engine").Projection, "rows" | "headers">,
+  bounds: CellRange,
+  read: (path: import("../document/engine").Path) => Promise<string>,
+): Promise<string> {
+  if ((bounds.r2 - bounds.r1 + 1) * (bounds.c2 - bounds.c1 + 1) > 10000)
+    throw new Error("Copy at most 10,000 cells.");
+  const result: string[][] = [];
+  for (let r = bounds.r1; r <= bounds.r2; r++) {
+    const row: string[] = [];
+    for (let c = bounds.c1; c <= bounds.c2; c++) {
+      const cell = view.rows[r]?.cells[c];
+      if (!cell)
+        throw new Error(
+          "The selection is no longer available. Select the cells again.",
+        );
+      if (c === 0 && view.headers.length > 1) {
+        row.push(view.rows[r].label);
+        continue;
+      }
+      const raw = cell.type === "missing" ? "" : await read(cell.path);
+      row.push(cell.type === "string" ? JSON.parse(raw) : raw);
+    }
+    result.push(row);
+  }
+  return toTSV(result);
+}
