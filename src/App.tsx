@@ -1,3 +1,4 @@
+import { PaneResizeHandle, usePaneWidth } from "./grid/PaneResizeHandle";
 import {
   selectCell,
   selectHeader,
@@ -270,6 +271,8 @@ export default function App() {
   const [theme, setTheme] = useState(
     localStorage.getItem("json-workbench-theme") ?? "system",
   );
+  const [leftWidth, setLeftWidth] = usePaneWidth("browse", 240);
+  const [rightWidth, setRightWidth] = usePaneWidth("details", 360);
   const [inspector, setInspector] = useState(false);
   const [outlineVisible, setOutlineVisible] = useState(false);
   useEffect(() => {
@@ -1584,9 +1587,7 @@ export default function App() {
       <header className="toolbar">
         <strong title="JSON Workbench">Lattice</strong>
         {busy && (
-          <span className="activity" role="status" aria-label="Working">
-            ◌
-          </span>
+          <span className="activity" role="status" aria-label="Working" />
         )}
         <span className="divider" />
         <button
@@ -1662,7 +1663,7 @@ export default function App() {
         </div>
       )}
       {notice && (
-        <div className="message" role="status">
+        <div className="notice-toast" role="status">
           {notice}
         </div>
       )}
@@ -1761,6 +1762,12 @@ export default function App() {
       ) : (
         <>
           <div className="document-tab">
+            <button
+              aria-pressed={outlineVisible}
+              onClick={() => setOutlineVisible(!outlineVisible)}
+            >
+              Browse
+            </button>
             <div
               className="document-tabs"
               role="tablist"
@@ -1842,7 +1849,17 @@ export default function App() {
             )}
           </div>
           <main className="workspace">
-            <aside className="outline" hidden={!outlineVisible}>
+            <aside
+              className="outline"
+              hidden={!outlineVisible}
+              style={{
+                width: leftWidth,
+                maxWidth:
+                  inspector && mode === "table"
+                    ? `calc(100vw - ${rightWidth + 365}px)`
+                    : "calc(100vw - 365px)",
+              }}
+            >
               <div className="pane-label">Document</div>
               <div className="outline-filename" title={doc.name}>
                 {doc.name}
@@ -1858,14 +1875,16 @@ export default function App() {
                 navigate={(path) => void navigate(path)}
               />
             </aside>
+            {outlineVisible && (
+              <PaneResizeHandle
+                label="Browse"
+                width={leftWidth}
+                onChange={setLeftWidth}
+                onReset={() => setLeftWidth(240)}
+              />
+            )}
             <section className="document">
               <div className="location">
-                <button
-                  aria-pressed={outlineVisible}
-                  onClick={() => setOutlineVisible(!outlineVisible)}
-                >
-                  Browse
-                </button>
                 <div
                   className="location-history"
                   role="group"
@@ -2065,115 +2084,6 @@ export default function App() {
                       }}
                     />
                   )}
-                  <div className="table-tools">
-                    {inspector && view.recordsAvailable && (
-                      <button
-                        disabled={busy}
-                        onClick={() =>
-                          changeQuery({
-                            ...query,
-                            records: !query.records,
-                            page: 0,
-                            sort: undefined,
-                          })
-                        }
-                      >
-                        {query.records ? "Properties view" : "Records view"}
-                      </button>
-                    )}
-                    <div className="table-summary">
-                      <span className="table-counts">
-                        {view.matched.toLocaleString()} of{" "}
-                        {view.total.toLocaleString()} rows ·{" "}
-                        {view.headers.length} columns
-                      </span>
-                      {!!Object.keys(query.valueFilters ?? {}).length && (
-                        <span className="sort-summary">
-                          Filtered:{" "}
-                          {Object.keys(query.valueFilters ?? {})
-                            .map((k) => columnLabel(view, Number(k)))
-                            .join(", ")}{" "}
-                          <button
-                            disabled={busy}
-                            onClick={() =>
-                              changeQuery({
-                                ...query,
-                                valueFilters: undefined,
-                                page: 0,
-                              })
-                            }
-                          >
-                            Clear filters
-                          </button>
-                        </span>
-                      )}
-                      {query.sort && (
-                        <span className="sort-summary">
-                          Sorted by {columnLabel(view, query.sort.column)} (
-                          {query.sort.direction === "ASC"
-                            ? "ascending"
-                            : "descending"}
-                          ){" "}
-                          <button
-                            disabled={busy}
-                            onClick={() =>
-                              changeQuery({
-                                ...query,
-                                sort: undefined,
-                                page: 0,
-                              })
-                            }
-                          >
-                            Clear sort
-                          </button>
-                        </span>
-                      )}
-                    </div>
-                    <div className="spacer" />
-                    {((query.records && view.recordsAvailable) ||
-                      view.total === 0) &&
-                    (view.kind === "object" || view.kind === "array") ? (
-                      <>
-                        <button
-                          disabled={busy || columnName !== null}
-                          onClick={() => void addRow()}
-                        >
-                          Add row
-                        </button>
-                        <button
-                          disabled={
-                            busy || view.total === 0 || columnName !== null
-                          }
-                          onClick={() => {
-                            setColumnName("");
-                            setColumnError("");
-                          }}
-                        >
-                          Add column
-                        </button>
-                      </>
-                    ) : (
-                      (view.kind === "object" || view.kind === "array") && (
-                        <button
-                          disabled={busy}
-                          onClick={() => {
-                            setEditError("");
-                            setEditing({
-                              action: "insert",
-                              path: view.path,
-                              revision: view.revision,
-                              kind: "string",
-                              value: "",
-                              key: "",
-                              parentKind: view.kind,
-                            });
-                          }}
-                        >
-                          {view.kind === "object" ? "Add property" : "Add item"}
-                        </button>
-                      )
-                    )}
-                  </div>
                   {columnName !== null && (
                     <form
                       className="column-form"
@@ -2251,7 +2161,16 @@ export default function App() {
                           [`${tableHeightKey}:${column.key}`]: width,
                         }))
                       }
-                      headerRowHeight={48}
+                      headerRowHeight={
+                        view.headers.some(
+                          (_, i) =>
+                            columnLabel(view, i).length * 7 >
+                            (columnWidths[`${tableHeightKey}:${i}`] ?? 155) -
+                              42,
+                        )
+                          ? 64
+                          : 48
+                      }
                       sortColumns={sortColumns}
                       onSortColumnsChange={(sort) => {
                         if (busy) return;
@@ -2270,9 +2189,14 @@ export default function App() {
                       onCellDoubleClick={({ row, rowIdx, column }) => {
                         if (busy || Number(column.key) < 0) return;
                         const cell = row.cells[Number(column.key)];
-                        if (keyEditable(Number(column.key)))
+                        if (
+                          cell.container ||
+                          (keyEditable(Number(column.key)) &&
+                            cell.type === "array")
+                        )
+                          void navigate(cell.path);
+                        else if (keyEditable(Number(column.key)))
                           startKey(cell, rowIdx);
-                        else if (cell.container) void navigate(cell.path);
                         else if (valueColumn(Number(column.key)))
                           void startInline(cell, rowIdx, Number(column.key));
                       }}
@@ -2285,8 +2209,12 @@ export default function App() {
                         if (
                           keyEditable(Number(args.column.key)) &&
                           (event.key === "F2" ||
-                            event.key === "Enter" ||
+                            (event.key === "Enter" &&
+                              !cell.container &&
+                              cell.type !== "array") ||
                             (event.key.length === 1 &&
+                              !cell.container &&
+                              cell.type !== "array" &&
                               !event.metaKey &&
                               !event.ctrlKey &&
                               !event.altKey &&
@@ -2356,7 +2284,12 @@ export default function App() {
                               args.rowIdx,
                               Number(args.column.key),
                             );
-                          else if (cell.container && event.key === "Enter")
+                          else if (
+                            (cell.container ||
+                              (keyEditable(Number(args.column.key)) &&
+                                cell.type === "array")) &&
+                            event.key === "Enter"
+                          )
                             void navigate(cell.path);
                           else if (cell.container) void edit(cell);
                           else if (event.key === "Enter")
@@ -2389,10 +2322,102 @@ export default function App() {
                     </div>
                   )}
                   <div className="pagination">
+                    <div className="table-actions">
+                      <div className="table-summary">
+                        {!!Object.keys(query.valueFilters ?? {}).length && (
+                          <span className="sort-summary">
+                            Filtered:{" "}
+                            {Object.keys(query.valueFilters ?? {})
+                              .map((k) => columnLabel(view, Number(k)))
+                              .join(", ")}{" "}
+                            <button
+                              disabled={busy}
+                              onClick={() =>
+                                changeQuery({
+                                  ...query,
+                                  valueFilters: undefined,
+                                  page: 0,
+                                })
+                              }
+                            >
+                              Clear filters
+                            </button>
+                          </span>
+                        )}
+                        {query.sort && (
+                          <span className="sort-summary">
+                            Sorted by {columnLabel(view, query.sort.column)} (
+                            {query.sort.direction === "ASC"
+                              ? "ascending"
+                              : "descending"}
+                            ){" "}
+                            <button
+                              disabled={busy}
+                              onClick={() =>
+                                changeQuery({
+                                  ...query,
+                                  sort: undefined,
+                                  page: 0,
+                                })
+                              }
+                            >
+                              Clear sort
+                            </button>
+                          </span>
+                        )}
+                      </div>
+
+                      {((query.records && view.recordsAvailable) ||
+                        view.total === 0) &&
+                      (view.kind === "object" || view.kind === "array") ? (
+                        <>
+                          <button
+                            disabled={busy || columnName !== null}
+                            onClick={() => void addRow()}
+                          >
+                            Add row
+                          </button>
+                          <button
+                            disabled={
+                              busy || view.total === 0 || columnName !== null
+                            }
+                            onClick={() => {
+                              setColumnName("");
+                              setColumnError("");
+                            }}
+                          >
+                            Add column
+                          </button>
+                        </>
+                      ) : (
+                        (view.kind === "object" || view.kind === "array") && (
+                          <button
+                            disabled={busy}
+                            onClick={() => {
+                              setEditError("");
+                              setEditing({
+                                action: "insert",
+                                path: view.path,
+                                revision: view.revision,
+                                kind: "string",
+                                value: "",
+                                key: "",
+                                parentKind: view.kind,
+                              });
+                            }}
+                          >
+                            {view.kind === "object"
+                              ? "Add property"
+                              : "Add item"}
+                          </button>
+                        )
+                      )}
+                    </div>
+
                     <span className="selection-status" role="status">
                       {sheetSelection
-                        ? `${selectedCellCount(sheetSelection, view.matched, view.headers.length).toLocaleString()} cells selected`
-                        : "Showing up to 500 rows per page"}
+                        ? `${selectedCellCount(sheetSelection, view.matched, view.headers.length).toLocaleString()} ${selectedCellCount(sheetSelection, view.matched, view.headers.length) === 1 ? "cell" : "cells"} selected`
+                        : `${view.matched.toLocaleString()} rows · ${view.headers.length} columns`}
                     </span>
                     <button
                       aria-pressed={wrapText}
@@ -2402,25 +2427,29 @@ export default function App() {
                       Wrap text
                     </button>
                     <div className="spacer" />
-                    <button
-                      disabled={busy || view.page === 0}
-                      onClick={() =>
-                        changeQuery({ ...query, page: view.page - 1 })
-                      }
-                    >
-                      Previous
-                    </button>
-                    <span>
-                      Page {view.page + 1} / {view.pages}
-                    </span>
-                    <button
-                      disabled={busy || view.page + 1 >= view.pages}
-                      onClick={() =>
-                        changeQuery({ ...query, page: view.page + 1 })
-                      }
-                    >
-                      Next
-                    </button>
+                    {view.pages > 1 && (
+                      <>
+                        <button
+                          disabled={busy || view.page === 0}
+                          onClick={() =>
+                            changeQuery({ ...query, page: view.page - 1 })
+                          }
+                        >
+                          Previous
+                        </button>
+                        <span>
+                          Page {view.page + 1} / {view.pages}
+                        </span>
+                        <button
+                          disabled={busy || view.page + 1 >= view.pages}
+                          onClick={() =>
+                            changeQuery({ ...query, page: view.page + 1 })
+                          }
+                        >
+                          Next
+                        </button>
+                      </>
+                    )}
                     <input
                       id="find"
                       aria-label="Find in table"
@@ -2480,7 +2509,14 @@ export default function App() {
               )}
             </section>
             {inspector && mode === "table" && (
-              <aside className="inspector">
+              <aside className="inspector" style={{ width: rightWidth }}>
+                <PaneResizeHandle
+                  label="Details"
+                  width={rightWidth}
+                  reverse
+                  onChange={setRightWidth}
+                  onReset={() => setRightWidth(360)}
+                />
                 <div className="pane-heading">
                   <h2>Selected value</h2>
                   <button
@@ -2491,6 +2527,21 @@ export default function App() {
                     ×
                   </button>
                 </div>
+                {view?.recordsAvailable && (
+                  <button
+                    disabled={busy}
+                    onClick={() =>
+                      changeQuery({
+                        ...query,
+                        records: !query.records,
+                        page: 0,
+                        sort: undefined,
+                      })
+                    }
+                  >
+                    {query.records ? "Properties view" : "Records view"}
+                  </button>
+                )}
                 {selection ? (
                   <>
                     <label>Path</label>
@@ -2595,7 +2646,7 @@ export default function App() {
                     <span>{"{ }"}</span>
                     <p>Select a cell to see its path, type and exact value.</p>
                     <p className="small">
-                      Enter edits a value.
+                      Type or F2 edits a value.
                       <br />
                       Enter opens a nested table.
                       <br />
