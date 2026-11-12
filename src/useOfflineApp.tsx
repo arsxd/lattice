@@ -48,7 +48,7 @@ export function useOfflineApp() {
     };
   }, []);
   if (
-    !offer ||
+    !/^https?:$/.test(location.protocol) ||
     hidden ||
     window.matchMedia("(display-mode: standalone)").matches
   )
@@ -71,10 +71,18 @@ export function useOfflineApp() {
     <section className="welcome-install" aria-label="Install Lattice">
       <strong>Use Lattice as an app</strong>
       <p>Open in its own window, with offline access.</p>
+      {!offer && (
+        <p>
+          Open this page in Chrome or Edge and use the browser’s install menu.
+          Installation depends on browser support and policy.
+        </p>
+      )}
       <div className="welcome-install-actions">
-        <button disabled={pending} onClick={() => void install()}>
-          {pending ? "Opening…" : "Install Lattice"}
-        </button>
+        {offer && (
+          <button disabled={pending} onClick={() => void install()}>
+            {pending ? "Opening…" : "Install Lattice"}
+          </button>
+        )}
         <button className="text-button" disabled={pending} onClick={dismiss}>
           Not now
         </button>

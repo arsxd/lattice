@@ -60,4 +60,4 @@ Reload retains the current nested location, falling back to its nearest existing
 
 Details now has a persistent pressed state beside Review changes in table mode. Column-source navigation was removed because it only pointed to the first value; selected-cell source navigation remains. Active value filters appear in the table summary. Diff navigation selects and scrolls both versions and shows the current change number; unchanged lines can be expanded and collapsed again.
 
-The welcome page also offers a dismissible **Install Lattice** option when the browser makes installation available. It stays out of the editing workspace; **Not now** hides it for the browser session.
+The hosted welcome page includes dismissible installation guidance. It shows **Install Lattice** when the browser offers a direct prompt, and browser-menu instructions otherwise. It stays out of the editing workspace; **Not now** hides it for the browser session.
