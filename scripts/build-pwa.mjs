@@ -15,7 +15,8 @@ await writeFile(
   "dist/manifest.webmanifest",
   JSON.stringify({
     id: "./",
-    name: "Lattice — JSON Workbench",
+    name: "Lattice",
+    description: "JSON Workbench — edit local JSON as spreadsheet-style tables.",
     short_name: "Lattice",
     start_url: "./",
     scope: "./",
