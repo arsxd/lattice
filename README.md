@@ -63,4 +63,4 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md), [the web guide](docs/WEB.md) and [CHANG
 
 ## Install the web app
 
-Open [Lattice](https://arsxd.github.io/lattice/) in Chrome or Edge and choose **Install Lattice** when offered, or use the browser’s install command. It opens in a separate app window. After the first successful load it can run offline. Installation may be restricted by corporate browser policy. Your JSON stays in your browser. The single-file offline download remains available.
+Open [Lattice](https://arsxd.github.io/lattice/) in Chrome or Edge and use the browser’s address-bar install icon or install command in its menu. It opens in a separate app window. After the first successful load it can run offline. Installation may be restricted by corporate browser policy. Your JSON stays in your browser. The single-file offline download remains available.

@@ -1,4 +1,4 @@
-import InstallApp from "./InstallApp";
+import RegisterOfflineApp from "./RegisterOfflineApp";
 import { ColumnMenu } from "./grid/ColumnMenu";
 import { ValueBar } from "./editor/ValueBar";
 import { SheetRange } from "./grid/SheetRange";
@@ -1245,7 +1245,7 @@ export default function App() {
     >
       <header className="toolbar">
         <strong title="JSON Workbench">Lattice</strong>
-        <InstallApp />
+        <RegisterOfflineApp />
         {busy && (
           <span className="activity" role="status" aria-label="Working">
             ◌

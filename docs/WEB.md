@@ -48,7 +48,7 @@ Generated output, screenshots, dependencies, native target folders and local fix
 
 ## Hosted installation and offline use
 
-Open https://arsxd.github.io/lattice/ over HTTPS. Chrome and Edge can offer **Install Lattice**; the button appears only when the browser supplies an installation prompt. The browser’s own install menu can also be used. Installation and file access remain subject to browser and corporate policy.
+Open https://arsxd.github.io/lattice/ over HTTPS. Use Chrome or Edge’s address-bar install icon or browser install menu. Lattice does not add a persistent install button to the editing toolbar. Installation and file access remain subject to browser and corporate policy.
 
 The service worker caches the application shell, not your JSON files. Load the app online once before using it offline. It does not persist unsaved documents across closures. Save your work before closing. Updates wait until all app windows/tabs close; there is no forced reload while editing.
 
