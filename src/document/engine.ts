@@ -43,6 +43,7 @@ export type Query = {
   sort?: { column: number; direction: "ASC" | "DESC" };
   page: number;
 };
+export type ColumnKind = "index" | "key" | "field" | "value" | "mixed";
 export type Projection = {
   sheets?: { label: string; path: Path; kind: Kind }[];
   filterOptions?: { key: string; label: string }[];
@@ -55,6 +56,7 @@ export type Projection = {
   path: Path;
   kind?: Kind;
   headers: string[];
+  columnKinds: ColumnKind[];
   rows: Row[];
   total: number;
   matched: number;
@@ -727,6 +729,7 @@ export class DocumentEngine {
       return {
         ...common,
         headers: [],
+        columnKinds: [],
         rows: [],
         children: [],
         truncatedChildren: false,
@@ -961,6 +964,17 @@ export class DocumentEngine {
     return {
       ...common,
       headers,
+      columnKinds: records
+        ? [
+            n.type === "array" ? "index" : "key",
+            ...keys.map(() => "field" as const),
+            ...(mixed ? ["mixed" as const] : []),
+          ]
+        : n.type === "object"
+          ? ["key", "value"]
+          : n.type === "array"
+            ? ["index", "value"]
+            : ["value"],
       filterOptions,
       filterOptionsTruncated,
       rows,

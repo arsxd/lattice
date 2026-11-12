@@ -1,3 +1,4 @@
+import { fieldColumnKey } from "./columnRoles";
 import {
   useEffect,
   useLayoutEffect,
@@ -22,7 +23,6 @@ export function SheetRange({
   onAddRow,
   onAddColumn,
   isValueColumn,
-  recordMode,
 }: {
   view: Projection;
   children: ReactNode;
@@ -31,7 +31,6 @@ export function SheetRange({
   onAddRow: () => void;
   onAddColumn: () => void;
   isValueColumn: (c: number) => boolean;
-  recordMode: boolean;
 }) {
   const [anchor, setAnchor] = useState<Point | null>(null),
     [end, setEnd] = useState<Point | null>(null),
@@ -222,7 +221,7 @@ export function SheetRange({
   async function columnAction(rename: boolean) {
     if (!menu) return;
     try {
-      const old = view.headers[menu.c];
+      const old = fieldColumnKey(view, menu.c);
       const name = rename ? prompt("Column name", old) : null;
       if (rename && name === null) return;
       if (rename && !name?.trim()) throw Error("Enter a column name.");
@@ -564,7 +563,7 @@ export function SheetRange({
               Delete row
             </button>
           )}
-          {menu.c > 0 && recordMode && (
+          {view.columnKinds[menu.c] === "field" && (
             <>
               <button
                 role="menuitem"

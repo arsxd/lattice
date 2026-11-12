@@ -1099,3 +1099,5 @@ select optgroup {
 .navigation-icon { display: block; flex: none; }
 .outline-disclosure[aria-expanded="true"] .navigation-icon { transform: rotate(90deg); }
 .location nav .root-home:hover:not(:disabled) { background: var(--hover); }
+
+.generated-column-tag { margin-left: 5px; color: var(--muted); font-size: 10px; font-weight: normal; border: 1px solid var(--line); border-radius: 3px; padding: 0 3px; }

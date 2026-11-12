@@ -1,3 +1,4 @@
+import { columnLabel } from "./grid/columnRoles";
 import { NavigationIcon } from "./NavigationIcon";
 import {
   blankState,
@@ -987,7 +988,15 @@ export default function App() {
                 <div className="sheet-column-heading">
                   <small>{columnLetter(i)}</small>
                   <span>
-                    {name}
+                    {columnLabel(view, i)}
+                    {view.columnKinds[i] === "mixed" && (
+                      <small
+                        className="generated-column-tag"
+                        title="Generated view column for non-object array items; not a JSON property"
+                      >
+                        view
+                      </small>
+                    )}
                     {query.sort?.column === i && (
                       <span
                         className="sort-indicator"
@@ -1003,7 +1012,7 @@ export default function App() {
                   </span>
                   <button
                     className="header-filter"
-                    aria-label={`Sort and filter ${name}`}
+                    aria-label={`Sort and filter ${columnLabel(view, i)}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       setFilterAnchor(e.currentTarget);
@@ -1848,7 +1857,7 @@ export default function App() {
                     <ColumnMenu
                       key={`${pointer(query.path)}:${headerMenu}`}
                       anchor={filterAnchor}
-                      name={view.headers[headerMenu]}
+                      name={columnLabel(view, headerMenu)}
                       selected={query.valueFilters?.[String(headerMenu)]}
                       load={async () => {
                         const p = await client.current!.call<Projection>(
@@ -1952,7 +1961,7 @@ export default function App() {
                         <span className="sort-summary">
                           Filtered:{" "}
                           {Object.keys(query.valueFilters ?? {})
-                            .map((k) => view.headers[Number(k)])
+                            .map((k) => columnLabel(view, Number(k)))
                             .join(", ")}{" "}
                           <button
                             disabled={busy}
@@ -1970,7 +1979,7 @@ export default function App() {
                       )}
                       {query.sort && (
                         <span className="sort-summary">
-                          Sorted by {view.headers[query.sort.column]} (
+                          Sorted by {columnLabel(view, query.sort.column)} (
                           {query.sort.direction === "ASC"
                             ? "ascending"
                             : "descending"}
@@ -2073,7 +2082,6 @@ export default function App() {
                   )}
                   <SheetRange
                     isValueColumn={valueColumn}
-                    recordMode={query.records && view.recordsAvailable}
                     view={view}
                     read={(p) =>
                       client.current!.call<string>("raw", { path: p })
