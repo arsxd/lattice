@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Consolidated table search, counts, sort/filter status and Add actions into one control line.
+- Wrapping grows rows according to their visible text and column widths, keeping short rows compact.
+
 - Context-menu Copy/Paste with platform shortcut hints and permission-error recovery.
 - Keyboard movement updates clipboard selection; right-click preserves an existing range or targets the clicked cell.
 - Context-menu positioning and keyboard navigation improved; exact scalar-root copy fixed.
@@ -13,7 +16,7 @@
 - Optional text wrapping in the table footer, with compact defaults and draggable/resettable row heights.
 - Multiline inline string editing with Alt+Enter; Enter/Tab commit and Escape cancels.
 
-- Distinct muted representations for empty strings/collections, null and absent fields.
+- Blank grid presentation for empty strings/collections, null and absent fields; exact states remain visible in Details.
 - Short object summaries in cells and bounded contents previews in Details, preserving exact numeric tokens.
 - Restore active cell focus when returning from Source; clear it after applying structural source edits.
 

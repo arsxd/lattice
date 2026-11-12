@@ -265,20 +265,27 @@ button[aria-pressed="true"] {
 .table-tools {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--line);
 }
 .table-tools input {
   width: 250px;
   min-width: 100px;
+  padding: 5px 8px;
 }
 .table-summary {
-  padding: 0 16px 13px;
-  font-size: 12px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0;
+  font-size: 11px;
   color: var(--muted);
 }
 .table-summary > span {
-  margin: 0 6px;
+  margin: 0;
 }
 .data-grid {
   flex: 1;
@@ -740,17 +747,6 @@ button[aria-pressed="true"] {
   min-height: 36px;
   padding: 4px 10px;
 }
-.table-tools {
-  padding: 5px 10px;
-  border-bottom: 1px solid var(--line);
-}
-.table-tools input {
-  padding: 5px 8px;
-}
-.table-summary {
-  padding: 4px 10px;
-  font-size: 11px;
-}
 .row-number {
   text-align: center;
   color: var(--muted);
@@ -874,9 +870,6 @@ button[aria-pressed="true"] {
 }
 .value-bar [role="alert"] {
   color: var(--error);
-}
-.table-tools {
-  flex-wrap: wrap;
 }
 
 /* Preserve the native dropdown arrow with additional text spacing. */
@@ -1058,14 +1051,14 @@ select optgroup {
 .welcome-install p { margin: 6px 0 12px; font-size: 13px; }
 .welcome-install-actions { display: flex; justify-content: center; gap: 10px; }
 
-.cell-value.empty-value { color: var(--muted); font-style: italic; }
+.cell-value.empty-value { height: 100%; }
 .details-preview { min-width: 0; }
 .details-preview table { border-collapse: collapse; width: 100%; font-size: 12px; table-layout: fixed; margin: 8px 0 16px; }
 .details-preview th, .details-preview td { text-align: left; vertical-align: top; padding: 7px 8px; border: 1px solid var(--line); overflow-wrap: anywhere; white-space: pre-wrap; }
 .details-preview thead th { background: var(--chrome); font-weight: 600; }
 .details-preview tbody th { width: 40%; font-weight: 500; }
 
-.wrap-text .cell-value { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 20px; max-height: 100%; padding: 5px 0; }
+.wrap-text .cell-value { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 20px; max-height: 100%; padding: 3px 0; }
 .row-number-content { height: 100%; position: relative; }
 .row-height-handle { position: absolute; left: 0; right: 0; bottom: 0; height: 6px; cursor: row-resize; touch-action: none; z-index: 2; }
 .row-height-handle:hover, .row-height-handle:focus-visible { background: var(--accent); }
@@ -1093,3 +1086,9 @@ select optgroup {
 .sheet-menu button { display: flex; justify-content: space-between; align-items: center; gap: 24px; }
 .sheet-menu kbd { color: var(--muted); font: inherit; font-size: 11px; }
 .sheet-menu hr { width: 100%; border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+
+.table-tools .sort-summary { display: inline-flex; align-items: center; gap: 5px; }
+
+.table-counts { white-space: nowrap; }
+
+.wrap-text .cell-value { tab-size: 4; }

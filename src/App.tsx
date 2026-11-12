@@ -1,3 +1,4 @@
+import { blankState, wrappedHeight } from "./grid/cellPresentation";
 import { DocumentOutline } from "./grid/DocumentOutline";
 import { recordNavigation, type NavigationHistory } from "./navigation";
 import { RowHeightHandle } from "./grid/RowHeightHandle";
@@ -139,14 +140,61 @@ export default function App() {
   const replayingClick = useRef(false);
   const grid = useRef<DataGridHandle>(null);
   const [wrapText, setWrapText] = useState(false);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const textMeasure = useMemo(() => {
+    const context = document.createElement("canvas").getContext("2d");
+    if (context)
+      context.font =
+        '13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    const widths = new Map<string, number>();
+    return (text: string) => {
+      const cached = widths.get(text);
+      if (cached !== undefined) return cached;
+      const width = context?.measureText(text).width ?? text.length * 7;
+      if (text.length === 1) widths.set(text, width);
+      return width;
+    };
+  }, []);
   const [rowHeights, setRowHeights] = useState<Record<string, number>>({});
   const sessions = useRef(new Map<string, Session>());
   const navigationHistory = useRef(new Map<string, NavigationHistory>());
   const [activeId, setActiveId] = useState("");
   const tableHeightKey = `${activeId}:${pointer(query.path)}`;
   const heightKey = (row: Row) => `${tableHeightKey}:${row.id}`;
+  const columnWidth = (index: number) =>
+    columnWidths[`${tableHeightKey}:${index}`] ??
+    (index === 0 ? (view?.kind === "array" ? 88 : 150) : 155);
+  const automaticHeights = useMemo(() => {
+    if (!wrapText || !view) return new Map<string, number>();
+    return new Map(
+      view.rows.map((row) => [
+        row.id,
+        wrappedHeight(
+          row.cells.map((cell, i) => ({
+            text:
+              (view.recordsAvailable && query.records
+                ? i > 0
+                : i === view.headers.length - 1) && blankState(cell)
+                ? ""
+                : cell.type === "array"
+                  ? cell.display.replace(/\s+/g, " ")
+                  : cell.display,
+            width: columnWidth(i),
+          })),
+          textMeasure,
+        ),
+      ]),
+    );
+  }, [
+    view,
+    wrapText,
+    columnWidths,
+    tableHeightKey,
+    query.records,
+    textMeasure,
+  ]);
   const rowHeight = (row: Row) =>
-    rowHeights[heightKey(row)] ?? (wrapText ? 72 : 28);
+    rowHeights[heightKey(row)] ?? automaticHeights.get(row.id) ?? 28;
   function resizeRow(row: Row, height?: number) {
     const key = heightKey(row);
     setRowHeights((previous) => {
@@ -949,8 +997,8 @@ export default function App() {
                   </button>
                 </div>
               ),
-              width: i === 0 ? (view.kind === "array" ? 88 : 150) : 155,
-              minWidth: i === 0 && view.kind === "array" ? 80 : 80,
+              width: columnWidth(i),
+              minWidth: 80,
               resizable: true,
               sortable: false,
               frozen: false,
@@ -1039,12 +1087,18 @@ export default function App() {
                     />
                   );
                 const c = row.cells[i];
+                const blank = valueColumn(i) ? blankState(c) : null;
                 return (
                   <span
-                    className={`cell-value ${valueColumn(i) && (c.type === "missing" || c.type === "null" || c.empty) ? "empty-value" : ""} ${c.container ? "container-value" : ""} ${c.type === "array" ? "array-value" : ""} ${c.type === "number" ? "numeric" : ""}`}
-                    title={`${c.type} — ${pointer(c.path) || "root"}`}
+                    className={`cell-value ${blank ? "empty-value" : ""} ${c.container ? "container-value" : ""} ${c.type === "array" ? "array-value" : ""} ${c.type === "number" ? "numeric" : ""}`}
+                    title={`${blank ?? c.type} — ${pointer(c.path) || "root"}`}
+                    aria-label={
+                      blank
+                        ? `${blank} — ${pointer(c.path) || "root"}`
+                        : undefined
+                    }
                   >
-                    {c.display}
+                    {blank ? "" : c.display}
                   </span>
                 );
               },
@@ -1058,6 +1112,8 @@ export default function App() {
       query,
       headerMenu,
       rowHeights,
+      columnWidths,
+      automaticHeights,
       wrapText,
       activeId,
     ],
@@ -1811,9 +1867,11 @@ export default function App() {
                       }
                       value={
                         selection
-                          ? selection.cell.type === "string"
-                            ? JSON.parse(selection.raw)
-                            : selection.raw
+                          ? blankState(selection.cell)
+                            ? ""
+                            : selection.cell.type === "string"
+                              ? JSON.parse(selection.raw)
+                              : selection.raw
                           : ""
                       }
                       editable={
@@ -1875,21 +1933,54 @@ export default function App() {
                         {query.records ? "Properties view" : "Records view"}
                       </button>
                     )}
-                    {(Object.values(query.filters ?? {}).some(Boolean) ||
-                      Object.keys(query.valueFilters ?? {}).length > 0) && (
-                      <button
-                        onClick={() =>
-                          changeQuery({
-                            ...query,
-                            page: 0,
-                            filters: undefined,
-                            valueFilters: undefined,
-                          })
-                        }
-                      >
-                        Clear filters
-                      </button>
-                    )}
+                    <div className="table-summary">
+                      <span className="table-counts">
+                        {view.matched.toLocaleString()} of{" "}
+                        {view.total.toLocaleString()} rows ·{" "}
+                        {view.headers.length} columns
+                      </span>
+                      {!!Object.keys(query.valueFilters ?? {}).length && (
+                        <span className="sort-summary">
+                          Filtered:{" "}
+                          {Object.keys(query.valueFilters ?? {})
+                            .map((k) => view.headers[Number(k)])
+                            .join(", ")}{" "}
+                          <button
+                            disabled={busy}
+                            onClick={() =>
+                              changeQuery({
+                                ...query,
+                                valueFilters: undefined,
+                                page: 0,
+                              })
+                            }
+                          >
+                            Clear filters
+                          </button>
+                        </span>
+                      )}
+                      {query.sort && (
+                        <span className="sort-summary">
+                          Sorted by {view.headers[query.sort.column]} (
+                          {query.sort.direction === "ASC"
+                            ? "ascending"
+                            : "descending"}
+                          ){" "}
+                          <button
+                            disabled={busy}
+                            onClick={() =>
+                              changeQuery({
+                                ...query,
+                                sort: undefined,
+                                page: 0,
+                              })
+                            }
+                          >
+                            Clear sort
+                          </button>
+                        </span>
+                      )}
+                    </div>
                     <div className="spacer" />
                     {((query.records && view.recordsAvailable) ||
                       view.total === 0) &&
@@ -1971,48 +2062,6 @@ export default function App() {
                       {columnError && <span role="alert">{columnError}</span>}
                     </form>
                   )}
-                  <div className="table-summary">
-                    {view.matched.toLocaleString()} of{" "}
-                    {view.total.toLocaleString()} rows <span>•</span>{" "}
-                    {view.headers.length} columns{" "}
-                    {!!Object.keys(query.valueFilters ?? {}).length && (
-                      <span className="sort-summary">
-                        Filtered:{" "}
-                        {Object.keys(query.valueFilters ?? {})
-                          .map((k) => view.headers[Number(k)])
-                          .join(", ")}{" "}
-                        <button
-                          disabled={busy}
-                          onClick={() =>
-                            changeQuery({
-                              ...query,
-                              valueFilters: undefined,
-                              page: 0,
-                            })
-                          }
-                        >
-                          Clear filters
-                        </button>
-                      </span>
-                    )}
-                    {query.sort && (
-                      <span className="sort-summary">
-                        Sorted by {view.headers[query.sort.column]} (
-                        {query.sort.direction === "ASC"
-                          ? "ascending"
-                          : "descending"}
-                        ){" "}
-                        <button
-                          disabled={busy}
-                          onClick={() =>
-                            changeQuery({ ...query, sort: undefined, page: 0 })
-                          }
-                        >
-                          Clear sort
-                        </button>
-                      </span>
-                    )}
-                  </div>
                   <SheetRange
                     isValueColumn={valueColumn}
                     recordMode={query.records && view.recordsAvailable}
@@ -2039,6 +2088,12 @@ export default function App() {
                       rows={view.rows}
                       getRowKey={(r) => r.id}
                       rowHeight={rowHeight}
+                      onColumnResize={(column, width) =>
+                        setColumnWidths((previous) => ({
+                          ...previous,
+                          [`${tableHeightKey}:${column.key}`]: width,
+                        }))
+                      }
                       headerRowHeight={48}
                       sortColumns={sortColumns}
                       onSortColumnsChange={(sort) => {
@@ -2200,7 +2255,7 @@ export default function App() {
                     <button
                       aria-pressed={wrapText}
                       onClick={() => setWrapText(!wrapText)}
-                      title="Show cell text on multiple lines. Drag a row number’s bottom edge to adjust height."
+                      title="Wrap long or multiline values. Short rows stay compact. Drag a row number’s bottom edge to adjust height."
                     >
                       Wrap text
                     </button>
@@ -2295,6 +2350,12 @@ export default function App() {
                     </code>
                     <label>JSON type</label>
                     <span className="type-label">{selection.cell.type}</span>
+                    {blankState(selection.cell) && (
+                      <>
+                        <label>Value state</label>
+                        <span>{blankState(selection.cell)}</span>
+                      </>
+                    )}
                     <ValueDetails raw={selection.raw} />
                     <label>Exact JSON</label>
                     <pre className="value-preview">

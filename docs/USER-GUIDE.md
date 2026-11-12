@@ -36,7 +36,7 @@ The checklist contains at most 2,000 distinct values; a truncation notice appear
 
 ## Source and review
 
-Select a cell, then Source to locate its exact JSON token. The column menu can locate the first applicable field in visible rows. Missing fields have no source token. There is no separate source-jump row.
+Select a cell, then Source to locate its exact JSON token. Missing fields have no source token. There is no separate source-jump row.
 
 Merely viewing source should not create a draft. Editing source reveals Apply source / Discard draft. Apply commits to the document engine; Discard reloads committed text. These are distinct from saving the file to disk.
 
@@ -67,7 +67,7 @@ Report bugs through GitHub Issues. Include release version, OS/browser version, 
 
 ## Empty values and nested previews
 
-Empty strings (`""`), empty objects (`{}`), empty arrays (`[]`), `null` and missing properties are shown separately in muted text. A missing property is absent from the file; entering a value creates it. Zero and false are ordinary values. Placeholder labels are display hints, not text inserted into your document.
+Empty strings (`""`), empty objects (`{}`), empty arrays (`[]`), `null` and missing properties appear as blank grid cells. Select a cell and open **Details** to see its exact state and JSON. Hover text and accessible names also identify the state. The underlying values remain distinct; no conversion occurs. Zero, false and literal strings such as "null" remain visible. A missing property is absent from the file; entering a value creates it.
 
 Nested objects show up to three key/value hints in the cell. Double-click still opens the nested table. Turn on **Details** for a contents table alongside the exact JSON. The preview shows up to 30 entries, truncates long values, and is omitted for selections larger than 128 Ki characters; use **Open table** or the exact JSON for the complete value. Numeric previews use the original JSON spelling.
 
@@ -75,9 +75,9 @@ Switching from Table to Source and back restores the active cell. Applying a sou
 
 ## Multiline cells and row height
 
-Use **Wrap text** in the table footer to show line breaks and wrap long text inside cells. It starts with space for about three lines; longer content is clipped to the row height. The grid preview remains limited to 240 characters. Details and Source contain the full value.
+Use **Wrap text** in the table footer to show line breaks and wrap long text inside cells. Only rows whose visible content needs extra lines grow automatically, up to three lines. Short and blank rows stay compact. Heights recalculate when columns are resized; manual row heights take precedence. Longer content is clipped to the row height. The grid preview remains limited to 240 characters. Details and Source contain the full value.
 
-Drag the bottom edge of a row number to change its height (28–400 pixels). Double-click that edge to reset to the current compact/wrapped default. Once the resize handle has focus, Up/Down adjusts its height and Home resets it. Heights are view settings for the current document/table and remain attached to the row path when sorting/filtering. They are not saved in JSON or restored after closing the app.
+Drag the bottom edge of a row number to change its height (28–400 pixels). Double-click that edge to reset to its current content-based height. Once the resize handle has focus, Up/Down adjusts its height and Home resets it. Heights are view settings for the current document/table and remain attached to the row path when sorting/filtering. They are not saved in JSON or restored after closing the app.
 
 While editing a string cell, **Alt+Enter** inserts a line break, **Enter** commits, **Tab** commits and moves, and **Escape** cancels. Line breaks are saved as escaped newlines in valid JSON. String cell editing now uses a multiline text field; other JSON types keep their existing validation.
 
@@ -94,3 +94,5 @@ The home icon opens the document root. The sidebar and status bar show the curre
 ## Freeze panes status
 
 Custom freeze rows/columns remains experimental on `dev` and is absent from the public app. The old implementation used fixed row offsets and is incompatible with the new variable row heights. The row-number gutter remains pinned; this is separate from custom freeze panes.
+
+Search, row/column counts, active sort/filter summaries and Add actions share one compact table control line.
