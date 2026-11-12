@@ -2,7 +2,7 @@
 
 ## Use without developer tools
 
-Download `Lattice-Offline.html` from [Releases](https://github.com/arsxd/lattice/releases/latest) and open it in Chrome or Edge. Transfer only that HTML; npm and Node are not needed. Alternatively open [the hosted app](https://arsxd.github.io/lattice/) and use the browser install menu when your policy permits. Load it successfully online before testing cached offline startup.
+Download `Lattice-Offline.html` from [Releases](https://github.com/arsxd/lattice/releases) and open it in Chrome or Edge. Transfer only that HTML; npm and Node are not needed. Alternatively open [the hosted app](https://arsxd.github.io/lattice/) and use the browser install menu when your policy permits. Load it successfully online before testing cached offline startup.
 
 ## Automated Windows coverage
 

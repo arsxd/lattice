@@ -288,3 +288,66 @@ test("announces a real waiting service worker without replacing a dirty draft", 
     await writeFile(workerPath, original);
   }
 });
+
+test("reload retains selected property page and scroll after external column reordering", async ({
+  page,
+}) => {
+  await page.evaluate(() => {
+    const state = window as unknown as {
+      reloadText: string;
+      showOpenFilePicker: unknown;
+    };
+    state.reloadText = JSON.stringify(
+      Array.from({ length: 620 }, (_, id) => ({ id, name: `row-${id}` })),
+    );
+    Object.defineProperty(window, "showOpenFilePicker", {
+      configurable: true,
+      value: async () => [
+        {
+          kind: "file",
+          name: "reload.json",
+          getFile: async () =>
+            new File([state.reloadText], "reload.json", {
+              type: "application/json",
+            }),
+        },
+      ],
+    });
+  });
+  await page.getByRole("button", { name: "Open…", exact: true }).click();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page
+    .getByRole("grid", { name: "JSON data table" })
+    .evaluate((element) => (element.scrollTop = 700));
+  await page
+    .locator('[role="gridcell"][aria-colindex="3"]')
+    .filter({ hasText: /^530$/ })
+    .click();
+  const before = await page
+    .getByRole("grid", { name: "JSON data table" })
+    .evaluate((element) => element.scrollTop);
+  await page.evaluate(() => {
+    (window as unknown as { reloadText: string }).reloadText = JSON.stringify(
+      Array.from({ length: 620 }, (_, id) => ({
+        name: `row-${id}`,
+        id,
+        extra: true,
+      })),
+    );
+  });
+  await page
+    .getByRole("button", { name: "Reload source…", exact: true })
+    .click();
+  await expect(page.locator(".pagination")).toContainText("Page 2 / 2");
+  await expect(page.locator(".value-bar input")).toHaveValue("530");
+  await expect
+    .poll(() =>
+      page
+        .getByRole("grid", { name: "JSON data table" })
+        .evaluate((element) => element.scrollTop),
+    )
+    .toBe(before);
+  await expect(
+    page.getByRole("button", { name: "Select column id", exact: true }),
+  ).toContainText("C");
+});
