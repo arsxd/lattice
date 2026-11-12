@@ -57,3 +57,26 @@ export function wrappedHeight(
   }
   return 28 + (maxLines - 1) * 20;
 }
+
+export const VALUE_BAR_PREVIEW_LIMIT = 4096;
+export const JSON_PREVIEW_LIMIT = 8192;
+export function valueBarPresentation(
+  cell: Cell,
+  raw: string,
+): { text: string; previewOnly: boolean } {
+  if (blankState(cell)) return { text: "", previewOnly: false };
+  if (cell.container) return { text: cell.display, previewOnly: true };
+  const text = cell.type === "string" ? (JSON.parse(raw) as string) : raw;
+  return text.length > VALUE_BAR_PREVIEW_LIMIT
+    ? { text: text.slice(0, VALUE_BAR_PREVIEW_LIMIT) + "…", previewOnly: true }
+    : { text, previewOnly: false };
+}
+export function jsonSelectionPreview(raw: string): {
+  text: string;
+  truncated: boolean;
+} {
+  return {
+    text: raw.slice(0, JSON_PREVIEW_LIMIT),
+    truncated: raw.length > JSON_PREVIEW_LIMIT,
+  };
+}

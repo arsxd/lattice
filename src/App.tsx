@@ -1,5 +1,11 @@
 import { NavigationIcon } from "./NavigationIcon";
-import { blankState, wrappedHeight } from "./grid/cellPresentation";
+import {
+  blankState,
+  wrappedHeight,
+  valueBarPresentation,
+  jsonSelectionPreview,
+  JSON_PREVIEW_LIMIT,
+} from "./grid/cellPresentation";
 import { DocumentOutline } from "./grid/DocumentOutline";
 import { recordNavigation, type NavigationHistory } from "./navigation";
 import { RowHeightHandle } from "./grid/RowHeightHandle";
@@ -125,6 +131,7 @@ export default function App() {
   const client = useRef<DocumentClient | null>(null);
   const request = useRef(0);
   const selectionRequest = useRef(0);
+  const pendingSelection = useRef<string | null>(null);
   const busyRef = useRef(false);
   const [doc, setDoc] = useState<Opened | null>(null);
   const [view, setView] = useState<Projection | null>(null);
@@ -621,6 +628,14 @@ export default function App() {
       return;
     }
     if (busyRef.current || !view || !client.current) return;
+    const key = JSON.stringify([
+      activeId,
+      view.revision,
+      cell.path,
+      cell.display,
+    ]);
+    if (pendingSelection.current === key) return;
+    pendingSelection.current = key;
     const id = ++selectionRequest.current;
     try {
       const raw =
@@ -631,6 +646,8 @@ export default function App() {
         setSelection({ cell, raw, revision: view.revision });
     } catch (e) {
       setError(String(e));
+    } finally {
+      if (pendingSelection.current === key) pendingSelection.current = null;
     }
   }
   async function edit(cell: Cell) {
@@ -1359,6 +1376,15 @@ export default function App() {
     window.addEventListener("keydown", handle);
     return () => window.removeEventListener("keydown", handle);
   });
+  const selectedPresentation = useMemo(
+    () =>
+      selection ? valueBarPresentation(selection.cell, selection.raw) : null,
+    [selection],
+  );
+  const selectedJsonPreview = useMemo(
+    () => (selection ? jsonSelectionPreview(selection.raw) : null),
+    [selection],
+  );
   const currentCell =
     activeCell && activeCell.column >= 0
       ? view?.rows[activeCell.row]?.cells[activeCell.column]
@@ -1868,20 +1894,14 @@ export default function App() {
                           ? `${columnLetter(activeCell.column)}${view.page * 500 + activeCell.row + 1}`
                           : ""
                       }
-                      value={
-                        selection
-                          ? blankState(selection.cell)
-                            ? ""
-                            : selection.cell.type === "string"
-                              ? JSON.parse(selection.raw)
-                              : selection.raw
-                          : ""
-                      }
+                      value={selectedPresentation?.text ?? ""}
+                      previewOnly={selectedPresentation?.previewOnly}
                       editable={
                         !!selection &&
                         !!activeCell &&
                         valueColumn(activeCell.column) &&
                         !selection.cell.container &&
+                        !selectedPresentation?.previewOnly &&
                         selection.cell.writable !== false
                       }
                       onCommit={async (value) => {
@@ -2353,12 +2373,23 @@ export default function App() {
                       </>
                     )}
                     <ValueDetails raw={selection.raw} />
-                    <label>Exact JSON</label>
+                    <label>
+                      {selectedJsonPreview?.truncated
+                        ? "JSON preview"
+                        : "Exact JSON"}
+                    </label>
                     <pre className="value-preview">
                       {selection.cell.type === "missing"
                         ? "Property is absent"
-                        : selection.raw}
+                        : selectedJsonPreview?.text}
                     </pre>
+                    {selectedJsonPreview?.truncated && (
+                      <p className="small">
+                        Showing the first {JSON_PREVIEW_LIMIT.toLocaleString()}{" "}
+                        characters. Open table or Source for the complete value.
+                        Copy JSON copies the full value.
+                      </p>
+                    )}
                     <div className="inspector-actions">
                       <button
                         className="primary"

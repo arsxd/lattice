@@ -3,11 +3,13 @@ export function ValueBar({
   address,
   value,
   editable,
+  previewOnly = false,
   onCommit,
 }: {
   address: string;
   value: string;
   editable: boolean;
+  previewOnly?: boolean;
   onCommit: (v: string) => Promise<void>;
 }) {
   const [draft, setDraft] = useState(value),
@@ -32,6 +34,11 @@ export function ValueBar({
       <input
         id="cell-value"
         aria-label="Selected cell value"
+        title={
+          previewOnly
+            ? "Preview only. Open the nested table or Source for the complete value."
+            : undefined
+        }
         value={draft}
         readOnly={!editable}
         aria-invalid={!!error}

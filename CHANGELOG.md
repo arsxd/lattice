@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Fixed heavy UI work when selecting large nested values: container summaries in the value bar, bounded Details JSON previews, and duplicate selection-read suppression.
+- Oversized scalar value-bar previews are read-only; full-value Copy JSON and Source remain available.
+
 - Moved Find to the bottom-right beside wrapping and pagination; typing remains editable while search results refresh.
 
 - Unified home, Back/Forward and sidebar disclosure icons with consistent SVG strokes and alignment.

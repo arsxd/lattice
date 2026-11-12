@@ -69,13 +69,13 @@ Report bugs through GitHub Issues. Include release version, OS/browser version, 
 
 Empty strings (`""`), empty objects (`{}`), empty arrays (`[]`), `null` and missing properties appear as blank grid cells. Select a cell and open **Details** to see its exact state and JSON. Hover text and accessible names also identify the state. The underlying values remain distinct; no conversion occurs. Zero, false and literal strings such as "null" remain visible. A missing property is absent from the file; entering a value creates it.
 
-Nested objects show up to three key/value hints in the cell. Double-click still opens the nested table. Turn on **Details** for a contents table alongside the exact JSON. The preview shows up to 30 entries, truncates long values, and is omitted for selections larger than 128 Ki characters; use **Open table** or the exact JSON for the complete value. Numeric previews use the original JSON spelling.
+Nested objects show up to three key/value hints in the cell. Double-click still opens the nested table. Turn on **Details** for a contents table alongside a JSON preview. The preview shows up to 30 entries, truncates long values, and is omitted for selections larger than 128 Ki characters; use **Open table**, **Source** or **Copy JSON** for the complete value. Numeric previews use the original JSON spelling.
 
 Switching from Table to Source and back restores the active cell. Applying a source draft clears the selection because rows and keys may have changed; select a new cell after applying.
 
 ## Multiline cells and row height
 
-Use **Wrap text** in the table footer to show line breaks and wrap long text inside cells. Only rows whose visible content needs extra lines grow automatically, up to three lines. Short and blank rows stay compact. Heights recalculate when columns are resized; manual row heights take precedence. Longer content is clipped to the row height. The grid preview remains limited to 240 characters. Details and Source contain the full value.
+Use **Wrap text** in the table footer to show line breaks and wrap long text inside cells. Only rows whose visible content needs extra lines grow automatically, up to three lines. Short and blank rows stay compact. Heights recalculate when columns are resized; manual row heights take precedence. Longer content is clipped to the row height. The grid preview remains limited to 240 characters. Source and Copy JSON provide the full value; Details limits its text preview.
 
 Drag the bottom edge of a row number to change its height (28–400 pixels). Double-click that edge to reset to its current content-based height. Once the resize handle has focus, Up/Down adjusts its height and Home resets it. Heights are view settings for the current document/table and remain attached to the row path when sorting/filtering. They are not saved in JSON or restored after closing the app.
 
@@ -96,3 +96,9 @@ The home icon opens the document root. The sidebar and status bar show the curre
 Custom freeze rows/columns remains experimental on `dev` and is absent from the public app. The old implementation used fixed row offsets and is incompatible with the new variable row heights. The row-number gutter remains pinned; this is separate from custom freeze panes.
 
 Find is on the right of the bottom bar alongside wrapping and page navigation. Ctrl+F / Cmd+F focuses it in Table view. Row/column counts, active sort/filter summaries and Add actions remain above the grid.
+
+## Large selected values
+
+The value bar shows a short summary for nested objects/arrays instead of inserting their full JSON into a text input. Scalar values longer than 4,096 characters use a read-only preview; a truncated preview cannot be committed as an edit. Use Source for the complete value.
+
+Details shows at most 8,192 characters of raw JSON and clearly labels truncated previews. **Copy JSON** and copying selected grid cells still use complete values. Selecting a large container does not modify its data. These limits apply to previews, not the file or nested table.
