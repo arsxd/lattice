@@ -1,4 +1,3 @@
-import { fieldColumnKey } from "./columnRoles";
 import {
   useEffect,
   useLayoutEffect,
@@ -6,19 +5,25 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type {
-  Projection,
-  AtomicMutation,
-  Path,
-  Kind,
-} from "../document/engine";
-import { scalarText } from "../editor/scalar";
-import { parseTSV, readRange } from "./clipboard";
-type Point = { r: number; c: number };
+import type { Projection, AtomicMutation } from "../document/engine";
+import {
+  axisSelected,
+  selectCell,
+  selectHeader,
+  selectedCellCount,
+  selectionContains,
+  type SheetPoint,
+  type SheetSelection,
+} from "../document/sheetSelection";
+import { fieldColumnKey } from "./columnRoles";
 export function SheetRange({
   view,
   children,
-  read,
+  selection,
+  onSelectionChange,
+  copy,
+  paste,
+  fill,
   apply,
   onAddRow,
   onAddColumn,
@@ -26,28 +31,43 @@ export function SheetRange({
 }: {
   view: Projection;
   children: ReactNode;
-  read: (p: Path) => Promise<string>;
+  selection: SheetSelection | null;
+  onSelectionChange: (selection: SheetSelection | null) => void;
+  copy: (selection: SheetSelection) => Promise<string>;
+  paste: (selection: SheetSelection, text: string) => Promise<void>;
+  fill: (selection: SheetSelection) => Promise<void>;
   apply: (ops: AtomicMutation[]) => Promise<void>;
   onAddRow: () => void;
   onAddColumn: () => void;
-  isValueColumn: (c: number) => boolean;
+  isValueColumn: (column: number) => boolean;
 }) {
-  const [anchor, setAnchor] = useState<Point | null>(null),
-    [end, setEnd] = useState<Point | null>(null),
-    [message, setMessage] = useState(""),
-    [menu, setMenu] = useState<{
-      x: number;
-      y: number;
-      r: number;
-      c: number;
-    } | null>(null);
-  const menuElement = useRef<HTMLDivElement>(null);
-  const contextTarget = useRef<HTMLElement | null>(null);
-  const restoringFocus = useRef(false);
-  const contextOpening = useRef(false);
-  const clipboardBusy = useRef(false);
+  const [message, setMessage] = useState("");
+  const [menu, setMenu] = useState<{
+    x: number;
+    y: number;
+    r: number;
+    c: number;
+  } | null>(null);
   const [menuPosition, setMenuPosition] = useState({ left: 8, top: 8 });
+  const menuElement = useRef<HTMLDivElement>(null),
+    contextTarget = useRef<HTMLElement | null>(null);
+  const restoringFocus = useRef(false),
+    contextOpening = useRef(false),
+    dragging = useRef(false),
+    clipboardBusy = useRef(false);
+  const clip = useRef(""),
+    ready = useRef(false),
+    copyError = useRef("");
   const shortcut = navigator.userAgent.includes("Mac") ? "⌘" : "Ctrl+";
+  const offset = view.page * 500;
+  const key = JSON.stringify(selection);
+  function choose(next: SheetSelection | null) {
+    ready.current = false;
+    clip.current = "";
+    copyError.current = "";
+    setMessage("");
+    onSelectionChange(next);
+  }
   function closeMenu(restore = false) {
     setMenu(null);
     if (restore) {
@@ -92,49 +112,6 @@ export function SheetRange({
       document.removeEventListener("keydown", escape);
     };
   }, [menu]);
-  const dragging = useRef(false),
-    clip = useRef(""),
-    ready = useRef(false);
-  const bounds =
-    anchor && end
-      ? {
-          r1: Math.min(anchor.r, end.r),
-          r2: Math.max(anchor.r, end.r),
-          c1: Math.min(anchor.c, end.c),
-          c2: Math.max(anchor.c, end.c),
-        }
-      : null;
-  const key = JSON.stringify(bounds);
-  useEffect(() => {
-    setAnchor(null);
-    setEnd(null);
-    setMenu(null);
-  }, [view]);
-  useEffect(() => {
-    let cancelled = false;
-    ready.current = false;
-    if (
-      bounds &&
-      (bounds.r2 - bounds.r1 + 1) * (bounds.c2 - bounds.c1 + 1) > 10000
-    ) {
-      setMessage("Copy at most 10,000 cells.");
-      return;
-    }
-    if (bounds)
-      void readRange(view, bounds, read)
-        .then((text) => {
-          if (!cancelled) {
-            clip.current = text;
-            ready.current = true;
-          }
-        })
-        .catch((error) => {
-          if (!cancelled) setMessage(String(error));
-        });
-    return () => {
-      cancelled = true;
-    };
-  }, [key, view]);
   useEffect(() => {
     const up = () => {
       dragging.current = false;
@@ -142,80 +119,93 @@ export function SheetRange({
     window.addEventListener("pointerup", up);
     return () => window.removeEventListener("pointerup", up);
   }, []);
-  function point(target: EventTarget | null): Point | null {
+  useEffect(() => {
+    setMenu(null);
+    setMessage("");
+  }, [view]);
+  useEffect(() => {
+    let cancelled = false;
+    ready.current = false;
+    clip.current = "";
+    copyError.current = "";
+    setMessage("");
+    if (
+      selection &&
+      selectedCellCount(selection, view.matched, view.headers.length) <= 10000
+    )
+      void copy(selection)
+        .then((text) => {
+          if (!cancelled) {
+            clip.current = text;
+            ready.current = true;
+            setMessage((previous) =>
+              previous.startsWith("Preparing selection") ? "" : previous,
+            );
+          }
+        })
+        .catch((error) => {
+          if (!cancelled)
+            copyError.current =
+              error instanceof Error ? error.message : String(error);
+        });
+    return () => {
+      cancelled = true;
+    };
+  }, [key, view]);
+  function point(target: EventTarget | null): SheetPoint | null {
     if (!(target instanceof Element)) return null;
     const cell = target.closest('[role="gridcell"]'),
       row = cell?.closest('[role="row"]');
     if (!cell || !row) return null;
-    const p = {
-      r: Number(row.getAttribute("aria-rowindex")) - 2,
-      c: Number(cell.getAttribute("aria-colindex")) - 2,
-    };
-    return p.c >= 0 ? p : null;
+    const c = Number(cell.getAttribute("aria-colindex")) - 2,
+      r = Number(row.getAttribute("aria-rowindex")) - 2;
+    return c >= 0 && r >= 0 ? { r: r + offset, c } : null;
+  }
+  async function perform(action: "paste" | "fill", text = "") {
+    if (!selection) return;
+    try {
+      if (action === "paste") await paste(selection, text);
+      else await fill(selection);
+      setMessage(
+        action === "paste"
+          ? "Pasted. Undo restores the entire selection."
+          : "Filled down. Undo restores the selection.",
+      );
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    }
   }
   async function clipboardAction(action: "copy" | "paste") {
-    if (clipboardBusy.current || !bounds) return;
+    if (!selection || clipboardBusy.current) return;
     clipboardBusy.current = true;
     closeMenu(true);
     try {
       if (action === "copy") {
-        const text = ready.current
-          ? clip.current
-          : await readRange(view, bounds, read);
-        await navigator.clipboard.writeText(text);
-        setMessage("");
-      } else {
-        const text = await navigator.clipboard.readText();
-        await paste(text);
-      }
-    } catch {
-      setMessage(
-        `Clipboard access is unavailable. Select the cells and use ${shortcut}${action === "copy" ? "C" : "V"} instead.`,
-      );
-    } finally {
-      clipboardBusy.current = false;
-    }
-  }
-  async function paste(text: string) {
-    if (!bounds) return;
-    try {
-      const values = parseTSV(text),
-        ops: AtomicMutation[] = [];
-      if (values.length * values[0].length > 10000)
-        throw Error("Paste at most 10,000 cells.");
-      for (let r = 0; r < values.length; r++)
-        for (let c = 0; c < values[r].length; c++) {
-          const ri = bounds.r1 + r,
-            ci = bounds.c1 + c,
-            cell = view.rows[ri]?.cells[ci];
-          if (!cell)
-            throw Error("Paste exceeds this page. Add rows or columns first.");
-          if (!isValueColumn(ci) || cell.writable === false || cell.container)
-            throw Error(
-              `Cell ${ri + 1}, ${ci + 1} cannot accept pasted values.`,
-            );
-          const kind = (
-            cell.type === "missing" || cell.type === "null"
-              ? (cell.inputKind ?? "string")
-              : cell.type
-          ) as Kind;
-          const value = values[r][c],
-            raw = value === "" ? "null" : scalarText(kind, value);
-          ops.push(
-            cell.type === "missing"
-              ? {
-                  action: "insert",
-                  path: cell.path.slice(0, -1),
-                  key: String(cell.path.at(-1)),
-                  raw,
-                }
-              : { action: "replace", path: cell.path, raw },
+        const text = ready.current ? clip.current : await copy(selection);
+        try {
+          await navigator.clipboard.writeText(text);
+          setMessage("");
+        } catch {
+          setMessage(
+            `Clipboard access is unavailable. Use ${shortcut}C instead.`,
           );
         }
-      await apply(ops);
-      setMessage("Pasted. Undo restores the entire selection.");
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : String(e));
+      } else {
+        let text: string;
+        try {
+          text = await navigator.clipboard.readText();
+        } catch {
+          setMessage(
+            `Clipboard access is unavailable. Use ${shortcut}V instead.`,
+          );
+          return;
+        }
+        await perform("paste", text);
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      clipboardBusy.current = false;
     }
   }
   async function columnAction(rename: boolean) {
@@ -238,49 +228,6 @@ export function SheetRange({
       setMessage(String(e));
     }
   }
-  async function fillDown() {
-    if (!bounds || bounds.r1 === bounds.r2) return;
-    try {
-      const ops: AtomicMutation[] = [];
-      for (let c = bounds.c1; c <= bounds.c2; c++) {
-        const source = view.rows[bounds.r1].cells[c];
-        if (!isValueColumn(c) || source.container || source.writable === false)
-          throw Error("Select writable value cells for fill-down.");
-        const raw =
-          source.type === "missing" ? "null" : await read(source.path);
-        for (let r = bounds.r1 + 1; r <= bounds.r2; r++) {
-          const cell = view.rows[r].cells[c];
-          if (cell.container || cell.writable === false)
-            throw Error("Fill-down cannot replace nested tables.");
-          const kind =
-            cell.type === "missing" || cell.type === "null"
-              ? cell.inputKind
-              : cell.type;
-          if (
-            source.type !== "missing" &&
-            source.type !== "null" &&
-            kind &&
-            kind !== source.type
-          )
-            throw Error("Selected cells have incompatible types.");
-          ops.push(
-            cell.type === "missing"
-              ? {
-                  action: "insert",
-                  path: cell.path.slice(0, -1),
-                  key: String(cell.path.at(-1)),
-                  raw,
-                }
-              : { action: "replace", path: cell.path, raw },
-          );
-        }
-      }
-      await apply(ops);
-      setMessage("Filled down. Undo restores the selection.");
-    } catch (e) {
-      setMessage(String(e));
-    }
-  }
   async function relativeRow(where: "before" | "after", duplicate = false) {
     if (!menu) return;
     try {
@@ -298,11 +245,29 @@ export function SheetRange({
     }
   }
   const selectors: string[] = [];
-  if (bounds)
-    for (let r = bounds.r1; r <= bounds.r2; r++)
+  if (selection?.mode === "columns")
+    for (const [a, b] of selection.spans)
       selectors.push(
-        `.range-sheet [role=row][aria-rowindex="${r + 2}"] [role=gridcell]:nth-child(n+${bounds.c1 + 2}):nth-child(-n+${bounds.c2 + 2})`,
+        `.range-sheet [role=row] [role=gridcell]:nth-child(n+${a + 2}):nth-child(-n+${b + 2})`,
       );
+  else if (selection)
+    for (let r = 0; r < view.rows.length; r++) {
+      const columns = Array.from(
+        { length: view.headers.length },
+        (_, c) => c,
+      ).filter((c) =>
+        selectionContains(
+          selection,
+          { r: r + offset, c },
+          view.matched,
+          view.headers.length,
+        ),
+      );
+      if (columns.length)
+        selectors.push(
+          `.range-sheet [role=row][aria-rowindex="${r + 2}"] [role=gridcell]:nth-child(n+${columns[0] + 2}):nth-child(-n+${columns.at(-1)! + 2})`,
+        );
+    }
   return (
     <div
       className="range-sheet"
@@ -315,10 +280,13 @@ export function SheetRange({
         )
           return;
         const p = point(e.target);
-        if (p) {
-          setAnchor(p);
-          setEnd(p);
-        }
+        if (
+          p &&
+          (!selection ||
+            p.r !== selection.anchor.r ||
+            p.c !== selection.anchor.c)
+        )
+          choose(selectCell(null, p));
       }}
       onPointerDownCapture={(e) => {
         contextOpening.current = e.button === 2;
@@ -328,40 +296,56 @@ export function SheetRange({
         const p = point(e.target);
         if (!p) return;
         setMenu(null);
-        if (e.shiftKey && anchor) {
-          setEnd(p);
-          e.preventDefault();
-        } else {
-          setAnchor(p);
-          setEnd(p);
-        }
+        choose(selectCell(selection, p, e.shiftKey));
         dragging.current = true;
+        if (e.shiftKey) e.preventDefault();
       }}
       onPointerMove={(e) => {
         if (dragging.current) {
           const p = point(e.target);
-          if (p) setEnd(p);
+          if (p) choose(selectCell(selection, p, true));
         }
       }}
       onKeyDownCapture={(e) => {
         if ((e.target as Element).closest("input,textarea,[data-row-resizer]"))
           return;
+        const active = selection?.anchor ?? point(e.target);
+        if (!active) return;
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
+          e.preventDefault();
+          e.stopPropagation();
+          choose(
+            selectCell(
+              selectCell(null, { r: 0, c: 0 }),
+              { r: Math.max(0, view.matched - 1), c: view.headers.length - 1 },
+              true,
+            ),
+          );
+          return;
+        }
+        if (e.key === " " && (e.ctrlKey || e.shiftKey)) {
+          e.preventDefault();
+          e.stopPropagation();
+          choose(
+            selectHeader(selection, e.ctrlKey ? "columns" : "rows", active),
+          );
+          return;
+        }
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") {
           e.preventDefault();
           e.stopPropagation();
-          void fillDown();
+          void perform("fill");
           return;
         }
-
-        if (e.shiftKey && anchor && end && e.key.startsWith("Arrow")) {
+        if (e.shiftKey && selection && e.key.startsWith("Arrow")) {
           e.preventDefault();
           e.stopPropagation();
-          setEnd({
+          const end = {
             r: Math.max(
               0,
               Math.min(
-                view.rows.length - 1,
-                end.r +
+                view.matched - 1,
+                selection.end.r +
                   (e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0),
               ),
             ),
@@ -369,58 +353,71 @@ export function SheetRange({
               0,
               Math.min(
                 view.headers.length - 1,
-                end.c +
+                selection.end.c +
                   (e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0),
               ),
             ),
-          });
+          };
+          choose(
+            selection.mode === "cells"
+              ? selectCell(selection, end, true)
+              : selectHeader(selection, selection.mode, end, { extend: true }),
+          );
         }
       }}
       onCopyCapture={(e) => {
         if ((e.target as Element).closest("input,textarea,[data-row-resizer]"))
           return;
-        if (bounds) {
-          e.preventDefault();
-          if (ready.current)
-            e.clipboardData.setData("text/plain", clip.current);
-          else setMessage("Preparing selection. Copy again in a moment.");
-        }
+        if (!selection) return;
+        e.preventDefault();
+        if (ready.current) e.clipboardData.setData("text/plain", clip.current);
+        else
+          setMessage(
+            copyError.current ||
+              (selectedCellCount(selection, view.matched, view.headers.length) >
+              10000
+                ? "Select at most 10,000 cells for clipboard operations."
+                : "Preparing selection. Copy again in a moment."),
+          );
       }}
       onPasteCapture={(e) => {
         if ((e.target as Element).closest("input,textarea,[data-row-resizer]"))
           return;
         e.preventDefault();
-        void paste(e.clipboardData.getData("text/plain"));
+        void perform("paste", e.clipboardData.getData("text/plain"));
       }}
       onContextMenu={(e) => {
         contextOpening.current = false;
         const target = e.target as Element;
         if (target.closest("input,textarea,[data-row-resizer]")) return;
-        const p = point(target);
-        const header = target.closest("[role=columnheader]");
-        const row = target.closest("[role=row]");
+        const p = point(target),
+          header = target.closest("[role=columnheader]"),
+          row = target.closest("[role=row]");
         const c = header
           ? Number(header.getAttribute("aria-colindex")) - 2
           : (p?.c ?? -1);
         if (!p && !header && !row) return;
         e.preventDefault();
         contextTarget.current =
-          target.closest<HTMLElement>('[role="gridcell"]');
+          target.closest<HTMLElement>('[role="gridcell"]') ??
+          header?.querySelector<HTMLElement>("button") ??
+          null;
         if (
           p &&
-          (!bounds ||
-            p.r < bounds.r1 ||
-            p.r > bounds.r2 ||
-            p.c < bounds.c1 ||
-            p.c > bounds.c2)
-        ) {
-          setAnchor(p);
-          setEnd(p);
+          !selectionContains(selection, p, view.matched, view.headers.length)
+        )
+          choose(selectCell(null, p));
+        else if (header && c >= 0 && !axisSelected(selection, "columns", c))
+          choose(selectHeader(null, "columns", { r: offset, c }));
+        else if (!p && !header && row) {
+          const r = Number(row.getAttribute("aria-rowindex")) - 2;
+          if (r >= 0 && !axisSelected(selection, "rows", r + offset))
+            choose(selectHeader(null, "rows", { r: r + offset, c: 0 }));
         }
         setMenu({
           x: e.clientX,
           y: e.clientY,
-          r: p?.r ?? Number(row?.getAttribute("aria-rowindex")) - 2,
+          r: p ? p.r - offset : Number(row?.getAttribute("aria-rowindex")) - 2,
           c,
         });
       }}
@@ -470,7 +467,7 @@ export function SheetRange({
             if (e.key === "Tab") closeMenu();
           }}
         >
-          {menu.r >= 0 && menu.c >= 0 && (
+          {(menu.r >= 0 || menu.c >= 0) && selection && (
             <>
               <button
                 role="menuitem"
@@ -537,18 +534,20 @@ export function SheetRange({
               </button>
             </>
           )}
-          {bounds && bounds.r2 > bounds.r1 && (
-            <button
-              role="menuitem"
-              tabIndex={-1}
-              onClick={() => {
-                void fillDown();
-                setMenu(null);
-              }}
-            >
-              Fill down
-            </button>
-          )}
+          {selection &&
+            selectedCellCount(selection, view.matched, view.headers.length) >
+              view.headers.length && (
+              <button
+                role="menuitem"
+                tabIndex={-1}
+                onClick={() => {
+                  void perform("fill");
+                  setMenu(null);
+                }}
+              >
+                Fill down
+              </button>
+            )}
           {menu.r >= 0 && (
             <button
               role="menuitem"

@@ -1101,3 +1101,10 @@ select optgroup {
 .location nav .root-home:hover:not(:disabled) { background: var(--hover); }
 
 .generated-column-tag { margin-left: 5px; color: var(--muted); font-size: 10px; font-weight: normal; border: 1px solid var(--line); border-radius: 3px; padding: 0 3px; }
+
+.column-select { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; width: 100%; min-width: 0; flex: 1; gap: 3px; padding: 0; border: 0; background: transparent; text-align: left; font-weight: 600; border-radius: 0; }
+.column-select > small { font-weight: 400; }
+.row-select, .select-all-cells { width: 100%; height: 100%; padding: 0; border: 0; background: transparent; color: var(--muted); border-radius: 0; }
+.column-select[aria-pressed="true"], .row-select[aria-pressed="true"] { background: var(--selection); color: var(--accent); }
+.column-select:focus-visible, .row-select:focus-visible { outline-offset: -2px; }
+.selection-status { white-space: nowrap; }

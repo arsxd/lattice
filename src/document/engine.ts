@@ -1,4 +1,9 @@
 import {
+  selectedCellCount,
+  selectionContains,
+  type SheetSelection,
+} from "./sheetSelection";
+import {
   createScanner,
   SyntaxKind,
   parseTree,
@@ -43,6 +48,7 @@ export type Query = {
   sort?: { column: number; direction: "ASC" | "DESC" };
   page: number;
 };
+export type SelectedCell = { cell: Cell; identifier?: string };
 export type ColumnKind = "index" | "key" | "field" | "value" | "mixed";
 export type Projection = {
   sheets?: { label: string; path: Path; kind: Kind }[];
@@ -686,7 +692,20 @@ export class DocumentEngine {
     if (display.length > 240) display = display.slice(0, 237) + "…";
     return { path, type: n.type as Kind, display, container, empty };
   }
-  project(query: Query): Projection {
+  selection(
+    query: Query,
+    selection: SheetSelection,
+    revision: number,
+  ): SelectedCell[][] {
+    this.guard(revision);
+    if (this.diagnostics.length)
+      throw new Error("Repair JSON before copying or pasting.");
+    return this.project(query, selection).selectedCells ?? [];
+  }
+  project(
+    query: Query,
+    selection?: SheetSelection,
+  ): Projection & { selectedCells?: SelectedCell[][] } {
     let path = query.path;
     let n: Node | undefined;
     try {
@@ -944,6 +963,34 @@ export class DocumentEngine {
       });
       filtered = indexed.map((x) => x.item);
     }
+    let selectedCells: SelectedCell[][] | undefined;
+    if (selection) {
+      if (selectedCellCount(selection, filtered.length, headers.length) > 10000)
+        throw new Error(
+          "Select at most 10,000 cells for clipboard operations.",
+        );
+      selectedCells = [];
+      for (let r = 0; r < filtered.length; r++) {
+        const cells: SelectedCell[] = [];
+        for (let c = 0; c < headers.length; c++)
+          if (
+            selectionContains(
+              selection,
+              { r, c },
+              filtered.length,
+              headers.length,
+            )
+          ) {
+            cells.push({
+              cell: getCell(filtered[r], c),
+              ...(c === 0 && headers.length > 1
+                ? { identifier: String(filtered[r][0]) }
+                : {}),
+            });
+          }
+        if (cells.length) selectedCells.push(cells);
+      }
+    }
     const matched = filtered.length,
       pages = Math.max(1, Math.ceil(matched / PAGE_SIZE)),
       page = Math.max(0, Math.min(query.page, pages - 1));
@@ -975,6 +1022,7 @@ export class DocumentEngine {
           : n.type === "array"
             ? ["index", "value"]
             : ["value"],
+      selectedCells,
       filterOptions,
       filterOptionsTruncated,
       rows,

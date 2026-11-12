@@ -1,4 +1,9 @@
 import {
+  copySelection,
+  pasteSelection,
+  fillSelection,
+} from "../document/selectionOperations";
+import {
   DocumentEngine,
   type Query,
   type Mutation,
@@ -15,6 +20,26 @@ self.onmessage = (event: MessageEvent) => {
     } else {
       if (!engine) throw new Error("Open a document first.");
       switch (action) {
+        case "copy":
+          value = copySelection(
+            engine,
+            args.query,
+            args.selection,
+            args.revision,
+          );
+          break;
+        case "paste":
+          pasteSelection(
+            engine,
+            args.query,
+            args.selection,
+            args.text,
+            args.revision,
+          );
+          break;
+        case "fill":
+          fillSelection(engine, args.query, args.selection, args.revision);
+          break;
         case "project":
           value = engine.project(args as Query);
           break;

@@ -1,3 +1,10 @@
+import {
+  selectCell,
+  selectHeader,
+  axisSelected,
+  selectedCellCount,
+  type SheetSelection,
+} from "./document/sheetSelection";
 import { columnLabel } from "./grid/columnRoles";
 import { NavigationIcon } from "./NavigationIcon";
 import {
@@ -225,16 +232,23 @@ export default function App() {
     const timer = setTimeout(() => setNotice(""), 3500);
     return () => clearTimeout(timer);
   }, [notice]);
-  const [activeCell, setActiveCell] = useState<{
-    row: number;
-    column: number;
-  } | null>(null);
+  const [sheetSelection, setSheetSelection] = useState<SheetSelection | null>(
+    null,
+  );
+  const selectedPoint = sheetSelection?.anchor;
+  const activeCell =
+    selectedPoint &&
+    view &&
+    selectedPoint.r >= view.page * 500 &&
+    selectedPoint.r < view.page * 500 + view.rows.length
+      ? { row: selectedPoint.r - view.page * 500, column: selectedPoint.c }
+      : null;
   const [filterAnchor, setFilterAnchor] = useState<HTMLButtonElement | null>(
     null,
   );
   const [headerMenu, setHeaderMenu] = useState<number | null>(null);
   useEffect(() => {
-    setActiveCell(null);
+    setSheetSelection(null);
     setHeaderMenu(null);
   }, [activeId, query.path.join("\0")]);
   const [selection, setSelection] = useState<Selection | null>(null);
@@ -269,6 +283,16 @@ export default function App() {
     );
     return () => clearTimeout(timer);
   }, [findDraft, query, mode, busy]);
+  useEffect(() => {
+    if (mode !== "table" || inline || busy) return;
+    if (!activeCell) {
+      ++selectionRequest.current;
+      setSelection(null);
+      return;
+    }
+    const cell = view?.rows[activeCell.row]?.cells[activeCell.column];
+    if (cell) void select(cell);
+  }, [activeCell?.row, activeCell?.column, view, mode, inline, busy]);
   const sourceDirty = mode === "source" && source !== sourceBase;
   const dirty = !!view?.dirty || sourceDirty;
   const anyDirty =
@@ -395,6 +419,7 @@ export default function App() {
     const id = ++request.current;
     const p = await client.current.call<Projection>("project", q);
     if (id !== request.current) return;
+    if (view && p.revision !== view.revision) setSheetSelection(null);
     setView(p);
     const root = q.path.length
       ? await client.current.call<Projection>("project", initialQuery)
@@ -566,6 +591,7 @@ export default function App() {
       );
       ++selectionRequest.current;
       setSelection(null);
+      setSheetSelection(null);
       setQuery(q);
       setMode("table");
       if (JSON.stringify(target) !== JSON.stringify(path))
@@ -969,9 +995,55 @@ export default function App() {
               minWidth: 44,
               frozen: true,
               cellClass: "row-number",
+              renderHeaderCell: () => (
+                <button
+                  className="select-all-cells"
+                  aria-label="Select all table cells"
+                  disabled={busy}
+                  onClick={() =>
+                    setSheetSelection(
+                      selectCell(
+                        selectCell(null, { r: 0, c: 0 }),
+                        {
+                          r: Math.max(0, view.matched - 1),
+                          c: view.headers.length - 1,
+                        },
+                        true,
+                      ),
+                    )
+                  }
+                >
+                  ◩
+                </button>
+              ),
               renderCell: ({ rowIdx, row }) => (
                 <div className="row-number-content">
-                  {view.page * 500 + rowIdx + 1}
+                  <button
+                    className="row-select"
+                    aria-label={`Select row ${view.page * 500 + rowIdx + 1}`}
+                    aria-pressed={axisSelected(
+                      sheetSelection,
+                      "rows",
+                      view.page * 500 + rowIdx,
+                    )}
+                    disabled={busy}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSheetSelection(
+                        selectHeader(
+                          sheetSelection,
+                          "rows",
+                          { r: view.page * 500 + rowIdx, c: 0 },
+                          {
+                            extend: e.shiftKey,
+                            additive: e.ctrlKey || e.metaKey,
+                          },
+                        ),
+                      );
+                    }}
+                  >
+                    {view.page * 500 + rowIdx + 1}
+                  </button>
                   <RowHeightHandle
                     number={view.page * 500 + rowIdx + 1}
                     height={rowHeight(row)}
@@ -986,30 +1058,52 @@ export default function App() {
               name,
               renderHeaderCell: () => (
                 <div className="sheet-column-heading">
-                  <small>{columnLetter(i)}</small>
-                  <span>
-                    {columnLabel(view, i)}
-                    {view.columnKinds[i] === "mixed" && (
-                      <small
-                        className="generated-column-tag"
-                        title="Generated view column for non-object array items; not a JSON property"
-                      >
-                        view
-                      </small>
-                    )}
-                    {query.sort?.column === i && (
-                      <span
-                        className="sort-indicator"
-                        aria-label={
-                          query.sort.direction === "ASC"
-                            ? "Sorted ascending"
-                            : "Sorted descending"
-                        }
-                      >
-                        {query.sort.direction === "ASC" ? " ↑" : " ↓"}
-                      </span>
-                    )}
-                  </span>
+                  <button
+                    className="column-select"
+                    data-column-select
+                    aria-label={`Select column ${columnLabel(view, i)}`}
+                    aria-pressed={axisSelected(sheetSelection, "columns", i)}
+                    disabled={busy}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSheetSelection(
+                        selectHeader(
+                          sheetSelection,
+                          "columns",
+                          { r: view.page * 500, c: i },
+                          {
+                            extend: e.shiftKey,
+                            additive: e.ctrlKey || e.metaKey,
+                          },
+                        ),
+                      );
+                    }}
+                  >
+                    <small>{columnLetter(i)}</small>
+                    <span>
+                      {columnLabel(view, i)}
+                      {view.columnKinds[i] === "mixed" && (
+                        <small
+                          className="generated-column-tag"
+                          title="Generated view column for non-object array items; not a JSON property"
+                        >
+                          view
+                        </small>
+                      )}
+                      {query.sort?.column === i && (
+                        <span
+                          className="sort-indicator"
+                          aria-label={
+                            query.sort.direction === "ASC"
+                              ? "Sorted ascending"
+                              : "Sorted descending"
+                          }
+                        >
+                          {query.sort.direction === "ASC" ? " ↑" : " ↓"}
+                        </span>
+                      )}
+                    </span>
+                  </button>
                   <button
                     className="header-filter"
                     aria-label={`Sort and filter ${columnLabel(view, i)}`}
@@ -1153,6 +1247,7 @@ export default function App() {
       rowHeights,
       columnWidths,
       automaticHeights,
+      sheetSelection,
       wrapText,
       activeId,
     ],
@@ -1401,9 +1496,44 @@ export default function App() {
   function changeQuery(next: Query) {
     ++selectionRequest.current;
     setSelection(null);
-    setActiveCell(null);
+    const { page: _page, ...currentQuery } = query;
+    const { page: _nextPage, ...nextQuery } = next;
+    const onlyPage = JSON.stringify(currentQuery) === JSON.stringify(nextQuery);
+    setSheetSelection((previous) =>
+      onlyPage && previous?.mode === "columns"
+        ? {
+            ...previous,
+            anchor: { ...previous.anchor, r: next.page * 500 },
+            end: { ...previous.end, r: next.page * 500 },
+          }
+        : onlyPage
+          ? previous
+          : null,
+    );
     setQuery(next);
     void run(() => refresh(next));
+  }
+  async function selectionMutation(
+    action: "paste" | "fill",
+    selected: SheetSelection,
+    text?: string,
+  ) {
+    if (busyRef.current)
+      throw new Error("Wait for the current operation to finish.");
+    progress(true);
+    try {
+      await client.current!.call(action, {
+        query,
+        selection: selected,
+        text,
+        revision: view!.revision,
+      });
+      setSelection(null);
+      setSheetSelection(null);
+      await refresh();
+    } finally {
+      progress(false);
+    }
   }
   return (
     <div
@@ -2083,9 +2213,19 @@ export default function App() {
                   <SheetRange
                     isValueColumn={valueColumn}
                     view={view}
-                    read={(p) =>
-                      client.current!.call<string>("raw", { path: p })
+                    selection={sheetSelection}
+                    onSelectionChange={setSheetSelection}
+                    copy={(selected) =>
+                      client.current!.call<string>("copy", {
+                        query,
+                        selection: selected,
+                        revision: view.revision,
+                      })
                     }
+                    paste={(selected, text) =>
+                      selectionMutation("paste", selected, text)
+                    }
+                    fill={(selected) => selectionMutation("fill", selected)}
                     apply={async (ops) => {
                       await mutate(
                         { action: "batch", commands: ops },
@@ -2126,25 +2266,6 @@ export default function App() {
                             : undefined,
                           page: 0,
                         });
-                      }}
-                      onCellClick={({ row, rowIdx, column }) => {
-                        const index = Number(column.key);
-                        setActiveCell({ row: rowIdx, column: index });
-                        if (index >= 0 && !inline)
-                          void select(row.cells[index]);
-                      }}
-                      onActivePositionChange={({ row, rowIdx, column }) => {
-                        if (row && column && Number(column.key) >= 0)
-                          setActiveCell({
-                            row: rowIdx,
-                            column: Number(column.key),
-                          });
-                        if (!row || !column || Number(column.key) < 0) {
-                          ++selectionRequest.current;
-                          setActiveCell(null);
-                          setSelection(null);
-                        } else if (!inline)
-                          void select(row.cells[Number(column.key)]);
                       }}
                       onCellDoubleClick={({ row, rowIdx, column }) => {
                         if (busy || Number(column.key) < 0) return;
@@ -2268,7 +2389,11 @@ export default function App() {
                     </div>
                   )}
                   <div className="pagination">
-                    <span>Showing up to 500 rows per page</span>
+                    <span className="selection-status" role="status">
+                      {sheetSelection
+                        ? `${selectedCellCount(sheetSelection, view.matched, view.headers.length).toLocaleString()} cells selected`
+                        : "Showing up to 500 rows per page"}
+                    </span>
                     <button
                       aria-pressed={wrapText}
                       onClick={() => setWrapText(!wrapText)}
@@ -2332,7 +2457,7 @@ export default function App() {
                               revision: sourceRevision,
                             });
                             setSelection(null);
-                            setActiveCell(null);
+                            setSheetSelection(null);
                             navigationHistory.current.delete(activeId);
                             await refresh();
                             await showSource();
