@@ -1047,3 +1047,8 @@ select optgroup {
 .select-inset select {
   background-color: var(--surface);
 }
+
+.activity { display:inline-block; animation:working 1s linear infinite; }
+@keyframes working { to { transform:rotate(360deg); } }
+.toolbar { padding-right:14px; }
+@media (prefers-reduced-motion:reduce) { .activity { animation:none; } }

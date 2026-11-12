@@ -7,7 +7,6 @@ export function ColumnMenu({
   onApply,
   onSort,
   onClose,
-  onShowSource,
 }: {
   name: string;
   anchor: HTMLElement | null;
@@ -19,7 +18,6 @@ export function ColumnMenu({
   onApply: (keys: string[] | undefined) => void;
   onSort: (direction: "ASC" | "DESC" | undefined) => void;
   onClose: () => void;
-  onShowSource: () => void;
 }) {
   const panel = useRef<HTMLElement>(null);
   const [position, setPosition] = useState({ left: 8, top: 8 });
@@ -100,7 +98,6 @@ export function ColumnMenu({
       }}
     >
       <strong>{name}</strong>
-      <button onClick={onShowSource}>Show column in source</button>
       <button onClick={() => onSort("ASC")}>Sort ascending ↑</button>
       <button onClick={() => onSort("DESC")}>Sort descending ↓</button>
       <button onClick={() => onSort(undefined)}>Clear sort</button>

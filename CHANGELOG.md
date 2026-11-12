@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Installable GitHub Pages web app with offline application caching; single-file download retained.
+- Reload retains nested location and compatible sorting/filtering, with progress and success feedback.
+- Details toggle state and placement, readable Index width, active value-filter summary and clearer file-access errors.
+- Diff navigation selects changed ranges with a change counter; unchanged lines can be collapsed again.
+- Removed column-source action; selected-cell source navigation remains.
+
 ## 0.1.5 — 2026-11-11 (web development preview)
 
 - Replaced work-specific demo themes with a fictional bookshop catalogue, store orders and application settings.

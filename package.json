@@ -11,7 +11,8 @@
     "web:dev": "vite --host 127.0.0.1",
     "web:build": "tsc -b && vite build --base=./",
     "web:preview": "vite preview --host 127.0.0.1",
-    "offline:build": "npm run web:build && node scripts/build-offline.mjs"
+    "offline:build": "npm run web:build && node scripts/build-offline.mjs",
+    "pwa:build": "npm run web:build && node scripts/build-pwa.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "6.11.1",

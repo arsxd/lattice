@@ -2,6 +2,8 @@
 
 Edit JSON with a spreadsheet-style interface. Open a local file, work with cells and nested tables, and inspect the source changes.
 
+[Open Lattice in your browser](https://arsxd.github.io/lattice/) — install it as an app in a supported browser, or use the offline download below.
+
 ## Download and run
 
 1. [Download Lattice-Offline.html](https://github.com/arsxd/lattice/releases/download/v0.1.5/Lattice-Offline.html).
@@ -58,3 +60,7 @@ npm run web:dev
 | `npm run bench` | Machine-specific engine benchmark |
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md), [the web guide](docs/WEB.md) and [CHANGELOG.md](CHANGELOG.md). Generated output, private development notes and local fixtures are excluded from Git. No project license has been selected; public source availability alone does not grant an open-source license.
+
+## Install the web app
+
+Open [Lattice](https://arsxd.github.io/lattice/) in Chrome or Edge and choose **Install Lattice** when offered, or use the browser’s install command. It opens in a separate app window. After the first successful load it can run offline. Installation may be restricted by corporate browser policy. Your JSON stays in your browser. The single-file offline download remains available.

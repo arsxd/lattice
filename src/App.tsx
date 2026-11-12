@@ -1,3 +1,4 @@
+import InstallApp from "./InstallApp";
 import { ColumnMenu } from "./grid/ColumnMenu";
 import { ValueBar } from "./editor/ValueBar";
 import { SheetRange } from "./grid/SheetRange";
@@ -139,6 +140,11 @@ export default function App() {
   const [truncatedSheets, setTruncatedSheets] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  useEffect(() => {
+    if (notice !== "Source reloaded.") return;
+    const timer = setTimeout(() => setNotice(""), 3500);
+    return () => clearTimeout(timer);
+  }, [notice]);
   const [activeCell, setActiveCell] = useState<{
     row: number;
     column: number;
@@ -280,7 +286,14 @@ export default function App() {
     try {
       await fn();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(
+        e instanceof DOMException &&
+          ["NotAllowedError", "SecurityError"].includes(e.name)
+          ? "File access was blocked. Use Open to select the file again, or Save as to keep your edits in another file."
+          : e instanceof Error
+            ? e.message
+            : String(e),
+      );
     } finally {
       progress(false);
     }
@@ -364,13 +377,33 @@ export default function App() {
       const opened = await reloadFile(doc);
       if (!opened) return;
       const next = await prepare(opened);
+      const path = [...query.path];
+      while (path.length) {
+        try {
+          await next.client.call("raw", { path });
+          break;
+        } catch {
+          path.pop();
+        }
+      }
+      const projected = await next.client.call<Projection>("project", {
+        ...query,
+        path,
+        page: 0,
+      });
+      const sameColumns =
+        JSON.stringify(projected.headers) === JSON.stringify(view?.headers);
+      next.query = sameColumns
+        ? { ...query, path, page: 0 }
+        : { ...initialQuery, path };
+      next.view = await next.client.call<Projection>("project", next.query);
       next.id = activeId;
       if (doc.token) await release(doc.token);
       client.current?.dispose();
       sessions.current.set(activeId, next);
       activate(next);
       setTabVersion((v) => v + 1);
-      setNotice("Source reloaded. Undo history, sorting and filters reset.");
+      setNotice("Source reloaded.");
     });
   }
   async function save(as = false) {
@@ -850,8 +883,8 @@ export default function App() {
                   </button>
                 </div>
               ),
-              width: i === 0 ? (view.kind === "array" ? 64 : 150) : 155,
-              minWidth: i === 0 && view.kind === "array" ? 48 : 80,
+              width: i === 0 ? (view.kind === "array" ? 88 : 150) : 155,
+              minWidth: i === 0 && view.kind === "array" ? 80 : 80,
               resizable: true,
               sortable: false,
               frozen: false,
@@ -1212,6 +1245,12 @@ export default function App() {
     >
       <header className="toolbar">
         <strong title="JSON Workbench">Lattice</strong>
+        <InstallApp />
+        {busy && (
+          <span className="activity" role="status" aria-label="Working">
+            ◌
+          </span>
+        )}
         <span className="divider" />
         <button
           disabled={busy}
@@ -1454,6 +1493,15 @@ export default function App() {
             >
               Review changes
             </button>
+            {mode === "table" && (
+              <button
+                aria-label="Toggle value inspector"
+                aria-pressed={inspector}
+                onClick={() => setInspector(!inspector)}
+              >
+                Details
+              </button>
+            )}
           </div>
           <main className="workspace">
             {outlineVisible && (
@@ -1560,14 +1608,6 @@ export default function App() {
                     Source
                   </button>
                 </div>
-                {mode === "table" && (
-                  <button
-                    aria-label="Toggle value inspector"
-                    onClick={() => setInspector(!inspector)}
-                  >
-                    Details
-                  </button>
-                )}
               </div>
               {!!view?.diagnostics.length && (
                 <div className="diagnostics" role="alert">
@@ -1592,16 +1632,6 @@ export default function App() {
                   {headerMenu !== null && (
                     <ColumnMenu
                       key={`${pointer(query.path)}:${headerMenu}`}
-                      onShowSource={() => {
-                        const row = view.rows.find(
-                          (r) =>
-                            r.cells[headerMenu]?.type !== "missing" &&
-                            r.cells[headerMenu]?.writable !== false,
-                        );
-                        setHeaderMenu(null);
-                        if (row)
-                          void showInSource(row.cells[headerMenu].path, true);
-                      }}
                       anchor={filterAnchor}
                       name={view.headers[headerMenu]}
                       selected={query.valueFilters?.[String(headerMenu)]}
@@ -1813,6 +1843,26 @@ export default function App() {
                     {view.matched.toLocaleString()} of{" "}
                     {view.total.toLocaleString()} rows <span>•</span>{" "}
                     {view.headers.length} columns{" "}
+                    {!!Object.keys(query.valueFilters ?? {}).length && (
+                      <span className="sort-summary">
+                        Filtered:{" "}
+                        {Object.keys(query.valueFilters ?? {})
+                          .map((k) => view.headers[Number(k)])
+                          .join(", ")}{" "}
+                        <button
+                          disabled={busy}
+                          onClick={() =>
+                            changeQuery({
+                              ...query,
+                              valueFilters: undefined,
+                              page: 0,
+                            })
+                          }
+                        >
+                          Clear filters
+                        </button>
+                      </span>
+                    )}
                     {query.sort && (
                       <span className="sort-summary">
                         Sorted by {view.headers[query.sort.column]} (

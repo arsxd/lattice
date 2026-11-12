@@ -45,3 +45,17 @@ While a document is open, or an operation/unsaved state exists, beforeunload req
 Current automated suite: 77 tests, including mocked browser Save and reload, engine data integrity, TSV/batch atomicity and exact source ranges. Offline build passed. These tests are not real browser permission or visual checks. See USER-GUIDE.md for supported behavior and limitations.
 
 Generated output, screenshots, dependencies, native target folders and local fixtures are excluded from Git. Rebuild artifacts from the committed source rather than committing local binaries.
+
+## Hosted installation and offline use
+
+Open https://arsxd.github.io/lattice/ over HTTPS. Chrome and Edge can offer **Install Lattice**; the button appears only when the browser supplies an installation prompt. The browser’s own install menu can also be used. Installation and file access remain subject to browser and corporate policy.
+
+The service worker caches the application shell, not your JSON files. Load the app online once before using it offline. It does not persist unsaved documents across closures. Save your work before closing. Updates wait until all app windows/tabs close; there is no forced reload while editing.
+
+The downloaded HTML remains self-contained and does not register a service worker. Developers build hosted assets with `npm run pwa:build`. GitHub Actions tests and builds both distributions, then deploys `dist` through GitHub Pages on `main`. Pull requests verify without deploying.
+
+## Current polish changes
+
+Reload retains the current nested location, falling back to its nearest existing parent when removed. Sort and filters are retained when column names and order match; the row page resets to the first page. Undo history resets because the source is reopened. Scroll restoration is not implemented.
+
+Details now has a persistent pressed state beside Review changes in table mode. Column-source navigation was removed because it only pointed to the first value; selected-cell source navigation remains. Active value filters appear in the table summary. Diff navigation selects and scrolls both versions and shows the current change number; unchanged lines can be expanded and collapsed again.
