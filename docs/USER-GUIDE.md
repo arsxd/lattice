@@ -95,7 +95,7 @@ The home icon opens the document root. The sidebar and status bar show the curre
 
 Custom freeze rows/columns remains experimental on `dev` and is absent from the public app. The old implementation used fixed row offsets and is incompatible with the new variable row heights. The row-number gutter remains pinned; this is separate from custom freeze panes.
 
-Find is on the right of the bottom bar alongside wrapping and page navigation. Ctrl+F / Cmd+F focuses it in Table view. Add actions, selection/row counts and active sort/filter summaries share that bottom bar; no separate control row sits above the grid.
+Find is on the right of the bottom bar alongside wrapping and page navigation. Ctrl+F / Cmd+F focuses it in Table view. Add actions, wrapping, pagination, Find and active sort/filter summaries share that bottom bar. Row/column counts and selection size appear in the bottom status bar, separate from action buttons. Document tabs align with the table area when Browse is open; the Browse control stays above its pane.
 
 ## Large selected values
 

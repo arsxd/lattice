@@ -1131,3 +1131,11 @@ select optgroup {
 .details-preview tbody th { width: auto; }
 .details-preview td { max-width: 220px; min-width: 55px; }
 @media (max-width:1180px) { .outline { max-width: calc(100vw - 365px) !important; } }
+
+/* Document tabs belong to the document area; status stays separate from actions. */
+.document-tab { padding: 0; gap: 0; }
+.browse-tab-slot { flex: 0 0 auto; padding: 0 12px; display: flex; align-items: center; height: 100%; }
+.browse-tab-slot.expanded { margin-right: 5px; border-right: 1px solid var(--line); }
+.document-tab > button { margin-left: 8px; }
+.document-tab > button:last-child { margin-right: 12px; }
+@media (max-width:1180px) { .browse-tab-slot.expanded { max-width: calc(100vw - 365px) !important; } }

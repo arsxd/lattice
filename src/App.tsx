@@ -1538,6 +1538,13 @@ export default function App() {
       progress(false);
     }
   }
+  const browsePaneStyle = {
+    width: leftWidth,
+    maxWidth:
+      inspector && mode === "table"
+        ? `calc(100vw - ${rightWidth + 365}px)`
+        : "calc(100vw - 365px)",
+  };
   return (
     <div
       className="app-shell"
@@ -1762,12 +1769,17 @@ export default function App() {
       ) : (
         <>
           <div className="document-tab">
-            <button
-              aria-pressed={outlineVisible}
-              onClick={() => setOutlineVisible(!outlineVisible)}
+            <div
+              className={`browse-tab-slot ${outlineVisible ? "expanded" : ""}`}
+              style={outlineVisible ? browsePaneStyle : undefined}
             >
-              Browse
-            </button>
+              <button
+                aria-pressed={outlineVisible}
+                onClick={() => setOutlineVisible(!outlineVisible)}
+              >
+                Browse
+              </button>
+            </div>
             <div
               className="document-tabs"
               role="tablist"
@@ -1852,13 +1864,7 @@ export default function App() {
             <aside
               className="outline"
               hidden={!outlineVisible}
-              style={{
-                width: leftWidth,
-                maxWidth:
-                  inspector && mode === "table"
-                    ? `calc(100vw - ${rightWidth + 365}px)`
-                    : "calc(100vw - 365px)",
-              }}
+              style={browsePaneStyle}
             >
               <div className="pane-label">Document</div>
               <div className="outline-filename" title={doc.name}>
@@ -2414,11 +2420,6 @@ export default function App() {
                       )}
                     </div>
 
-                    <span className="selection-status" role="status">
-                      {sheetSelection
-                        ? `${selectedCellCount(sheetSelection, view.matched, view.headers.length).toLocaleString()} ${selectedCellCount(sheetSelection, view.matched, view.headers.length) === 1 ? "cell" : "cells"} selected`
-                        : `${view.matched.toLocaleString()} rows · ${view.headers.length} columns`}
-                    </span>
                     <button
                       aria-pressed={wrapText}
                       onClick={() => setWrapText(!wrapText)}
@@ -2699,6 +2700,14 @@ export default function App() {
                     : "✓ Valid JSON"}
             </span>
             <span>{dirty ? "Unsaved changes" : "Unmodified"}</span>
+            {view && mode === "table" && (
+              <span className="selection-status">
+                {view.matched.toLocaleString()} rows · {view.headers.length}{" "}
+                columns
+                {sheetSelection &&
+                  ` · ${selectedCellCount(sheetSelection, view.matched, view.headers.length).toLocaleString()} ${selectedCellCount(sheetSelection, view.matched, view.headers.length) === 1 ? "cell" : "cells"} selected`}
+              </span>
+            )}
             <div className="spacer" />
             <span>
               {view ? new Intl.NumberFormat().format(view.bytes) : 0} bytes

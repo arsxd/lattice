@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Aligned document tabs with the table beside Browse and moved table/selection counts into the status bar, keeping action buttons together.
+
 - Unified cell/row/column selection, Shift/additive header selection, full filtered-column copy and cross-page atomic paste with explicit limits.
 - Distinguished generated mixed-value columns from real properties to prevent accidental structural edits.
 - Container names open tables with double-click/Enter; F2 renames keys.
