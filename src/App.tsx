@@ -1,3 +1,11 @@
+import { FreezeMenu } from "./grid/FreezeMenu";
+import { frozenRowLayout, frozenRowRenderers } from "./grid/FrozenGrid";
+import { BrowserRecovery } from "./workspace/browserRecovery";
+import {
+  captureReloadPosition,
+  remapReloadQuery,
+  restoreReloadSelection,
+} from "./workspace/reloadPosition";
 import { PaneResizeHandle, usePaneWidth } from "./grid/PaneResizeHandle";
 import {
   selectCell,
@@ -108,7 +116,7 @@ function columnLetter(index: number): string {
   return label;
 }
 export default function App() {
-  const installPrompt = useOfflineApp();
+  const { installPrompt, updateStatus } = useOfflineApp();
   const [discardPrompt, setDiscardPrompt] = useState(false);
   const [discardContext, setDiscardContext] = useState("");
   const discardResolve = useRef<((answer: boolean) => void) | null>(null);
@@ -129,13 +137,17 @@ export default function App() {
     resolve?.(answer);
   }
   const recoveryEpoch = useRef(0);
-  const [recoveryReady, setRecoveryReady] = useState(!desktop);
+  const [recoveryReady, setRecoveryReady] = useState(false);
+  const browserRecovery = useRef<BrowserRecovery | null>(null);
+  const recoveredIds = useRef<string[]>([]);
   const [recovered, setRecovered] = useState<{
     name: string;
     text: string;
   } | null>(null);
   const [recoveryEnabled, setRecoveryEnabled] = useState(
-    localStorage.getItem("json-workbench-recovery") !== "off",
+    desktop
+      ? localStorage.getItem("json-workbench-recovery") !== "off"
+      : localStorage.getItem("lattice-browser-recovery") === "on",
   );
   const client = useRef<DocumentClient | null>(null);
   const request = useRef(0);
@@ -157,6 +169,10 @@ export default function App() {
   const suppressPointerClick = useRef(false);
   const replayingClick = useRef(false);
   const grid = useRef<DataGridHandle>(null);
+  const [freezeSettings, setFreezeSettings] = useState<
+    Record<string, { rows: number; columns: number }>
+  >({});
+  const [gridSize, setGridSize] = useState({ width: 900, height: 400 });
   const [wrapText, setWrapText] = useState(false);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const textMeasure = useMemo(() => {
@@ -223,6 +239,62 @@ export default function App() {
     });
   }
 
+  const frozen = freezeSettings[tableHeightKey] ?? { rows: 0, columns: 0 };
+  const headerHeight = view?.headers.some(
+    (_, i) =>
+      columnLabel(view, i).length * 7 >
+      (columnWidths[`${tableHeightKey}:${i}`] ?? 155) - 42,
+  )
+    ? 64
+    : 48;
+  const frozenLayout = frozenRowLayout({
+    rowHeights: view?.rows.map(rowHeight) ?? [],
+    columnCount: (view?.headers.length ?? 0) + 1,
+    frozenCount: Math.min(frozen.rows, view?.rows.length ?? 0),
+    headerHeight,
+    viewportHeight: gridSize.height,
+  });
+  const frozenRenderers = useMemo(
+    () => frozenRowRenderers<Row>(frozenLayout),
+    [JSON.stringify(frozenLayout)],
+  );
+  const frozenWidth =
+    44 +
+    Array.from(
+      { length: Math.min(frozen.columns, view?.headers.length ?? 0) },
+      (_, i) => columnWidth(i),
+    ).reduce((sum, width) => sum + width, 0);
+  const columnsFrozen =
+    frozenWidth <= gridSize.width * 0.6 ? frozen.columns : 0;
+  const freezePaused = !frozenLayout.allowed
+    ? frozenLayout.reason
+    : frozen.columns && !columnsFrozen
+      ? "Frozen columns must leave at least 40% of the table available for scrolling."
+      : undefined;
+  function changeFreeze(value: { rows: number; columns: number }) {
+    const layout = frozenRowLayout({
+      rowHeights: view?.rows.map(rowHeight) ?? [],
+      columnCount: (view?.headers.length ?? 0) + 1,
+      frozenCount: value.rows,
+      headerHeight,
+      viewportHeight: gridSize.height,
+    });
+    if (!layout.allowed) {
+      setNotice(layout.reason ?? "This row freeze is unavailable.");
+      return;
+    }
+    const width =
+      44 +
+      Array.from({ length: value.columns }, (_, i) => columnWidth(i)).reduce(
+        (sum, w) => sum + w,
+        0,
+      );
+    if (value.columns && width > gridSize.width * 0.6) {
+      setNotice("Freeze fewer columns to leave room for scrolling.");
+      return;
+    }
+    setFreezeSettings((previous) => ({ ...previous, [tableHeightKey]: value }));
+  }
   const [tabVersion, setTabVersion] = useState(0);
   const [sheets, setSheets] = useState<Projection["children"]>([]);
   const [truncatedSheets, setTruncatedSheets] = useState(false);
@@ -268,6 +340,15 @@ export default function App() {
     before: string;
     after: string;
   } | null>(null);
+  useEffect(() => {
+    const element = grid.current?.element;
+    if (!element) return;
+    const observer = new ResizeObserver(() =>
+      setGridSize({ width: element.clientWidth, height: element.clientHeight }),
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [mode, activeId, !!view]);
   const [theme, setTheme] = useState(
     localStorage.getItem("json-workbench-theme") ?? "system",
   );
@@ -296,7 +377,8 @@ export default function App() {
     const cell = view?.rows[activeCell.row]?.cells[activeCell.column];
     if (cell) void select(cell);
   }, [activeCell?.row, activeCell?.column, view, mode, inline, busy]);
-  const sourceDirty = mode === "source" && source !== sourceBase;
+  const sourceDirty =
+    (mode === "source" || mode === "review") && source !== sourceBase;
   const dirty = !!view?.dirty || sourceDirty;
   const anyDirty =
     dirty ||
@@ -440,7 +522,7 @@ export default function App() {
     const next = new DocumentClient();
     try {
       await next.call("open", { text: opened.text });
-      if (recovered) await next.call("saved", { text: "" });
+      if (recovered) await next.call("saved", { text: "\u0000recovered" });
       const q = { ...initialQuery, path };
       let p = await next.call<Projection>("project", q);
       if (!path.length && p.rootKind === "object" && !p.recordsAvailable) {
@@ -494,6 +576,25 @@ export default function App() {
         ))
       )
         return;
+      const element = grid.current?.element;
+      const scrollTop = element?.scrollTop ?? 0,
+        scrollLeft = element?.scrollLeft ?? 0;
+      let topIndex = 0,
+        topOffset = 0;
+      if (view)
+        while (
+          topIndex < view.rows.length - 1 &&
+          topOffset + rowHeight(view.rows[topIndex]) <= scrollTop
+        )
+          topOffset += rowHeight(view.rows[topIndex++]);
+      const topPath = view?.rows[topIndex]?.path;
+      const position = view
+        ? captureReloadPosition(
+            view,
+            sheetSelection,
+            view.page * 500 + topIndex,
+          )
+        : null;
       const opened = await reloadFile(doc);
       if (!opened) return;
       const next = await prepare(opened);
@@ -511,19 +612,53 @@ export default function App() {
         path,
         page: 0,
       });
-      const sameColumns =
-        JSON.stringify(projected.headers) === JSON.stringify(view?.headers);
-      next.query = sameColumns
-        ? { ...query, path, page: 0 }
+      next.query = view
+        ? remapReloadQuery({ ...query, path }, view, projected)
         : { ...initialQuery, path };
+      const located =
+        position && JSON.stringify(path) === JSON.stringify(query.path)
+          ? await next.client.call<{ row?: number; page: number }>(
+              "locate-row",
+              { query: next.query, path: position.rowPath },
+            )
+          : null;
+      next.query.page =
+        located?.row === undefined
+          ? Math.min(query.page, projected.pages - 1)
+          : located.page;
       next.view = await next.client.call<Projection>("project", next.query);
+      const restoredSelection = restoreReloadSelection(
+        position,
+        next.view,
+        located?.row,
+      );
       next.id = activeId;
       navigationHistory.current.delete(activeId);
       if (doc.token) await release(doc.token);
       client.current?.dispose();
       sessions.current.set(activeId, next);
       activate(next);
+      setSheetSelection(restoredSelection);
       setTabVersion((v) => v + 1);
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          const target = grid.current?.element;
+          if (!target) return;
+          const top = next.view.rows.findIndex(
+            (row) => JSON.stringify(row.path) === JSON.stringify(topPath),
+          );
+          target.scrollLeft = scrollLeft;
+          target.scrollTop =
+            top >= 0
+              ? next.view.rows
+                  .slice(0, top)
+                  .reduce((sum, row) => sum + rowHeight(row), 0) +
+                (scrollTop - topOffset)
+              : next.query.page === query.page
+                ? scrollTop
+                : 0;
+        }),
+      );
       setNotice("Source reloaded.");
     });
   }
@@ -531,7 +666,7 @@ export default function App() {
     await run(async () => {
       if (!doc || !client.current || !view) return;
       if (sourceDirty)
-        throw new Error("Apply or discard the source draft before saving.");
+        throw new Error("Apply or discard the editor draft before saving.");
       if (view.diagnostics.length)
         throw new Error("Repair the JSON errors before saving.");
       const target = await prepareBrowserSave(doc, as);
@@ -560,7 +695,7 @@ export default function App() {
     setColumnName(null);
     await run(async () => {
       if (sourceDirty)
-        throw new Error("Apply or discard the source draft before navigating.");
+        throw new Error("Apply or discard the editor draft before navigating.");
       const history = navigationHistory.current.get(activeId);
       const previous =
         historyIndex === undefined ? undefined : history?.entries[historyIndex];
@@ -614,7 +749,7 @@ export default function App() {
     await run(async () => {
       if (sourceDirty)
         throw new Error(
-          "Apply or discard the source draft before locating a value.",
+          "Apply or discard the editor draft before locating a value.",
         );
       const target = await client.current!.call<{
         from: number;
@@ -640,16 +775,21 @@ export default function App() {
   async function history(action: "undo" | "redo") {
     await run(async () => {
       if (sourceDirty)
-        throw new Error("Apply or discard the source draft first.");
+        throw new Error("Apply or discard the editor draft first.");
       await client.current?.call(action);
       setSelection(null);
       await refresh();
       if (mode === "source") await showSource();
-      if (mode === "review" && doc && client.current)
-        setReview({
-          before: doc.text,
-          after: (await client.current.call<{ text: string }>("text")).text,
-        });
+      if (mode === "review" && doc && client.current) {
+        const current = await client.current.call<{
+          text: string;
+          revision: number;
+        }>("text");
+        setSource(current.text);
+        setSourceBase(current.text);
+        setSourceRevision(current.revision);
+        setReview({ before: doc.text, after: current.text });
+      }
     });
   }
   async function select(cell: Cell) {
@@ -1060,6 +1200,7 @@ export default function App() {
             ...view.headers.map<Column<Row>>((name, i) => ({
               key: String(i),
               name,
+              frozen: i < columnsFrozen,
               renderHeaderCell: () => (
                 <div className="sheet-column-heading">
                   <button
@@ -1138,7 +1279,6 @@ export default function App() {
               minWidth: 80,
               resizable: true,
               sortable: false,
-              frozen: false,
               renderCell: ({ row, rowIdx }) => {
                 if (inline && inline.row === rowIdx && inline.column === i)
                   return (
@@ -1254,6 +1394,7 @@ export default function App() {
       sheetSelection,
       wrapText,
       activeId,
+      columnsFrozen,
     ],
   );
   const sortColumns: SortColumn[] = query.sort
@@ -1265,7 +1406,16 @@ export default function App() {
       ]
     : [];
   async function checkpoint(text?: string) {
-    if (!desktop) return;
+    if (!desktop) {
+      if (!browserRecovery.current)
+        throw new Error("Local recovery storage is not ready.");
+      await browserRecovery.current.write(
+        text === undefined
+          ? []
+          : unpackRecovery({ name: packRecovery([]).name, text }),
+      );
+      return;
+    }
     const epoch = ++recoveryEpoch.current;
     await invoke("checkpoint", {
       epoch,
@@ -1274,20 +1424,61 @@ export default function App() {
     });
   }
   useEffect(() => {
+    let cancelled = false;
     if (desktop)
-      invoke<{ name: string; text: string } | null>("read_recovery")
+      invoke<RecoveryDocument | null>("read_recovery")
         .then((draft) => {
-          setRecovered(draft);
-          setRecoveryReady(true);
+          if (!cancelled) {
+            setRecovered(draft);
+            setRecoveryReady(true);
+          }
         })
         .catch((e) => setError("Recovery checkpoint retained: " + String(e)));
+    else {
+      const storage = new BrowserRecovery();
+      browserRecovery.current = storage;
+      void (async () => {
+        try {
+          if (localStorage.getItem("lattice-browser-recovery") === "on") {
+            const candidates = await storage.listRecoverable();
+            if (!cancelled && candidates.length) {
+              recoveredIds.current = candidates.map((item) => item.id);
+              setRecovered(
+                packRecovery(candidates.flatMap((item) => item.documents)),
+              );
+            }
+          }
+        } catch (error) {
+          if (!cancelled)
+            setError("Local recovery unavailable: " + String(error));
+        } finally {
+          if (!cancelled) setRecoveryReady(true);
+        }
+      })();
+    }
+    const preference = (event: StorageEvent) => {
+      if (event.key === "lattice-browser-recovery")
+        setRecoveryEnabled(event.newValue === "on");
+    };
+    window.addEventListener("storage", preference);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("storage", preference);
+      browserRecovery.current?.close();
+    };
   }, []);
   useEffect(() => {
     localStorage.setItem(
-      "json-workbench-recovery",
+      desktop ? "json-workbench-recovery" : "lattice-browser-recovery",
       recoveryEnabled ? "on" : "off",
     );
-    if (!desktop || !recoveryReady || operationBusy || recovered) return;
+    if (
+      !recoveryReady ||
+      operationBusy ||
+      recovered ||
+      (!desktop && !recoveryEnabled)
+    )
+      return;
     let cancelled = false;
     const timer = setTimeout(
       () => {
@@ -1539,6 +1730,37 @@ export default function App() {
       progress(false);
     }
   }
+  async function toggleRecovery(enabled: boolean) {
+    if (enabled && !desktop && !navigator.locks)
+      throw new Error(
+        "Safe local recovery requires browser Web Locks support. Use current Chrome or Edge.",
+      );
+    setRecoveryEnabled(enabled);
+    if (!desktop) {
+      localStorage.setItem("lattice-browser-recovery", enabled ? "on" : "off");
+      if (!enabled) {
+        await browserRecovery.current?.clearAll();
+        recoveredIds.current = [];
+        setRecovered(null);
+      }
+    }
+  }
+  const recoverySetting = (
+    <label
+      className="recovery-setting"
+      title="Optional: store unsaved JSON drafts on this device. Turning off removes stored drafts; open documents remain unchanged."
+    >
+      <input
+        type="checkbox"
+        checked={recoveryEnabled}
+        disabled={busy || !recoveryReady}
+        onChange={(event) =>
+          void run(() => toggleRecovery(event.target.checked))
+        }
+      />{" "}
+      Local recovery
+    </label>
+  );
   const browsePaneStyle = {
     width: leftWidth,
     maxWidth:
@@ -1696,6 +1918,35 @@ export default function App() {
                         true,
                       ),
                     );
+                  if (!desktop) {
+                    if (!browserRecovery.current)
+                      throw new Error(
+                        "Recovery storage is not ready. Original drafts have been retained.",
+                      );
+                    const existing = [...sessions.current.values()].filter(
+                      (s) => s.id !== activeId,
+                    );
+                    const current = snapshot();
+                    if (current) existing.push(current);
+                    const documents: RecoveryDocument[] = [];
+                    for (const session of [
+                      ...existing.filter(sessionDirty),
+                      ...restored,
+                    ]) {
+                      documents.push({
+                        name: session.doc.name,
+                        text:
+                          session.source !== session.sourceBase
+                            ? session.source
+                            : (
+                                await session.client.call<{ text: string }>(
+                                  "text",
+                                )
+                              ).text,
+                      });
+                    }
+                    await browserRecovery.current.write(documents);
+                  }
                 } catch (e) {
                   restored.forEach((s) => s.client.dispose());
                   throw e;
@@ -1704,7 +1955,19 @@ export default function App() {
                 for (const s of restored) sessions.current.set(s.id, s);
                 if (restored.length) activate(restored.at(-1)!);
                 setTabVersion((v) => v + 1);
+                const adopted = recoveredIds.current;
+                recoveredIds.current = [];
                 setRecovered(null);
+                if (!desktop) {
+                  try {
+                    await browserRecovery.current?.remove(adopted);
+                  } catch (error) {
+                    setError(
+                      "Drafts restored and checkpointed. Older recovery cleanup failed: " +
+                        String(error),
+                    );
+                  }
+                }
               })
             }
           >
@@ -1714,7 +1977,10 @@ export default function App() {
             disabled={busy}
             onClick={() =>
               void run(async () => {
-                await checkpoint();
+                if (!desktop)
+                  await browserRecovery.current?.remove(recoveredIds.current);
+                else await checkpoint();
+                recoveredIds.current = [];
                 setRecovered(null);
               })
             }
@@ -1762,6 +2028,17 @@ export default function App() {
             Explore sample workspace
           </button>
           {installPrompt}
+          {updateStatus}
+          {!desktop && (
+            <section className="welcome-recovery">
+              {recoverySetting}
+              <p className="small">
+                Off by default. When enabled, unsaved document contents are
+                stored only in this browser on this device. This is recovery,
+                not a disk save. Turning it off removes stored drafts.
+              </p>
+            </section>
+          )}
           <p className="small">
             Local files only. Build limits: UTF-8 input, 64 MiB files, 256
             nesting levels. Large-file performance is still under evaluation.
@@ -1841,9 +2118,13 @@ export default function App() {
               disabled={busy || sourceDirty}
               onClick={() =>
                 void run(async () => {
-                  const current = await client.current!.call<{ text: string }>(
-                    "text",
-                  );
+                  const current = await client.current!.call<{
+                    text: string;
+                    revision: number;
+                  }>("text");
+                  setSource(current.text);
+                  setSourceBase(current.text);
+                  setSourceRevision(current.revision);
                   setReview({ before: doc.text, after: current.text });
                   setMode("review");
                 })
@@ -1975,7 +2256,7 @@ export default function App() {
                         : "Open JSON source"
                     }
                     aria-pressed={mode === "source"}
-                    disabled={busy || mode === "source"}
+                    disabled={busy || mode === "source" || sourceDirty}
                     onClick={() => {
                       if (currentCell && currentCell.type !== "missing")
                         void showInSource(currentCell.path);
@@ -2168,16 +2449,13 @@ export default function App() {
                           [`${tableHeightKey}:${column.key}`]: width,
                         }))
                       }
-                      headerRowHeight={
-                        view.headers.some(
-                          (_, i) =>
-                            columnLabel(view, i).length * 7 >
-                            (columnWidths[`${tableHeightKey}:${i}`] ?? 155) -
-                              42,
-                        )
-                          ? 64
-                          : 48
-                      }
+                      headerRowHeight={headerHeight}
+                      renderers={frozenRenderers}
+                      enableVirtualization={frozenLayout.enableVirtualization}
+                      style={{
+                        scrollPaddingTop:
+                          headerHeight + frozenLayout.frozenHeight,
+                      }}
                       sortColumns={sortColumns}
                       onSortColumnsChange={(sort) => {
                         if (busy) return;
@@ -2428,6 +2706,14 @@ export default function App() {
                     >
                       Wrap text
                     </button>
+                    <FreezeMenu
+                      rows={frozen.rows}
+                      columns={frozen.columns}
+                      selection={activeCell}
+                      disabled={busy || !view.rows.length}
+                      paused={freezePaused}
+                      onChange={changeFreeze}
+                    />
                     <div className="spacer" />
                     {view.pages > 1 && (
                       <>
@@ -2507,7 +2793,41 @@ export default function App() {
                 </>
               )}
               {mode === "review" && review && (
-                <ReviewDiff before={review.before} after={review.after} />
+                <ReviewDiff
+                  key={activeId}
+                  before={review.before}
+                  after={review.after}
+                  initialDraft={source}
+                  onChange={setSource}
+                  busy={busy}
+                  onApply={async (text) => {
+                    if (!client.current || !view) return;
+                    if (busyRef.current)
+                      throw new Error(
+                        "Wait for the current operation to finish.",
+                      );
+                    progress(true);
+                    try {
+                      await client.current.call("review-apply", {
+                        text,
+                        revision: sourceRevision,
+                      });
+                      const current = await client.current.call<{
+                        text: string;
+                        revision: number;
+                      }>("text");
+                      setSource(current.text);
+                      setSourceBase(current.text);
+                      setSourceRevision(current.revision);
+                      setReview({ before: doc.text, after: current.text });
+                      setSelection(null);
+                      setSheetSelection(null);
+                      await refresh();
+                    } finally {
+                      progress(false);
+                    }
+                  }}
+                />
               )}
             </section>
             {inspector && mode === "table" && (
@@ -2724,16 +3044,8 @@ export default function App() {
             >
               {doc.name}
             </span>
-            {desktop && (
-              <label>
-                <input
-                  type="checkbox"
-                  checked={recoveryEnabled}
-                  onChange={(e) => setRecoveryEnabled(e.target.checked)}
-                />{" "}
-                Local recovery
-              </label>
-            )}
+            {updateStatus}
+            {recoverySetting}
           </footer>
         </>
       )}

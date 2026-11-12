@@ -52,6 +52,7 @@ export type Projection = {
   filterOptions?: { key: string; label: string }[];
   filterOptionsTruncated?: boolean;
   revision: number;
+  locatedRow?: number;
   dirty: boolean;
   undo: boolean;
   redo: boolean;
@@ -341,9 +342,9 @@ export class DocumentEngine {
     this.revision++;
     this.reparse(result);
   }
-  source(text: string, revision: number) {
+  source(text: string, revision: number, strict = false) {
     this.guard(revision);
-    this.commit(text, false);
+    this.commit(text, strict);
   }
   markSaved(text: string) {
     this.saved = text;
@@ -714,6 +715,7 @@ export class DocumentEngine {
   project(
     query: Query,
     selection?: SheetSelection,
+    locateRowPath?: Path,
   ): Projection & { selectedCells?: SelectedCell[][] } {
     let path = query.path;
     let n: Node | undefined;
@@ -723,7 +725,7 @@ export class DocumentEngine {
       path = [];
       n = this.root;
     }
-    let sheetRoot = this.root,
+    let sheetRoot = this.diagnostics.length ? undefined : this.root,
       sheetPath: Path = [];
     while (sheetRoot?.type === "object") {
       const values = entries(sheetRoot);
@@ -972,6 +974,17 @@ export class DocumentEngine {
       });
       filtered = indexed.map((x) => x.item);
     }
+    const locatedIndex =
+      locateRowPath === undefined
+        ? -1
+        : filtered.findIndex((item) => {
+            const candidate = pathOf(item[0]);
+            return (
+              candidate.length === locateRowPath.length &&
+              candidate.every((part, i) => part === locateRowPath[i])
+            );
+          });
+    const locatedRow = locatedIndex < 0 ? undefined : locatedIndex;
     let selectedCells: SelectedCell[][] | undefined;
     if (selection) {
       if (selectedCellCount(selection, filtered.length, headers.length) > 10000)
@@ -1043,6 +1056,7 @@ export class DocumentEngine {
             ? ["index", "value"]
             : ["value"],
       selectedCells,
+      locatedRow,
       filterOptions,
       filterOptionsTruncated,
       rows,

@@ -1146,3 +1146,22 @@ select optgroup {
 .select-all-cells { display: flex; align-items: center; justify-content: center; }
 .select-all-corner { width: 0; height: 0; border-top: 10px solid transparent; border-right: 10px solid currentColor; }
 .select-all-cells:hover { color: var(--accent); }
+
+.welcome-recovery { max-width: 450px; margin-top: 22px; }
+.recovery-setting { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.recovery-setting input { margin: 0; }
+.update-dialog { max-width: 420px; border: 1px solid var(--line); border-radius: 6px; padding: 22px; background: var(--surface); color: var(--text); box-shadow: 0 8px 32px #0003; }
+.update-dialog::backdrop { background: #0005; }
+.update-dialog h2 { font-size: 17px; margin: 0 0 12px; }
+.update-dialog p { font-size: 13px; line-height: 1.6; }
+.update-available { white-space: nowrap; }
+.diff-tools { flex-wrap: wrap; }
+.diff-review > p[role=alert] { margin: 0; padding: 8px 14px; color: var(--error); font-size: 12px; border-bottom: 1px solid var(--line); }
+.freeze-menu { position: relative; color: var(--text); }
+.freeze-menu summary { list-style: none; cursor: pointer; border: 1px solid var(--line); padding: 4px 8px; border-radius: 3px; background: var(--surface); }
+.freeze-menu summary::-webkit-details-marker { display: none; }
+.freeze-menu[open] summary { color: var(--accent); border-color: var(--accent); }
+.freeze-options { position: absolute; bottom: calc(100% + 7px); left: 0; z-index: 12; width: 265px; padding: 6px; border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 3px 15px #0002; background: var(--surface); display: flex; flex-direction: column; gap: 2px; }
+.freeze-options button { text-align: left; border: 0; background: transparent; padding: 8px; }
+.freeze-options p { margin: 5px 8px; font-size: 11px; color: var(--muted); line-height: 1.5; }
+.data-grid [role=row][style*="sticky"] { box-shadow: 0 1px var(--line); }

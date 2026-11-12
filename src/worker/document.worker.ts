@@ -5,6 +5,7 @@ import {
 } from "../document/selectionOperations";
 import {
   DocumentEngine,
+  PAGE_SIZE,
   type Query,
   type Mutation,
   type Path,
@@ -43,6 +44,21 @@ self.onmessage = (event: MessageEvent) => {
         case "project":
           value = engine.project(args as Query);
           break;
+        case "locate-row": {
+          const result = engine.project(
+            args.query as Query,
+            undefined,
+            args.path as Path,
+          );
+          value = {
+            row: result.locatedRow,
+            page:
+              result.locatedRow === undefined
+                ? result.page
+                : Math.floor(result.locatedRow / PAGE_SIZE),
+          };
+          break;
+        }
         case "outline":
           value = engine.outline(args.path as Path);
           break;
@@ -57,6 +73,9 @@ self.onmessage = (event: MessageEvent) => {
           break;
         case "mutate":
           engine.mutate(args.command as Mutation, args.revision);
+          break;
+        case "review-apply":
+          engine.source(args.text, args.revision, true);
           break;
         case "source":
           engine.source(args.text, args.revision);

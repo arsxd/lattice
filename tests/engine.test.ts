@@ -261,3 +261,21 @@ describe("lossless document engine", () => {
     expect(compareNumbers("1.0", "10e-1")).toBe(0);
   });
 });
+it("projects incomplete recovery/source drafts without traversing partial property values", () => {
+  for (const text of [
+    '{"unfinished":',
+    '{"outer":{"unfinished":',
+    "[",
+    "",
+    '{"a":1,"b":',
+  ]) {
+    const engine = new DocumentEngine(text);
+    expect(engine.project(q)).toMatchObject({
+      rows: [],
+      headers: [],
+      sheets: [],
+      diagnostics: expect.any(Array),
+    });
+    expect(engine.text).toBe(text);
+  }
+});
