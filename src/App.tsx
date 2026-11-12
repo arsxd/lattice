@@ -1002,6 +1002,7 @@ export default function App() {
                 <button
                   className="select-all-cells"
                   aria-label="Select all table cells"
+                  title="Select all table cells"
                   disabled={busy}
                   onClick={() =>
                     setSheetSelection(
@@ -1016,7 +1017,7 @@ export default function App() {
                     )
                   }
                 >
-                  ◩
+                  <span className="select-all-corner" aria-hidden="true" />
                 </button>
               ),
               renderCell: ({ rowIdx, row }) => (

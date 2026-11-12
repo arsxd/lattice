@@ -1142,3 +1142,7 @@ select optgroup {
 .details-preview thead th { position: sticky; top: 0; z-index: 1; background: var(--chrome); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .details-preview tbody th { font-weight: 400; color: var(--muted); }
 .details-cell { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; max-height: 54px; overflow: hidden; overflow-wrap: anywhere; white-space: pre-wrap; }
+
+.select-all-cells { display: flex; align-items: center; justify-content: center; }
+.select-all-corner { width: 0; height: 0; border-top: 10px solid transparent; border-right: 10px solid currentColor; }
+.select-all-cells:hover { color: var(--accent); }
