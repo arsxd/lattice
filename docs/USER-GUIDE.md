@@ -26,7 +26,7 @@ Click a cell, drag over a range, Shift+click or use Shift+arrows. **Ctrl+C / Cmd
 
 Right-click a cell for **Copy** and **Paste**, with shortcut hints. Right-clicking inside a range keeps the range; right-clicking outside selects the clicked cell. Menu clipboard actions require browser permission. If blocked, close the menu and use the keyboard shortcuts. Inside a text editor, the browser’s normal text-selection clipboard behavior applies.
 
-Paste starts at the selection's top-left cell. It validates before applying, rejects incompatible/read-only/nested targets and does not extend the table automatically. It cannot cross pages. A paste is one undo step. Blank pasted cells become null. Ctrl+D/Cmd+D or Fill down copies the top cell of each selected column down; it does not generate numeric sequences.
+Paste starts at the selection's top-left cell. It validates before applying, rejects incompatible/read-only/nested targets and does not extend the table automatically. It can cross page boundaries within the filtered/sorted table. Nonadjacent destinations are rejected. A paste is one undo step. Blank pasted cells become null. Ctrl+D/Cmd+D or Fill down copies the top cell of each selected column down; it does not generate numeric sequences.
 
 ## Sort and filter
 
@@ -48,7 +48,7 @@ Where browser APIs permit, Open retains a file handle, Save writes back, and Sav
 
 Download exports a copy. The document stays dirty because the app cannot confirm the download was saved. Keep the exported file before closing. Browser file access is not guaranteed after page reload.
 
-Reload source refreshes from a retained handle or asks you to choose the source again. Confirming reload replaces only the active document and resets its history, filters/sort and navigation. Cancel retains your work.
+Reload source refreshes from a retained handle or asks you to choose the source again. Confirming reload replaces only the active document and resets undo history. It retains the current nested location (or its nearest existing parent), with sort and filters retained when columns are compatible; the page resets to the first page. Cancel retains your work.
 
 ## Troubleshooting and reports
 
@@ -59,7 +59,7 @@ Reload source refreshes from a retained handle or asks you to choose the source 
 | Save unavailable | Browser may not expose the file-picker API; use Download |
 | Save says externally changed | Keep your edits separately, then reload/reopen the source; do not overwrite blindly |
 | Source Apply/Discard appears without editing | Report line endings, browser and minimal JSON; CRLF regression checks exist |
-| Paste rejected | Check page bounds, target column types, metadata/container cells and rectangular clipboard shape |
+| Paste rejected | Check table bounds, target column types, metadata/container cells and rectangular clipboard shape |
 | A missing sheet tab | Provide a minimal nested JSON example; wrapper handling is heuristic |
 | No close/reload warning | Browsers can suppress beforeunload dialogs; it is not crash recovery |
 
@@ -69,7 +69,7 @@ Report bugs through GitHub Issues. Include release version, OS/browser version, 
 
 Empty strings (`""`), empty objects (`{}`), empty arrays (`[]`), `null` and missing properties appear as blank grid cells. Select a cell and open **Details** to see its exact state and JSON. Hover text and accessible names also identify the state. The underlying values remain distinct; no conversion occurs. Zero, false and literal strings such as "null" remain visible. A missing property is absent from the file; entering a value creates it.
 
-Nested objects show up to three key/value hints in the cell. Double-click still opens the nested table. Turn on **Details** for a contents table alongside a JSON preview. The preview shows up to 30 entries, truncates long values, and is omitted for selections larger than 128 Ki characters; use **Open table**, **Source** or **Copy JSON** for the complete value. Numeric previews use the original JSON spelling.
+Nested objects show up to three key/value hints in the cell. Double-click still opens the nested table. Turn on **Details** for a contents table alongside a JSON preview. The preview shows at most 20 rows, 10 columns and 100 cells. Small collections of records use their combined keys as columns; other collections use key/value rows. Long values are truncated. Previews are omitted above 32,768 source characters or 12 syntax-tree levels; use **Open table**, **Source** or **Copy JSON** for the complete value. Numeric previews use the original JSON spelling.
 
 Switching from Table to Source and back restores the active cell. Applying a source draft clears the selection because rows and keys may have changed; select a new cell after applying.
 
@@ -95,10 +95,22 @@ The home icon opens the document root. The sidebar and status bar show the curre
 
 Custom freeze rows/columns remains experimental on `dev` and is absent from the public app. The old implementation used fixed row offsets and is incompatible with the new variable row heights. The row-number gutter remains pinned; this is separate from custom freeze panes.
 
-Find is on the right of the bottom bar alongside wrapping and page navigation. Ctrl+F / Cmd+F focuses it in Table view. Row/column counts, active sort/filter summaries and Add actions remain above the grid.
+Find is on the right of the bottom bar alongside wrapping and page navigation. Ctrl+F / Cmd+F focuses it in Table view. Add actions, selection/row counts and active sort/filter summaries share that bottom bar; no separate control row sits above the grid.
 
 ## Large selected values
 
 The value bar shows a short summary for nested objects/arrays instead of inserting their full JSON into a text input. Scalar values longer than 4,096 characters use a read-only preview; a truncated preview cannot be committed as an edit. Use Source for the complete value.
 
 Details shows at most 8,192 characters of raw JSON and clearly labels truncated previews. **Copy JSON** and copying selected grid cells still use complete values. Selecting a large container does not modify its data. These limits apply to previews, not the file or nested table.
+
+## Whole rows, columns and pane sizing
+
+Click a column letter/title to select that column across **all matching rows**, including other pages. Click a row number to select the whole row. Shift extends a selection; Ctrl/Cmd-click adds or removes row/column ranges. Ctrl+Space selects the current column; Shift+Space selects its row. Ctrl/Cmd+A selects the table. Highlighting and copying use the same selection. Grid clipboard operations are limited to 10,000 cells and 16,777,216 value characters; larger selections remain highlightable, but copying requests a smaller range. Native text-field selection is unaffected. Disjoint row/column ranges can be copied in table order; paste requires one adjacent destination.
+
+A generated **Array value** column carries a **view** badge. It holds non-object entries in a mixed collection and cannot be renamed/deleted as a real JSON property. Real properties with the same name remain separate.
+
+Double-click or Enter on a nested collection name opens its table; F2 renames an object key. Scalar arrays remain editable inline in value cells. Array previews remove formatting whitespace outside strings and preserve number spelling and whitespace inside strings.
+
+**Browse** sits above the left pane; **Details** stays beside Review changes. Drag either pane boundary to resize it. Focus the boundary and use Left/Right for keyboard resizing, or Home/double-click to reset. Only pane widths are stored locally, never JSON content. The right pane overlays the workspace at narrower window sizes. Column titles wrap to two lines when needed, independently of data wrapping.
+
+Long-running actions show a small ring spinning in place after a brief delay. Reload confirmation uses a compact status toast without moving the grid. Busy actions remain disabled to prevent repeated requests.

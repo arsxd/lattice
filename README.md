@@ -32,7 +32,7 @@ The public release line is `main` and distributes the browser/offline client onl
 
 Experimental features and the native desktop project are retained on `dev`. They are not part of the current release. Freeze panes was removed from the release line after reported problems.
 
-Limits: 500-row pages, 200 record fields, 10,000-cell bulk operations, and 2,000 distinct checklist values. Paste cannot grow the table or span pages. No formula evaluation, full Excel compatibility or schema validation.
+Limits: 500-row pages, 200 record fields, 10,000-cell bulk operations, and 2,000 distinct checklist values. Paste can span pages but cannot grow the table. No formula evaluation, full Excel compatibility or schema validation.
 
 ## Sample workspace
 

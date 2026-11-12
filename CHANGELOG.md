@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Unified cell/row/column selection, Shift/additive header selection, full filtered-column copy and cross-page atomic paste with explicit limits.
+- Distinguished generated mixed-value columns from real properties to prevent accidental structural edits.
+- Container names open tables with double-click/Enter; F2 renames keys.
+- Resizable Browse/Details panes, Browse above the sidebar, bounded wrapping of long column titles and consolidated bottom controls.
+- Small record tables in Details and compact lossless array previews; large/deep previews stay bounded.
+- In-place delayed busy ring, compact reload toast and consistent navigation buttons.
+
+
 - Fixed heavy UI work when selecting large nested values: container summaries in the value bar, bounded Details JSON previews, and duplicate selection-read suppression.
 - Oversized scalar value-bar previews are read-only; full-value Copy JSON and Source remain available.
 
