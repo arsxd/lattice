@@ -1072,12 +1072,12 @@ select optgroup {
 .outline-tree ul { padding-left: 14px; }
 .outline-entry { display: flex; align-items: center; min-width: 0; border-radius: 3px; }
 .outline-entry.active { color: var(--accent); background: var(--selection); }
-.outline-disclosure { flex: 0 0 24px; width: 24px; height: 30px; border: 0; background: transparent; padding: 0; font-size: 18px; }
+.outline-disclosure { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 24px; width: 24px; height: 30px; border: 0; background: transparent; padding: 0; }
 .outline-node { display: flex; align-items: center; gap: 7px; min-width: 0; flex: 1; border: 0; background: transparent; text-align: left; padding: 7px 3px; }
 .outline-note { color: var(--muted); font-size: 12px; margin: 6px 0; overflow-wrap: anywhere; }
 .location-history { display: flex; gap: 2px; }
-.location-history button { width: 28px; height: 28px; padding: 0; font-size: 17px; }
-.location nav .root-home { display: inline-flex; vertical-align: middle; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 3px; }
+.location-history button { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; }
+.location nav .root-home { display: inline-flex; vertical-align: middle; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 3px; background: var(--surface); color: var(--text); }
 .document-filename { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .outline-node .tree-label { min-width: 0; white-space: nowrap; }
@@ -1092,3 +1092,7 @@ select optgroup {
 .table-counts { white-space: nowrap; }
 
 .wrap-text .cell-value { tab-size: 4; }
+
+.navigation-icon { display: block; flex: none; }
+.outline-disclosure[aria-expanded="true"] .navigation-icon { transform: rotate(90deg); }
+.location nav .root-home:hover:not(:disabled) { background: var(--hover); }

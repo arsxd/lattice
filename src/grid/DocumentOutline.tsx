@@ -1,3 +1,4 @@
+import { NavigationIcon } from "../NavigationIcon";
 import { useEffect, useState } from "react";
 import {
   pointer,
@@ -59,7 +60,7 @@ function Branch({ item, ...props }: Props & { item: OutlineEntry }) {
             disabled={props.disabled}
             onClick={() => setExpanded(!expanded)}
           >
-            {expanded ? "⌄" : "›"}
+            <NavigationIcon name="chevron" size={14} />
           </button>
         ) : (
           <span className="outline-disclosure" />

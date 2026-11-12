@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Unified home, Back/Forward and sidebar disclosure icons with consistent SVG strokes and alignment.
+
 - Consolidated table search, counts, sort/filter status and Add actions into one control line.
 - Wrapping grows rows according to their visible text and column widths, keeping short rows compact.
 

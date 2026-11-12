@@ -1,3 +1,4 @@
+import { NavigationIcon } from "./NavigationIcon";
 import { blankState, wrappedHeight } from "./grid/cellPresentation";
 import { DocumentOutline } from "./grid/DocumentOutline";
 import { recordNavigation, type NavigationHistory } from "./navigation";
@@ -1703,7 +1704,7 @@ export default function App() {
                     }
                     onClick={() => travel(-1)}
                   >
-                    ←
+                    <NavigationIcon name="back" />
                   </button>
                   <button
                     aria-label="Forward"
@@ -1719,7 +1720,7 @@ export default function App() {
                     }
                     onClick={() => travel(1)}
                   >
-                    →
+                    <NavigationIcon name="forward" />
                   </button>
                 </div>
                 <nav aria-label="JSON path">
@@ -1730,17 +1731,7 @@ export default function App() {
                     disabled={busy || sourceDirty}
                     onClick={() => void navigate([])}
                   >
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      aria-hidden="true"
-                    >
-                      <path d="m3 11 9-8 9 8M5 10v11h5v-7h4v7h5V10" />
-                    </svg>
+                    <NavigationIcon name="home" />
                   </button>
                   {(view?.path ?? []).map((part, i) => (
                     <span key={i}>
