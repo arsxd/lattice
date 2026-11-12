@@ -1055,11 +1055,6 @@ select optgroup {
 .welcome-install-actions { display: flex; justify-content: center; gap: 10px; }
 
 .cell-value.empty-value { height: 100%; }
-.details-preview { min-width: 0; }
-.details-preview table { border-collapse: collapse; width: 100%; font-size: 12px; table-layout: fixed; margin: 8px 0 16px; }
-.details-preview th, .details-preview td { text-align: left; vertical-align: top; padding: 7px 8px; border: 1px solid var(--line); overflow-wrap: anywhere; white-space: pre-wrap; }
-.details-preview thead th { background: var(--chrome); font-weight: 600; }
-.details-preview tbody th { width: 40%; font-weight: 500; }
 
 .wrap-text .cell-value { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 20px; max-height: 100%; padding: 3px 0; }
 .row-number-content { height: 100%; position: relative; }
@@ -1126,10 +1121,6 @@ select optgroup {
 .notice-toast { position: fixed; bottom: 42px; left: 50%; transform: translateX(-50%); max-width: min(560px,90vw); padding: 9px 14px; border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 5px; box-shadow: 0 2px 10px #0002; z-index: 30; font-size: 13px; }
 @media (max-width:1180px) { .inspector { position: absolute; max-width: 70vw; } }
 @media (prefers-reduced-motion:reduce) { .activity { animation: none; } }
-.details-preview { overflow-x: auto; max-width: 100%; }
-.details-preview table { min-width: 100%; table-layout: auto; }
-.details-preview tbody th { width: auto; }
-.details-preview td { max-width: 220px; min-width: 55px; }
 @media (max-width:1180px) { .outline { max-width: calc(100vw - 365px) !important; } }
 
 /* Document tabs belong to the document area; status stays separate from actions. */
@@ -1139,3 +1130,15 @@ select optgroup {
 .document-tab > button { margin-left: 8px; }
 .document-tab > button:last-child { margin-right: 12px; }
 @media (max-width:1180px) { .browse-tab-slot.expanded { max-width: calc(100vw - 365px) !important; } }
+
+/* Details is a bounded preview, not a miniature squeezed spreadsheet. */
+.details-preview { min-width: 0; max-width: 100%; }
+.details-table-scroll { overflow: auto; max-height: 288px; margin: 8px 0 16px; border: 1px solid var(--line); }
+.details-table-scroll:focus-visible { outline-offset: -2px; }
+.details-preview table { border-collapse: separate; border-spacing: 0; table-layout: fixed; min-width: 300px; font-size: 12px; line-height: 18px; }
+.details-preview th, .details-preview td { text-align: left; vertical-align: top; padding: 7px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.details-preview th:last-child, .details-preview td:last-child { border-right: 0; }
+.details-preview tbody tr:last-child > * { border-bottom: 0; }
+.details-preview thead th { position: sticky; top: 0; z-index: 1; background: var(--chrome); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.details-preview tbody th { font-weight: 400; color: var(--muted); }
+.details-cell { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; max-height: 54px; overflow: hidden; overflow-wrap: anywhere; white-space: pre-wrap; }

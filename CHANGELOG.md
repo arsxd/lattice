@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed squeezed Details tables with readable column widths, single-line headers, three-line value previews and bounded internal scrolling.
+
 - Aligned document tabs with the table beside Browse and moved table/selection counts into the status bar, keeping action buttons together.
 
 - Unified cell/row/column selection, Shift/additive header selection, full filtered-column copy and cross-page atomic paste with explicit limits.

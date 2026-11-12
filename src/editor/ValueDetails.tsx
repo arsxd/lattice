@@ -8,30 +8,68 @@ export function ValueDetails({ raw }: { raw: string }) {
       <label>Contents</label>
       {preview.total ? (
         <>
-          <table aria-label="Selected value contents">
-            <thead>
-              <tr>
-                {preview.headers.map((header, index) => (
-                  <th key={index}>{header}</th>
+          <div
+            className="details-table-scroll"
+            role="region"
+            aria-label="Contents preview"
+            tabIndex={0}
+          >
+            <table
+              aria-label="Selected value contents"
+              style={{
+                width:
+                  preview.headers.length > 2
+                    ? 104 + (preview.headers.length - 1) * 160
+                    : "100%",
+              }}
+            >
+              <colgroup>
+                {preview.headers.map((_, index) => (
+                  <col
+                    key={index}
+                    style={{
+                      width:
+                        index === 0
+                          ? 104
+                          : preview.headers.length > 2
+                            ? 160
+                            : undefined,
+                    }}
+                  />
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {preview.cells.map((row, index) => (
-                <tr key={index}>
-                  {row.map((value, column) =>
-                    column === 0 ? (
-                      <th key={column} scope="row">
-                        {value}
-                      </th>
-                    ) : (
-                      <td key={column}>{value}</td>
-                    ),
-                  )}
+              </colgroup>
+              <thead>
+                <tr>
+                  {preview.headers.map((header, index) => (
+                    <th key={index} title={header}>
+                      {header}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {preview.cells.map((row, index) => (
+                  <tr key={index}>
+                    {row.map((value, column) =>
+                      column === 0 ? (
+                        <th key={column} scope="row">
+                          <span className="details-cell" title={value}>
+                            {value}
+                          </span>
+                        </th>
+                      ) : (
+                        <td key={column}>
+                          <span className="details-cell" title={value}>
+                            {value}
+                          </span>
+                        </td>
+                      ),
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           {preview.total > preview.rows.length && (
             <p className="small">
               Showing {preview.rows.length} of {preview.total} entries. Open
