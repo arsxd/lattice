@@ -1052,3 +1052,8 @@ select optgroup {
 @keyframes working { to { transform:rotate(360deg); } }
 .toolbar { padding-right:14px; }
 @media (prefers-reduced-motion:reduce) { .activity { animation:none; } }
+
+.welcome-install { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); }
+.welcome-install strong { font-weight: 600; }
+.welcome-install p { margin: 6px 0 12px; font-size: 13px; }
+.welcome-install-actions { display: flex; justify-content: center; gap: 10px; }

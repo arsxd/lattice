@@ -1,4 +1,4 @@
-import RegisterOfflineApp from "./RegisterOfflineApp";
+import { useOfflineApp } from "./useOfflineApp";
 import { ColumnMenu } from "./grid/ColumnMenu";
 import { ValueBar } from "./editor/ValueBar";
 import { SheetRange } from "./grid/SheetRange";
@@ -87,6 +87,7 @@ function columnLetter(index: number): string {
   return label;
 }
 export default function App() {
+  const installPrompt = useOfflineApp();
   const [discardPrompt, setDiscardPrompt] = useState(false);
   const [discardContext, setDiscardContext] = useState("");
   const discardResolve = useRef<((answer: boolean) => void) | null>(null);
@@ -1245,7 +1246,6 @@ export default function App() {
     >
       <header className="toolbar">
         <strong title="JSON Workbench">Lattice</strong>
-        <RegisterOfflineApp />
         {busy && (
           <span className="activity" role="status" aria-label="Working">
             ◌
@@ -1415,6 +1415,7 @@ export default function App() {
           >
             Explore sample workspace
           </button>
+          {installPrompt}
           <p className="small">
             Local files only. Build limits: UTF-8 input, 64 MiB files, 256
             nesting levels. Large-file performance is still under evaluation.
