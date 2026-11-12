@@ -95,4 +95,4 @@ The home icon opens the document root. The sidebar and status bar show the curre
 
 Custom freeze rows/columns remains experimental on `dev` and is absent from the public app. The old implementation used fixed row offsets and is incompatible with the new variable row heights. The row-number gutter remains pinned; this is separate from custom freeze panes.
 
-Search, row/column counts, active sort/filter summaries and Add actions share one compact table control line.
+Find is on the right of the bottom bar alongside wrapping and page navigation. Ctrl+F / Cmd+F focuses it in Table view. Row/column counts, active sort/filter summaries and Add actions remain above the grid.

@@ -129,6 +129,7 @@ export default function App() {
   const [doc, setDoc] = useState<Opened | null>(null);
   const [view, setView] = useState<Projection | null>(null);
   const [query, setQuery] = useState<Query>(initialQuery);
+  const [findDraft, setFindDraft] = useState(initialQuery.search);
   const [operationBusy, setBusy] = useState(false);
   const [columnName, setColumnName] = useState<string | null>(null);
   const [columnError, setColumnError] = useState("");
@@ -249,6 +250,17 @@ export default function App() {
   );
   const [inspector, setInspector] = useState(false);
   const [outlineVisible, setOutlineVisible] = useState(false);
+  useEffect(() => {
+    setFindDraft(query.search);
+  }, [activeId, JSON.stringify(query.path), query.search]);
+  useEffect(() => {
+    if (mode !== "table" || busy || findDraft === query.search) return;
+    const timer = setTimeout(
+      () => changeQuery({ ...query, search: findDraft, page: 0 }),
+      150,
+    );
+    return () => clearTimeout(timer);
+  }, [findDraft, query, mode, busy]);
   const sourceDirty = mode === "source" && source !== sourceBase;
   const dirty = !!view?.dirty || sourceDirty;
   const anyDirty =
@@ -1895,20 +1907,6 @@ export default function App() {
                     />
                   )}
                   <div className="table-tools">
-                    <input
-                      id="find"
-                      aria-label="Find in table"
-                      placeholder="Find in this table…"
-                      value={query.search}
-                      disabled={busy}
-                      onChange={(e) =>
-                        changeQuery({
-                          ...query,
-                          search: e.target.value,
-                          page: 0,
-                        })
-                      }
-                    />
                     {inspector && view.recordsAvailable && (
                       <button
                         disabled={busy}
@@ -2270,6 +2268,13 @@ export default function App() {
                     >
                       Next
                     </button>
+                    <input
+                      id="find"
+                      aria-label="Find in table"
+                      placeholder="Find in this table…"
+                      value={findDraft}
+                      onChange={(e) => setFindDraft(e.target.value)}
+                    />
                   </div>
                 </>
               )}

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Moved Find to the bottom-right beside wrapping and pagination; typing remains editable while search results refresh.
+
 - Unified home, Back/Forward and sidebar disclosure icons with consistent SVG strokes and alignment.
 
 - Consolidated table search, counts, sort/filter status and Add actions into one control line.

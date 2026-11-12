@@ -270,9 +270,11 @@ button[aria-pressed="true"] {
   padding: 5px 10px;
   border-bottom: 1px solid var(--line);
 }
-.table-tools input {
-  width: 250px;
-  min-width: 100px;
+.pagination #find {
+  color: var(--text);
+  width: 220px;
+  min-width: 140px;
+  max-width: 100%;
   padding: 5px 8px;
 }
 .table-summary {
@@ -319,7 +321,8 @@ button[aria-pressed="true"] {
   color: var(--accent);
 }
 .pagination {
-  height: 40px;
+  min-height: 36px;
+  flex-wrap: wrap;
   display: flex;
   align-items: center;
   gap: 12px;
