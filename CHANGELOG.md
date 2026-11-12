@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Per-document Back/Forward table navigation with search/sort/filter history.
+- Lazy expandable document sidebar with current-location highlighting and stable sibling branches.
+- Larger root navigation target and visible document filename.
+
 - Optional text wrapping in the table footer, with compact defaults and draggable/resettable row heights.
 - Multiline inline string editing with Alt+Enter; Enter/Tab commit and Escape cancels.
 

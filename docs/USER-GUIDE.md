@@ -78,3 +78,13 @@ Use **Wrap text** in the table footer to show line breaks and wrap long text ins
 Drag the bottom edge of a row number to change its height (28–400 pixels). Double-click that edge to reset to the current compact/wrapped default. Once the resize handle has focus, Up/Down adjusts its height and Home resets it. Heights are view settings for the current document/table and remain attached to the row path when sorting/filtering. They are not saved in JSON or restored after closing the app.
 
 While editing a string cell, **Alt+Enter** inserts a line break, **Enter** commits, **Tab** commits and moves, and **Escape** cancels. Line breaks are saved as escaped newlines in valid JSON. String cell editing now uses a multiline text field; other JSON types keep their existing validation.
+
+## Browsing nested tables
+
+**Browse** opens an expandable document sidebar. The chevron expands a branch; its name opens that table. The current table is highlighted, ancestors open as you navigate, and sibling branches remain in the hierarchy. Hiding and reopening Browse retains the current expansion state. Each branch lists up to 200 nested tables; all data remains accessible through the parent table.
+
+**Back** and **Forward**, beside the breadcrumb, revisit table locations within the active document. Each document has its own history, capped at 100 locations. History retains the most recent search, sort, filters and row page for a visited table. Visiting another table after going back replaces the forward branch. These controls are separate from Undo/Redo and the browser’s page navigation.
+
+History resets after source reload or applying a source draft. If an earlier location has been removed through table editing, revisiting it opens the nearest available parent. Navigation is paused while a source draft has unapplied changes.
+
+The home icon opens the document root. The sidebar and status bar show the current filename; the breadcrumb shows the JSON location. Browser file handles do not expose an absolute disk path, so the app does not invent one.

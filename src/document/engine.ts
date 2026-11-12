@@ -25,6 +25,13 @@ export type Cell = {
   writable?: boolean;
   inputKind?: Kind;
 };
+export type OutlineEntry = {
+  label: string;
+  path: Path;
+  kind: Kind;
+  expandable: boolean;
+};
+export type OutlineResult = { children: OutlineEntry[]; truncated: boolean };
 export type Row = { id: string; label: string; path: Path; cells: Cell[] };
 export type Query = {
   path: Path;
@@ -250,6 +257,28 @@ export class DocumentEngine {
     if (!n)
       throw new Error("This value no longer exists. Refresh the selection.");
     return n;
+  }
+  outline(path: Path): OutlineResult {
+    const node = this.node(path);
+    const result: OutlineEntry[] = [];
+    for (const [index, item] of (node.children ?? []).entries()) {
+      const value = node.type === "object" ? item.children?.[1] : item;
+      if (!value || (value.type !== "object" && value.type !== "array"))
+        continue;
+      if (result.length === 200) return { children: result, truncated: true };
+      const key =
+        node.type === "object" ? String(item.children![0].value) : index;
+      result.push({
+        label: String(key),
+        path: [...path, key],
+        kind: value.type as Kind,
+        expandable: (value.children ?? []).some((child) => {
+          const nested = value.type === "object" ? child.children?.[1] : child;
+          return nested?.type === "object" || nested?.type === "array";
+        }),
+      });
+    }
+    return { children: result, truncated: false };
   }
   locate(path: Path, property = false) {
     let n = this.node(path);

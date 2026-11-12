@@ -18,6 +18,9 @@ self.onmessage = (event: MessageEvent) => {
         case "project":
           value = engine.project(args as Query);
           break;
+        case "outline":
+          value = engine.outline(args.path as Path);
+          break;
         case "locate":
           value = engine.locate(args.path as Path, !!args.property);
           break;

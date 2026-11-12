@@ -1,3 +1,5 @@
+import { DocumentOutline } from "./grid/DocumentOutline";
+import { recordNavigation, type NavigationHistory } from "./navigation";
 import { RowHeightHandle } from "./grid/RowHeightHandle";
 import { ValueDetails } from "./editor/ValueDetails";
 import { useOfflineApp } from "./useOfflineApp";
@@ -139,6 +141,7 @@ export default function App() {
   const [wrapText, setWrapText] = useState(false);
   const [rowHeights, setRowHeights] = useState<Record<string, number>>({});
   const sessions = useRef(new Map<string, Session>());
+  const navigationHistory = useRef(new Map<string, NavigationHistory>());
   const [activeId, setActiveId] = useState("");
   const tableHeightKey = `${activeId}:${pointer(query.path)}`;
   const heightKey = (row: Row) => `${tableHeightKey}:${row.id}`;
@@ -274,6 +277,7 @@ export default function App() {
       if (target.doc.token) await release(target.doc.token);
       target.client.dispose();
       sessions.current.delete(id);
+      navigationHistory.current.delete(id);
       if (id === activeId) {
         const next = [...sessions.current.values()].at(-1);
         if (next) activate(next);
@@ -417,6 +421,7 @@ export default function App() {
         : { ...initialQuery, path };
       next.view = await next.client.call<Projection>("project", next.query);
       next.id = activeId;
+      navigationHistory.current.delete(activeId);
       if (doc.token) await release(doc.token);
       client.current?.dispose();
       sessions.current.set(activeId, next);
@@ -453,27 +458,59 @@ export default function App() {
       }
     });
   }
-  async function navigate(path: Path) {
-    setColumnName(null);
+  async function navigate(path: Path, historyIndex?: number) {
     if (busyRef.current) return;
+    setColumnName(null);
     await run(async () => {
       if (sourceDirty)
         throw new Error("Apply or discard the source draft before navigating.");
-      const q = {
-        ...query,
-        path,
-        filters: undefined,
-        valueFilters: undefined,
-        records: true,
-        search: "",
-        sort: undefined,
-        page: 0,
-      };
-      setQuery(q);
-      setSelection(null);
-      setMode("table");
+      const history = navigationHistory.current.get(activeId);
+      const previous =
+        historyIndex === undefined ? undefined : history?.entries[historyIndex];
+      let target = [...path];
+      if (previous) {
+        while (target.length) {
+          try {
+            await client.current!.call("locate", { path: target });
+            break;
+          } catch {
+            target.pop();
+          }
+        }
+      } else await client.current!.call("locate", { path: target });
+      const q = previous
+        ? { ...previous, path: target }
+        : {
+            ...query,
+            path: target,
+            filters: undefined,
+            valueFilters: undefined,
+            records: true,
+            search: "",
+            sort: undefined,
+            page: 0,
+          };
       await refresh(q);
+      navigationHistory.current.set(
+        activeId,
+        recordNavigation(history, query, q, historyIndex),
+      );
+      ++selectionRequest.current;
+      setSelection(null);
+      setQuery(q);
+      setMode("table");
+      if (JSON.stringify(target) !== JSON.stringify(path))
+        setNotice(
+          "That location was removed. Opened its nearest available parent.",
+        );
     });
+  }
+  function travel(direction: number) {
+    const history = navigationHistory.current.get(activeId);
+    if (!history) return;
+    const index = history.index + direction;
+    const entry = history.entries[index];
+    if (entry) void navigate(entry.path, index);
   }
   async function showInSource(path: Path, property = false) {
     await run(async () => {
@@ -1571,54 +1608,22 @@ export default function App() {
             )}
           </div>
           <main className="workspace">
-            {outlineVisible && (
-              <aside className="outline">
-                <div className="pane-label">Document</div>
-                <button
-                  className={query.path.length === 0 ? "tree active" : "tree"}
-                  onClick={() => void navigate([])}
-                  disabled={busy}
-                >
-                  ⌂ <span>root</span>
-                  <small>{view?.rootKind}</small>
-                </button>
-                {query.path.length > 0 && (
-                  <button
-                    className="tree"
-                    disabled={busy}
-                    onClick={() => void navigate(query.path.slice(0, -1))}
-                  >
-                    ↑ Parent
-                  </button>
-                )}
-                <div className="outline-path">
-                  {pointer(view?.path ?? []) || "/"}
-                </div>
-                {view?.children.map((item) => (
-                  <button
-                    className="tree"
-                    key={pointer(item.path)}
-                    disabled={busy}
-                    onClick={() => void navigate(item.path)}
-                  >
-                    <span className="node-icon">
-                      {item.kind === "array" ? "[ ]" : "{ }"}
-                    </span>
-                    <span className="tree-label">{item.label}</span>
-                  </button>
-                ))}
-                {view?.truncatedChildren && (
-                  <p className="small">
-                    First 200 nested entries shown here. All entries remain
-                    accessible in the table.
-                  </p>
-                )}
-                <p className="outline-help">
-                  Double-click a nested value to open its table. Select a value
-                  to inspect its exact JSON.
-                </p>
-              </aside>
-            )}
+            <aside className="outline" hidden={!outlineVisible}>
+              <div className="pane-label">Document</div>
+              <div className="outline-filename" title={doc.name}>
+                {doc.name}
+              </div>
+              <DocumentOutline
+                key={activeId}
+                current={query.path}
+                revision={view?.revision ?? 0}
+                rootKind={view?.rootKind ?? "object"}
+                visible={outlineVisible}
+                disabled={busy || sourceDirty}
+                load={(path) => client.current!.call("outline", { path })}
+                navigate={(path) => void navigate(path)}
+              />
+            </aside>
             <section className="document">
               <div className="location">
                 <button
@@ -1627,9 +1632,59 @@ export default function App() {
                 >
                   Browse
                 </button>
+                <div
+                  className="location-history"
+                  role="group"
+                  aria-label="Table navigation"
+                >
+                  <button
+                    aria-label="Back"
+                    title="Back to previous table"
+                    disabled={
+                      busy ||
+                      sourceDirty ||
+                      !navigationHistory.current.get(activeId)?.index
+                    }
+                    onClick={() => travel(-1)}
+                  >
+                    ←
+                  </button>
+                  <button
+                    aria-label="Forward"
+                    title="Forward to next table"
+                    disabled={
+                      busy ||
+                      sourceDirty ||
+                      !navigationHistory.current.get(activeId) ||
+                      navigationHistory.current.get(activeId)!.index >=
+                        navigationHistory.current.get(activeId)!.entries
+                          .length -
+                          1
+                    }
+                    onClick={() => travel(1)}
+                  >
+                    →
+                  </button>
+                </div>
                 <nav aria-label="JSON path">
-                  <button disabled={busy} onClick={() => void navigate([])}>
-                    root
+                  <button
+                    className="root-home"
+                    aria-label="root"
+                    title="Document root"
+                    disabled={busy || sourceDirty}
+                    onClick={() => void navigate([])}
+                  >
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      aria-hidden="true"
+                    >
+                      <path d="m3 11 9-8 9 8M5 10v11h5v-7h4v7h5V10" />
+                    </svg>
                   </button>
                   {(view?.path ?? []).map((part, i) => (
                     <span key={i}>
@@ -2199,6 +2254,7 @@ export default function App() {
                             });
                             setSelection(null);
                             setActiveCell(null);
+                            navigationHistory.current.delete(activeId);
                             await refresh();
                             await showSource();
                           })
@@ -2376,7 +2432,16 @@ export default function App() {
               {view ? new Intl.NumberFormat().format(view.bytes) : 0} bytes
             </span>
             <span>UTF-8</span>
-            <span>{desktop ? "Desktop" : "Web client"}</span>
+            <span
+              className="document-filename"
+              title={
+                doc.handle
+                  ? `${doc.name} — linked local file. The browser does not expose its absolute disk path.`
+                  : doc.name
+              }
+            >
+              {doc.name}
+            </span>
             {desktop && (
               <label>
                 <input

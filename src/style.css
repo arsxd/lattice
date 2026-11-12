@@ -1072,3 +1072,19 @@ select optgroup {
 .data-grid .inline-cell { resize: none; display: block; line-height: 20px; padding-top: 3px; padding-bottom: 3px; overflow: auto; }
 
 .wrap-text .array-value { white-space: normal; }
+
+.outline[hidden] { display: none; }
+.outline-filename { margin: 0 10px 14px; font-weight: 500; overflow-wrap: anywhere; }
+.outline-tree, .outline-tree ul { list-style: none; padding: 0; margin: 0; }
+.outline-tree ul { padding-left: 14px; }
+.outline-entry { display: flex; align-items: center; min-width: 0; border-radius: 3px; }
+.outline-entry.active { color: var(--accent); background: var(--selection); }
+.outline-disclosure { flex: 0 0 24px; width: 24px; height: 30px; border: 0; background: transparent; padding: 0; font-size: 18px; }
+.outline-node { display: flex; align-items: center; gap: 7px; min-width: 0; flex: 1; border: 0; background: transparent; text-align: left; padding: 7px 3px; }
+.outline-note { color: var(--muted); font-size: 12px; margin: 6px 0; overflow-wrap: anywhere; }
+.location-history { display: flex; gap: 2px; }
+.location-history button { width: 28px; height: 28px; padding: 0; font-size: 17px; }
+.location nav .root-home { display: inline-flex; vertical-align: middle; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 3px; }
+.document-filename { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.outline-node .tree-label { min-width: 0; white-space: nowrap; }
