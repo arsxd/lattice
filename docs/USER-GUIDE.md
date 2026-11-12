@@ -70,3 +70,11 @@ Empty strings (`""`), empty objects (`{}`), empty arrays (`[]`), `null` and miss
 Nested objects show up to three key/value hints in the cell. Double-click still opens the nested table. Turn on **Details** for a contents table alongside the exact JSON. The preview shows up to 30 entries, truncates long values, and is omitted for selections larger than 128 Ki characters; use **Open table** or the exact JSON for the complete value. Numeric previews use the original JSON spelling.
 
 Switching from Table to Source and back restores the active cell. Applying a source draft clears the selection because rows and keys may have changed; select a new cell after applying.
+
+## Multiline cells and row height
+
+Use **Wrap text** in the table footer to show line breaks and wrap long text inside cells. It starts with space for about three lines; longer content is clipped to the row height. The grid preview remains limited to 240 characters. Details and Source contain the full value.
+
+Drag the bottom edge of a row number to change its height (28–400 pixels). Double-click that edge to reset to the current compact/wrapped default. Once the resize handle has focus, Up/Down adjusts its height and Home resets it. Heights are view settings for the current document/table and remain attached to the row path when sorting/filtering. They are not saved in JSON or restored after closing the app.
+
+While editing a string cell, **Alt+Enter** inserts a line break, **Enter** commits, **Tab** commits and moves, and **Escape** cancels. Line breaks are saved as escaped newlines in valid JSON. String cell editing now uses a multiline text field; other JSON types keep their existing validation.

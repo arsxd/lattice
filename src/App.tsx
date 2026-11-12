@@ -1,3 +1,4 @@
+import { RowHeightHandle } from "./grid/RowHeightHandle";
 import { ValueDetails } from "./editor/ValueDetails";
 import { useOfflineApp } from "./useOfflineApp";
 import { ColumnMenu } from "./grid/ColumnMenu";
@@ -130,13 +131,29 @@ export default function App() {
   const [inline, setInline] = useState<InlineEdit | null>(null);
   const busy = operationBusy;
   const committingCell = useRef(false);
-  const inlineInput = useRef<HTMLInputElement>(null);
+  const inlineInput = useRef<HTMLTextAreaElement>(null);
   const suppressBlur = useRef(false);
   const suppressPointerClick = useRef(false);
   const replayingClick = useRef(false);
   const grid = useRef<DataGridHandle>(null);
+  const [wrapText, setWrapText] = useState(false);
+  const [rowHeights, setRowHeights] = useState<Record<string, number>>({});
   const sessions = useRef(new Map<string, Session>());
   const [activeId, setActiveId] = useState("");
+  const tableHeightKey = `${activeId}:${pointer(query.path)}`;
+  const heightKey = (row: Row) => `${tableHeightKey}:${row.id}`;
+  const rowHeight = (row: Row) =>
+    rowHeights[heightKey(row)] ?? (wrapText ? 72 : 28);
+  function resizeRow(row: Row, height?: number) {
+    const key = heightKey(row);
+    setRowHeights((previous) => {
+      const next = { ...previous };
+      if (height === undefined) delete next[key];
+      else next[key] = height;
+      return next;
+    });
+  }
+
   const [tabVersion, setTabVersion] = useState(0);
   const [sheets, setSheets] = useState<Projection["children"]>([]);
   const [truncatedSheets, setTruncatedSheets] = useState(false);
@@ -836,7 +853,17 @@ export default function App() {
               minWidth: 44,
               frozen: true,
               cellClass: "row-number",
-              renderCell: ({ rowIdx }) => view.page * 500 + rowIdx + 1,
+              renderCell: ({ rowIdx, row }) => (
+                <div className="row-number-content">
+                  {view.page * 500 + rowIdx + 1}
+                  <RowHeightHandle
+                    number={view.page * 500 + rowIdx + 1}
+                    height={rowHeight(row)}
+                    onChange={(height) => resizeRow(row, height)}
+                    onReset={() => resizeRow(row)}
+                  />
+                </div>
+              ),
             },
             ...view.headers.map<Column<Row>>((name, i) => ({
               key: String(i),
@@ -893,8 +920,10 @@ export default function App() {
               renderCell: ({ row, rowIdx }) => {
                 if (inline && inline.row === rowIdx && inline.column === i)
                   return (
-                    <input
+                    <textarea
                       ref={inlineInput}
+                      rows={1}
+                      title="Enter to finish editing. Alt+Enter adds a line to a string."
                       className="inline-cell"
                       aria-label={`Edit ${name} (${inline.kind})`}
                       aria-invalid={!!inline.error}
@@ -933,6 +962,30 @@ export default function App() {
                           e.preventDefault();
                           cancelInline();
                         }
+                        if (
+                          e.key === "Enter" &&
+                          e.altKey &&
+                          inline.kind === "string"
+                        ) {
+                          e.preventDefault();
+                          const start = e.currentTarget.selectionStart;
+                          const end = e.currentTarget.selectionEnd;
+                          setInline({
+                            ...inline,
+                            value:
+                              inline.value.slice(0, start) +
+                              "\n" +
+                              inline.value.slice(end),
+                            error: "",
+                          });
+                          requestAnimationFrame(() =>
+                            inlineInput.current?.setSelectionRange(
+                              start + 1,
+                              start + 1,
+                            ),
+                          );
+                          return;
+                        }
                         if (e.key === "Enter" || e.key === "Tab") {
                           e.preventDefault();
                           void commitInline(
@@ -951,7 +1004,7 @@ export default function App() {
                 const c = row.cells[i];
                 return (
                   <span
-                    className={`cell-value ${valueColumn(i) && (c.type === "missing" || c.type === "null" || c.empty) ? "empty-value" : ""} ${c.container ? "container-value" : ""} ${c.type === "number" ? "numeric" : ""}`}
+                    className={`cell-value ${valueColumn(i) && (c.type === "missing" || c.type === "null" || c.empty) ? "empty-value" : ""} ${c.container ? "container-value" : ""} ${c.type === "array" ? "array-value" : ""} ${c.type === "number" ? "numeric" : ""}`}
                     title={`${c.type} — ${pointer(c.path) || "root"}`}
                   >
                     {c.display}
@@ -961,7 +1014,16 @@ export default function App() {
             })),
           ]
         : [],
-    [view, inline, operationBusy, query, headerMenu],
+    [
+      view,
+      inline,
+      operationBusy,
+      query,
+      headerMenu,
+      rowHeights,
+      wrapText,
+      activeId,
+    ],
   );
   const sortColumns: SortColumn[] = query.sort
     ? [
@@ -1196,6 +1258,9 @@ export default function App() {
       ? view?.rows[activeCell.row]?.cells[activeCell.column]
       : undefined;
   function changeQuery(next: Query) {
+    ++selectionRequest.current;
+    setSelection(null);
+    setActiveCell(null);
     setQuery(next);
     void run(() => refresh(next));
   }
@@ -1683,7 +1748,9 @@ export default function App() {
                   {selection && activeCell && (
                     <ValueBar
                       address={
-                        activeCell
+                        activeCell &&
+                        activeCell.row >= 0 &&
+                        activeCell.column >= 0
                           ? `${columnLetter(activeCell.column)}${view.page * 500 + activeCell.row + 1}`
                           : ""
                       }
@@ -1912,11 +1979,11 @@ export default function App() {
                   >
                     <DataGrid<Row>
                       ref={grid}
-                      className="data-grid"
+                      className={`data-grid ${wrapText ? "wrap-text" : ""}`}
                       columns={columns}
                       rows={view.rows}
                       getRowKey={(r) => r.id}
-                      rowHeight={28}
+                      rowHeight={rowHeight}
                       headerRowHeight={48}
                       sortColumns={sortColumns}
                       onSortColumnsChange={(sort) => {
@@ -1940,12 +2007,16 @@ export default function App() {
                           void select(row.cells[index]);
                       }}
                       onActivePositionChange={({ row, rowIdx, column }) => {
-                        if (column)
+                        if (row && column && Number(column.key) >= 0)
                           setActiveCell({
                             row: rowIdx,
                             column: Number(column.key),
                           });
-                        if (!inline && row && column && Number(column.key) >= 0)
+                        if (!row || !column || Number(column.key) < 0) {
+                          ++selectionRequest.current;
+                          setActiveCell(null);
+                          setSelection(null);
+                        } else if (!inline)
                           void select(row.cells[Number(column.key)]);
                       }}
                       onCellDoubleClick={({ row, rowIdx, column }) => {
@@ -2071,6 +2142,13 @@ export default function App() {
                   )}
                   <div className="pagination">
                     <span>Showing up to 500 rows per page</span>
+                    <button
+                      aria-pressed={wrapText}
+                      onClick={() => setWrapText(!wrapText)}
+                      title="Show cell text on multiple lines. Drag a row number’s bottom edge to adjust height."
+                    >
+                      Wrap text
+                    </button>
                     <div className="spacer" />
                     <button
                       disabled={busy || view.page === 0}

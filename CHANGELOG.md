@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Optional text wrapping in the table footer, with compact defaults and draggable/resettable row heights.
+- Multiline inline string editing with Alt+Enter; Enter/Tab commit and Escape cancels.
+
 - Distinct muted representations for empty strings/collections, null and absent fields.
 - Short object summaries in cells and bounded contents previews in Details, preserving exact numeric tokens.
 - Restore active cell focus when returning from Source; clear it after applying structural source edits.

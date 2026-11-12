@@ -257,7 +257,7 @@ textarea {
   display: flex;
   gap: 3px;
 }
-.segmented button[aria-pressed="true"] {
+button[aria-pressed="true"] {
   background: var(--selection);
   border-color: var(--accent);
   color: var(--accent);
@@ -1064,3 +1064,11 @@ select optgroup {
 .details-preview th, .details-preview td { text-align: left; vertical-align: top; padding: 7px 8px; border: 1px solid var(--line); overflow-wrap: anywhere; white-space: pre-wrap; }
 .details-preview thead th { background: var(--chrome); font-weight: 600; }
 .details-preview tbody th { width: 40%; font-weight: 500; }
+
+.wrap-text .cell-value { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 20px; max-height: 100%; padding: 5px 0; }
+.row-number-content { height: 100%; position: relative; }
+.row-height-handle { position: absolute; left: 0; right: 0; bottom: 0; height: 6px; cursor: row-resize; touch-action: none; z-index: 2; }
+.row-height-handle:hover, .row-height-handle:focus-visible { background: var(--accent); }
+.data-grid .inline-cell { resize: none; display: block; line-height: 20px; padding-top: 3px; padding-bottom: 3px; overflow: auto; }
+
+.wrap-text .array-value { white-space: normal; }

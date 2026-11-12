@@ -261,7 +261,8 @@ export function SheetRange({
     <div
       className="range-sheet"
       onPointerDownCapture={(e) => {
-        if ((e.target as Element).closest("input,textarea")) return;
+        if ((e.target as Element).closest("input,textarea,[data-row-resizer]"))
+          return;
         const p = point(e.target);
         if (!p) return;
         setMenu(null);
@@ -281,7 +282,8 @@ export function SheetRange({
         }
       }}
       onKeyDownCapture={(e) => {
-        if ((e.target as Element).closest("input,textarea")) return;
+        if ((e.target as Element).closest("input,textarea,[data-row-resizer]"))
+          return;
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") {
           e.preventDefault();
           e.stopPropagation();
@@ -313,7 +315,8 @@ export function SheetRange({
         }
       }}
       onCopyCapture={(e) => {
-        if ((e.target as Element).closest("input,textarea")) return;
+        if ((e.target as Element).closest("input,textarea,[data-row-resizer]"))
+          return;
         if (bounds) {
           e.preventDefault();
           if (ready.current)
@@ -322,7 +325,8 @@ export function SheetRange({
         }
       }}
       onPasteCapture={(e) => {
-        if ((e.target as Element).closest("input,textarea")) return;
+        if ((e.target as Element).closest("input,textarea,[data-row-resizer]"))
+          return;
         e.preventDefault();
         void paste(e.clipboardData.getData("text/plain"));
       }}
