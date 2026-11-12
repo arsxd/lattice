@@ -15,12 +15,12 @@ describe("spreadsheet row and column operations", () => {
       '{"conn_pin": null, "pin_name": null, "id": null}',
     );
     expect(p.rows[2].cells[1]).toMatchObject({
-      display: "",
+      display: "null",
       type: "null",
       inputKind: "string",
     });
     expect(p.rows[2].cells[3]).toMatchObject({
-      display: "",
+      display: "null",
       inputKind: "number",
     });
     d.undo();

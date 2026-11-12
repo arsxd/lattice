@@ -1,3 +1,4 @@
+import { ValueDetails } from "./editor/ValueDetails";
 import { useOfflineApp } from "./useOfflineApp";
 import { ColumnMenu } from "./grid/ColumnMenu";
 import { ValueBar } from "./editor/ValueBar";
@@ -950,7 +951,7 @@ export default function App() {
                 const c = row.cells[i];
                 return (
                   <span
-                    className={`cell-value ${c.type === "missing" ? "missing" : ""} ${c.container ? "container-value" : ""} ${c.type === "number" ? "numeric" : ""}`}
+                    className={`cell-value ${valueColumn(i) && (c.type === "missing" || c.type === "null" || c.empty) ? "empty-value" : ""} ${c.container ? "container-value" : ""} ${c.type === "number" ? "numeric" : ""}`}
                     title={`${c.type} — ${pointer(c.path) || "root"}`}
                   >
                     {c.display}
@@ -1585,7 +1586,15 @@ export default function App() {
                   <button
                     aria-pressed={mode === "table"}
                     disabled={busy || sourceDirty || !!view?.diagnostics.length}
-                    onClick={() => setMode("table")}
+                    onClick={() => {
+                      const previous = activeCell;
+                      setMode("table");
+                      if (
+                        previous &&
+                        view?.rows[previous.row]?.cells[previous.column]
+                      )
+                        focusCell(previous.row, previous.column);
+                    }}
                   >
                     Table
                   </button>
@@ -2111,6 +2120,7 @@ export default function App() {
                               revision: sourceRevision,
                             });
                             setSelection(null);
+                            setActiveCell(null);
                             await refresh();
                             await showSource();
                           })
@@ -2151,6 +2161,7 @@ export default function App() {
                     </code>
                     <label>JSON type</label>
                     <span className="type-label">{selection.cell.type}</span>
+                    <ValueDetails raw={selection.raw} />
                     <label>Exact JSON</label>
                     <pre className="value-preview">
                       {selection.cell.type === "missing"

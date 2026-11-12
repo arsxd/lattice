@@ -21,6 +21,7 @@ export type Cell = {
   type: Kind | "missing";
   display: string;
   container: boolean;
+  empty?: boolean;
   writable?: boolean;
   inputKind?: Kind;
 };
@@ -615,17 +616,44 @@ export class DocumentEngine {
       );
     const container =
       n.type === "object" || (n.type === "array" && !primitiveArray);
-    let display = primitiveArray
-      ? this.text.slice(n.offset, n.offset + n.length)
-      : container
-        ? `${n.type === "object" ? "Object" : "Array"} · ${n.children?.length ?? 0}`
-        : n.type === "string"
-          ? n.value === ""
-            ? '""'
-            : String(n.value)
-          : this.text.slice(n.offset, n.offset + n.length);
+    const empty =
+      (n.type === "string" && n.value === "") ||
+      ((n.type === "object" || n.type === "array") && !n.children?.length);
+    const describe = (value: Node): string => {
+      if (value.type === "object")
+        return `{${value.children?.length ?? 0} fields}`;
+      if (value.type === "array")
+        return `[${value.children?.length ?? 0} items]`;
+      const raw = this.text.slice(
+        value.offset,
+        value.offset + Math.min(value.length, 40),
+      );
+      return raw + (value.length > 40 ? "…" : "");
+    };
+    const objectPreview =
+      n.type === "object" && n.children?.length
+        ? n.children
+            .slice(0, 3)
+            .map(
+              (property) =>
+                `${property.children![0].value}: ${describe(property.children![1])}`,
+            )
+            .join(", ") + (n.children.length > 3 ? ", …" : "")
+        : "{}";
+    let display =
+      n.type === "object"
+        ? objectPreview
+        : primitiveArray
+          ? this.text.slice(n.offset, n.offset + n.length)
+          : container
+            ? `Array · ${n.children?.length ?? 0}`
+            : n.type === "string"
+              ? n.value === ""
+                ? '""'
+                : String(n.value)
+              : this.text.slice(n.offset, n.offset + n.length);
     if (display.length > 240) display = display.slice(0, 237) + "…";
-    return { path, type: n.type as Kind, display, container };
+    return { path, type: n.type as Kind, display, container, empty };
   }
   project(query: Query): Projection {
     let path = query.path;
@@ -762,7 +790,6 @@ export class DocumentEngine {
         const field = keys[column - 1];
         const result = this.cell(child(value, field), [...p, field]);
         if (result.type === "missing" || result.type === "null") {
-          result.display = "";
           result.inputKind = inputKinds.get(field) ?? "string";
         }
         return result;

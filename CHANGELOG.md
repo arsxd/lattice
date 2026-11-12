@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Distinct muted representations for empty strings/collections, null and absent fields.
+- Short object summaries in cells and bounded contents previews in Details, preserving exact numeric tokens.
+- Restore active cell focus when returning from Source; clear it after applying structural source edits.
+
 - Installable GitHub Pages web app with offline application caching; single-file download retained.
 - Reload retains nested location and compatible sorting/filtering, with progress and success feedback.
 - Details toggle state and placement, readable Index width, active value-filter summary and clearer file-access errors.

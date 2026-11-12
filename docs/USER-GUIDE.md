@@ -62,3 +62,11 @@ Reload source refreshes from a retained handle or asks you to choose the source 
 | No close/reload warning | Browsers can suppress beforeunload dialogs; it is not crash recovery |
 
 Report bugs through GitHub Issues. Include release version, OS/browser version, exact steps, expected/actual results, and a minimal sanitized JSON example. Never attach company files, credentials, paths or personal data you cannot share publicly. Screenshots should be redacted. See the issue template for a checklist.
+
+## Empty values and nested previews
+
+Empty strings (`""`), empty objects (`{}`), empty arrays (`[]`), `null` and missing properties are shown separately in muted text. A missing property is absent from the file; entering a value creates it. Zero and false are ordinary values. Placeholder labels are display hints, not text inserted into your document.
+
+Nested objects show up to three key/value hints in the cell. Double-click still opens the nested table. Turn on **Details** for a contents table alongside the exact JSON. The preview shows up to 30 entries, truncates long values, and is omitted for selections larger than 128 Ki characters; use **Open table** or the exact JSON for the complete value. Numeric previews use the original JSON spelling.
+
+Switching from Table to Source and back restores the active cell. Applying a source draft clears the selection because rows and keys may have changed; select a new cell after applying.

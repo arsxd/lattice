@@ -1057,3 +1057,10 @@ select optgroup {
 .welcome-install strong { font-weight: 600; }
 .welcome-install p { margin: 6px 0 12px; font-size: 13px; }
 .welcome-install-actions { display: flex; justify-content: center; gap: 10px; }
+
+.cell-value.empty-value { color: var(--muted); font-style: italic; }
+.details-preview { min-width: 0; }
+.details-preview table { border-collapse: collapse; width: 100%; font-size: 12px; table-layout: fixed; margin: 8px 0 16px; }
+.details-preview th, .details-preview td { text-align: left; vertical-align: top; padding: 7px 8px; border: 1px solid var(--line); overflow-wrap: anywhere; white-space: pre-wrap; }
+.details-preview thead th { background: var(--chrome); font-weight: 600; }
+.details-preview tbody th { width: 40%; font-weight: 500; }
