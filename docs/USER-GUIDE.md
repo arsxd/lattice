@@ -91,7 +91,7 @@ While editing a string cell, **Alt+Enter** inserts a line break, **Enter** commi
 
 History resets after source reload or applying a source draft. If an earlier location has been removed through table editing, revisiting it opens the nearest available parent. Navigation is paused while a source draft has unapplied changes.
 
-The home icon opens the document root. The sidebar and status bar show the current filename; the breadcrumb shows the JSON location. Browser file handles do not expose an absolute disk path, so the app does not invent one.
+The home icon opens the document root. The document tab and status bar show the current filename; the breadcrumb shows the JSON location. Browse contains only the document hierarchy. Browser file handles do not expose an absolute disk path, so the app does not invent one.
 
 ## Freeze panes
 

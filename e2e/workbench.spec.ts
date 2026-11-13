@@ -351,3 +351,37 @@ test("reload retains selected property page and scroll after external column reo
     page.getByRole("button", { name: "Select column id", exact: true }),
   ).toContainText("C");
 });
+
+test("highlights the entire selected header and avoids a duplicate Browse filename", async ({
+  page,
+}) => {
+  await open(page, '[{"name":"Alpha","count":1}]', "header-test.json");
+  await page.getByRole("button", { name: "Browse", exact: true }).click();
+  await expect(page.locator(".outline")).not.toContainText("header-test.json");
+  const button = page.getByRole("button", {
+    name: "Select column name",
+    exact: true,
+  });
+  await button.click();
+  const header = page.locator(".sheet-header-selected");
+  await expect(header).toHaveCount(1);
+  await expect(header).toContainText("name");
+  expect(
+    await button.evaluate(
+      (element) => getComputedStyle(element).backgroundColor,
+    ),
+  ).toBe("rgba(0, 0, 0, 0)");
+  expect(
+    await header.evaluate(
+      (element) => getComputedStyle(element).backgroundColor,
+    ),
+  ).not.toBe("rgba(0, 0, 0, 0)");
+  await button.focus();
+  expect(
+    await button.evaluate((element) => getComputedStyle(element).outlineStyle),
+  ).toBe("none");
+  await expect(page.locator(".status .document-filename")).toHaveAttribute(
+    "title",
+    /full disk path/,
+  );
+});

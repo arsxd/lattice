@@ -1200,6 +1200,9 @@ export default function App() {
             ...view.headers.map<Column<Row>>((name, i) => ({
               key: String(i),
               name,
+              headerCellClass: axisSelected(sheetSelection, "columns", i)
+                ? "sheet-header sheet-header-selected"
+                : "sheet-header",
               frozen: i < columnsFrozen,
               renderHeaderCell: () => (
                 <div className="sheet-column-heading">
@@ -2149,9 +2152,6 @@ export default function App() {
               style={browsePaneStyle}
             >
               <div className="pane-label">Document</div>
-              <div className="outline-filename" title={doc.name}>
-                {doc.name}
-              </div>
               <DocumentOutline
                 key={activeId}
                 current={query.path}
@@ -3039,7 +3039,7 @@ export default function App() {
               title={
                 doc.handle
                   ? `${doc.name} — linked local file. The browser does not expose its absolute disk path.`
-                  : doc.name
+                  : `${doc.name} — the browser does not expose its full disk path.`
               }
             >
               {doc.name}

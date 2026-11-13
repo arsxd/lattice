@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Unified full-column header highlighting and removed the repeated Browse filename. Browser filename tooltips explain that full disk paths are unavailable.
+
 ## 0.1.6 — 2026-11-13
 
 - Editable validated Review with draft undo/redo, per-region Restore and strict atomic Apply; LF/CRLF-safe synchronization and tab continuity.
