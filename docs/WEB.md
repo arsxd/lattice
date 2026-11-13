@@ -37,7 +37,7 @@ Details tables cap 20 rows, 10 columns, 100 cells, 32,768 source characters and 
 
 ## Verification boundaries
 
-Unit tests cover revision/atomicity, exact numeric tokens, CRLF, partial drafts, reload remapping, freeze geometry, recovery ownership/storage errors and update lifecycle. Browser tests cover actual input, selection, draft validation/restore, tab continuity, frozen scrolling, recovery after refresh, offline startup and a real waiting worker. GitHub-hosted Windows automation does not verify every browser permission or native file-picker interaction. Direct file: execution must be checked manually because the local browser automation tool blocks file: URLs.
+Unit tests cover revision/atomicity, exact numeric tokens, CRLF, partial drafts, reload remapping, freeze geometry, recovery ownership/storage errors and update lifecycle. Browser tests cover actual input, selection, draft validation/restore, tab continuity, frozen scrolling, recovery after refresh, offline startup and a real waiting worker. GitHub-hosted Windows automation does not verify every browser permission or native file-picker interaction. The standalone HTML is also smoke-tested from a file: URL in local Chromium. File-picker permission and installation behavior still need checks in the target browser.
 
 ## Accurate review matching
 
