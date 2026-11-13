@@ -1,8 +1,13 @@
 import { useEffect, useRef } from "react";
+import type { SheetSelection } from "../document/sheetSelection";
+import { freezeSelectionTarget } from "./freezeSelection";
 export function FreezeMenu({
   rows,
   columns,
   selection,
+  rangeSelection = null,
+  pageOffset = 0,
+  pageRowCount = 0,
   disabled,
   paused,
   onChange,
@@ -10,11 +15,22 @@ export function FreezeMenu({
   rows: number;
   columns: number;
   selection: { row: number; column: number } | null;
+  rangeSelection?: SheetSelection | null;
+  pageOffset?: number;
+  pageRowCount?: number;
   disabled: boolean;
   paused?: string;
   onChange: (value: { rows: number; columns: number }) => void;
 }) {
   const root = useRef<HTMLDetailsElement>(null);
+  const target = freezeSelectionTarget(
+    rangeSelection,
+    pageOffset,
+    pageRowCount,
+  );
+  const selectedCount =
+    rangeSelection?.spans.reduce((sum, [from, to]) => sum + to - from + 1, 0) ??
+    0;
   useEffect(() => {
     const outside = (event: PointerEvent) => {
       if (root.current && !root.current.contains(event.target as Node))
@@ -51,6 +67,32 @@ export function FreezeMenu({
           </p>
         )}
         {paused && <p>{paused}</p>}
+        {target && (
+          <button
+            disabled={disabled}
+            title={
+              target.axis === "rows"
+                ? `Keeps rows 1 through ${target.count} on this page visible, including unselected rows.`
+                : `Keeps columns 1 through ${target.count} visible, including unselected columns.`
+            }
+            onClick={() =>
+              change(
+                target.axis === "rows"
+                  ? { rows: target.count, columns }
+                  : { rows, columns: target.count },
+              )
+            }
+          >
+            Freeze selected{" "}
+            {target.axis === "rows"
+              ? selectedCount === 1
+                ? "row"
+                : "rows"
+              : selectedCount === 1
+                ? "column"
+                : "columns"}
+          </button>
+        )}
         <button
           disabled={disabled}
           onClick={() => change({ rows: 1, columns })}

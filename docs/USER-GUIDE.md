@@ -4,7 +4,9 @@
 
 Download `Lattice-Offline.html` from the repository Releases page and open it in a desktop browser. No companion files or server are needed. Replacing the HTML with a newer release does not update a currently open tab: save your work, close it and open the new file.
 
-Use a non-sensitive sample first to check your browser's Open, editing and Save/Download behavior. Corporate policies may restrict local HTML and file APIs.
+Use a sample first to check your browser's Open, editing and Save/Download behavior. Local file access depends on browser support and permissions.
+
+![Lattice start screen](images/home.png)
 
 ## Documents, sheets and nested data
 
@@ -38,9 +40,13 @@ The checklist contains at most 2,000 distinct values; a truncation notice appear
 
 Select a cell, then Source to locate its exact JSON token. Missing fields have no source token. There is no separate source-jump row.
 
+Source opens only the current table when navigating within a document. Use **Whole document** to inspect or edit the full JSON, or **This table** to return. Apply or discard the draft before changing scope. Applying a table draft replaces that table only; sibling values and their numeric spelling are retained. Recovery checkpoints retain the complete document, including an unfinished table draft.
+
 Merely viewing source should not create a draft. Editing source reveals Apply source / Discard draft. Apply commits to the document engine; Discard reloads committed text. These are distinct from saving the file to disk.
 
 Review changes compares the opened/saved baseline on the left with an editable current draft on the right. The right-pointing restore arrow beside a changed region copies that baseline region into the draft; it does not save or immediately change the table. Use Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z for draft undo/redo, including Restore. JSON syntax and existing size/depth limits are checked automatically in a worker; successful validation does not add a toolbar message. Invalid drafts show an actionable error below the editors. **Apply changes** and **Discard draft** appear only while there are unapplied draft edits. Apply is enabled only for a valid changed draft and commits it as one document undo step. **Discard draft** restores the committed document, keeping edits already made in the table.
+
+**Close review** returns to the previous Table or Source view. Closing with an unapplied draft asks whether to discard that draft; committed table changes are kept.
 
 Previous/Next change highlights changed regions. Show/Hide unchanged lines can be toggled repeatedly without losing draft edits. Drafts survive document-tab switching. Apply or discard a Review draft before switching to Table/Source or saving. This compares against the baseline, not a newly modified disk file; it is not a three-way merge tool.
 
@@ -54,16 +60,16 @@ Reload source refreshes from a retained handle or asks you to choose the source 
 
 ## Troubleshooting and reports
 
-| Symptom | Check |
-|---|---|
-| Old interface after updating | Close the old tab; open the downloaded HTML from the new release |
-| Open starts in the wrong folder | Newer builds supply a handle hint; local-origin storage or policy may still prevent persistence |
-| Save unavailable | Browser may not expose the file-picker API; use Download |
-| Save says externally changed | Keep your edits separately, then reload/reopen the source; do not overwrite blindly |
-| Source Apply/Discard appears without editing | Report line endings, browser and minimal JSON; CRLF regression checks exist |
-| Paste rejected | Check table bounds, target column types, metadata/container cells and rectangular clipboard shape |
-| A missing sheet tab | Provide a minimal nested JSON example; wrapper handling is heuristic |
-| No close/reload warning | Browsers can suppress beforeunload dialogs; it is not crash recovery |
+| Symptom                                      | Check                                                                                             |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Old interface after updating                 | Close the old tab; open the downloaded HTML from the new release                                  |
+| Open starts in the wrong folder              | Newer builds supply a handle hint; local-origin storage or policy may still prevent persistence   |
+| Save unavailable                             | Browser may not expose the file-picker API; use Download                                          |
+| Save says externally changed                 | Keep your edits separately, then reload/reopen the source; do not overwrite blindly               |
+| Source Apply/Discard appears without editing | Report line endings, browser and minimal JSON; CRLF regression checks exist                       |
+| Paste rejected                               | Check table bounds, target column types, metadata/container cells and rectangular clipboard shape |
+| A missing sheet tab                          | Provide a minimal nested JSON example; wrapper handling is heuristic                              |
+| No close/reload warning                      | Browsers can suppress beforeunload dialogs; it is not crash recovery                              |
 
 Report bugs through GitHub Issues. Include release version, OS/browser version, exact steps, expected/actual results, and a minimal sanitized JSON example. Never attach company files, credentials, paths or personal data you cannot share publicly. Screenshots should be redacted. See the issue template for a checklist.
 
@@ -95,7 +101,7 @@ The home icon opens the document root. The document tab and status bar show the 
 
 ## Freeze panes
 
-Use **Freeze** beside Wrap text for **Freeze first row**, **Freeze first column**, or **Freeze above and left of selection**. The last option keeps rows above and columns left of the active cell visible. **Unfreeze panes** clears both. The row-number gutter stays pinned independently.
+Use **Freeze** beside Wrap text for **Freeze first row**, **Freeze first column**, or **Freeze above and left of selection**. The last option keeps rows above and columns left of the active cell visible. Selecting row or column headers also offers **Freeze selected row(s)** or **Freeze selected column(s)**: this freezes the prefix through the last selected header. Selected rows must be on the displayed page. **Unfreeze panes** clears both. The row-number gutter stays pinned independently.
 
 Freeze is a view setting for the current document/table, not JSON data. It follows displayed positions after sorting/filtering and applies to each displayed page. Row offsets use the current wrapped/manual heights. Frozen rows may occupy at most 40% of the grid height; frozen columns must leave at least 40% of the width scrollable. Row freezing supports pages with at most 10,000 rendered cells, including the gutter. This mode renders the bounded page to retain editable frozen rows. Wider pages keep virtualization and column freezing. If resizing or wrapping makes a stored freeze unsafe, the menu reports that it is paused; reduce the freeze or unfreeze.
 
@@ -130,3 +136,9 @@ Recovery is best effort: a crash before the debounce, browser data deletion/evic
 When a newer cached application waits to activate, the status bar shows **Update available**. It explains how to save and close every Lattice window/tab, then reopen. **Keep working** dismisses the explanation without reloading or discarding your work. The app checks periodically and when it becomes visible. Offline checks may wait until connectivity returns. The downloaded HTML is updated by downloading the newer release file instead.
 
 Review uses unchanged lines as anchors, then compares characters within changed regions. Several distant edits no longer cause an entire intervening block to be colored as changed. Changed lines have subtle side-specific shading and actual changed text has a stronger fill. If matching exceeds its computational budget, Review reports that comparison is unavailable and pauses highlighting/restoration instead of displaying an inaccurate broad replacement; editing and validated Apply remain available. Reopen Review to retry.
+
+## Selection and column sizing
+
+Row/column headers and the top-left corner select ranges. Details shows the number of selected cells; select one cell to inspect its value. Header text and surrounding space select the column; its filter button opens the menu.
+
+Initial column widths sample up to 50 displayed rows and use bounded widths for wide tables. Two-column views use the available width. Manual column resizing takes precedence. Primitive arrays remain compact while editing. The selected cell can show up to 1,024 characters; the value bar expands to at most three lines and 4,096 characters. Longer values use a read-only preview and remain available in Source. Enter commits value-bar input, Shift+Enter adds a line, and Escape cancels.

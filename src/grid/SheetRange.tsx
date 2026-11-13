@@ -9,6 +9,7 @@ import type { Projection, AtomicMutation } from "../document/engine";
 import {
   axisSelected,
   selectCell,
+  selectWholeTable,
   selectHeader,
   selectedCellCount,
   selectionContains,
@@ -314,13 +315,7 @@ export function SheetRange({
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
           e.preventDefault();
           e.stopPropagation();
-          choose(
-            selectCell(
-              selectCell(null, { r: 0, c: 0 }),
-              { r: Math.max(0, view.matched - 1), c: view.headers.length - 1 },
-              true,
-            ),
-          );
+          choose(selectWholeTable(view.matched, view.headers.length, offset));
           return;
         }
         if (e.key === " " && (e.ctrlKey || e.shiftKey)) {

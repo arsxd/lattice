@@ -1,3 +1,12 @@
+import { HomeScreen } from "./HomeScreen";
+import { contentColumnWidths } from "./grid/columnSizing";
+import { compactJson } from "./document/compactJson";
+import {
+  applyScopedDraft,
+  scopedSourceText,
+  scopedSelectionRange,
+  type SourceScope,
+} from "./editor/sourceScope";
 import { FreezeMenu } from "./grid/FreezeMenu";
 import { frozenRowLayout, frozenRowRenderers } from "./grid/FrozenGrid";
 import { BrowserRecovery } from "./workspace/browserRecovery";
@@ -9,6 +18,7 @@ import {
 import { PaneResizeHandle, usePaneWidth } from "./grid/PaneResizeHandle";
 import {
   selectCell,
+  selectWholeTable,
   selectHeader,
   axisSelected,
   selectedCellCount,
@@ -93,6 +103,8 @@ type Session = {
   source: string;
   sourceBase: string;
   sourceRevision: number;
+  sourceScope: SourceScope | null;
+  reviewOrigin: "table" | "source";
   review: { before: string; after: string } | null;
   sheets: Projection["children"];
   truncatedSheets: boolean;
@@ -195,9 +207,12 @@ export default function App() {
   const [activeId, setActiveId] = useState("");
   const tableHeightKey = `${activeId}:${pointer(query.path)}`;
   const heightKey = (row: Row) => `${tableHeightKey}:${row.id}`;
+  const automaticWidths = useMemo(
+    () => (view ? contentColumnWidths(view, gridSize.width, textMeasure) : []),
+    [view, gridSize.width, textMeasure],
+  );
   const columnWidth = (index: number) =>
-    columnWidths[`${tableHeightKey}:${index}`] ??
-    (index === 0 ? (view?.kind === "array" ? 88 : 150) : 155);
+    columnWidths[`${tableHeightKey}:${index}`] ?? automaticWidths[index] ?? 100;
   const automaticHeights = useMemo(() => {
     if (!wrapText || !view) return new Map<string, number>();
     return new Map(
@@ -210,9 +225,7 @@ export default function App() {
                 ? i > 0
                 : i === view.headers.length - 1) && blankState(cell)
                 ? ""
-                : cell.type === "array"
-                  ? cell.display.replace(/\s+/g, " ")
-                  : cell.display,
+                : cell.display,
             width: columnWidth(i),
           })),
           textMeasure,
@@ -224,11 +237,26 @@ export default function App() {
     wrapText,
     columnWidths,
     tableHeightKey,
+    automaticWidths,
     query.records,
     textMeasure,
   ]);
   const rowHeight = (row: Row) =>
-    rowHeights[heightKey(row)] ?? automaticHeights.get(row.id) ?? 28;
+    rowHeights[heightKey(row)] ??
+    (wrapText && inline && view?.rows[inline.row]?.id === row.id
+      ? Math.max(
+          automaticHeights.get(row.id) ?? 28,
+          wrappedHeight(
+            [
+              {
+                text: inline.value.slice(0, 4096),
+                width: columnWidth(inline.column),
+              },
+            ],
+            textMeasure,
+          ),
+        )
+      : (automaticHeights.get(row.id) ?? 28));
   function resizeRow(row: Row, height?: number) {
     const key = heightKey(row);
     setRowHeights((previous) => {
@@ -241,9 +269,7 @@ export default function App() {
 
   const frozen = freezeSettings[tableHeightKey] ?? { rows: 0, columns: 0 };
   const headerHeight = view?.headers.some(
-    (_, i) =>
-      columnLabel(view, i).length * 7 >
-      (columnWidths[`${tableHeightKey}:${i}`] ?? 155) - 42,
+    (_, i) => columnLabel(view, i).length * 7 > columnWidth(i) - 42,
   )
     ? 64
     : 48;
@@ -308,6 +334,10 @@ export default function App() {
   const [sheetSelection, setSheetSelection] = useState<SheetSelection | null>(
     null,
   );
+  const singleCellSelected =
+    sheetSelection?.mode === "cells" &&
+    sheetSelection.anchor.r === sheetSelection.end.r &&
+    sheetSelection.anchor.c === sheetSelection.end.c;
   const selectedPoint = sheetSelection?.anchor;
   const activeCell =
     selectedPoint &&
@@ -336,6 +366,8 @@ export default function App() {
   const [source, setSource] = useState("");
   const [sourceBase, setSourceBase] = useState("");
   const [sourceRevision, setSourceRevision] = useState(0);
+  const [sourceScope, setSourceScope] = useState<SourceScope | null>(null);
+  const [reviewOrigin, setReviewOrigin] = useState<"table" | "source">("table");
   const [review, setReview] = useState<{
     before: string;
     after: string;
@@ -369,14 +401,22 @@ export default function App() {
   }, [findDraft, query, mode, busy]);
   useEffect(() => {
     if (mode !== "table" || inline || busy) return;
-    if (!activeCell) {
+    if (!activeCell || !singleCellSelected) {
       ++selectionRequest.current;
       setSelection(null);
       return;
     }
     const cell = view?.rows[activeCell.row]?.cells[activeCell.column];
     if (cell) void select(cell);
-  }, [activeCell?.row, activeCell?.column, view, mode, inline, busy]);
+  }, [
+    activeCell?.row,
+    activeCell?.column,
+    singleCellSelected,
+    view,
+    mode,
+    inline,
+    busy,
+  ]);
   const sourceDirty =
     (mode === "source" || mode === "review") && source !== sourceBase;
   const dirty = !!view?.dirty || sourceDirty;
@@ -401,6 +441,8 @@ export default function App() {
       source,
       sourceBase,
       sourceRevision,
+      sourceScope,
+      reviewOrigin,
       review,
       sheets,
       truncatedSheets,
@@ -424,6 +466,8 @@ export default function App() {
     setSource(s.source);
     setSourceBase(s.sourceBase);
     setSourceRevision(s.sourceRevision);
+    setSourceScope(s.sourceScope);
+    setReviewOrigin(s.reviewOrigin);
     setReview(s.review);
     setSheets(s.sheets);
     setTruncatedSheets(s.truncatedSheets);
@@ -543,6 +587,8 @@ export default function App() {
         source: opened.text,
         sourceBase: opened.text,
         sourceRevision: p.revision,
+        sourceScope: null,
+        reviewOrigin: "table",
         review: null,
         sheets: root.sheets ?? root.children,
         truncatedSheets: root.rootKind === "object" && root.truncatedChildren,
@@ -756,21 +802,79 @@ export default function App() {
         to: number;
         revision: number;
       }>("locate", { path, property });
-      await showSource();
-      setSourceTarget({ ...target, id: Date.now() });
+      const scope = await showSource();
+      const relative = scopedSelectionRange(target, scope ?? null);
+      if (relative) setSourceTarget({ ...relative, id: Date.now() });
     });
   }
-  async function showSource() {
+  async function showSource(
+    path: Path = view?.diagnostics.length ? [] : (view?.path ?? query.path),
+  ) {
     setSourceTarget(null);
-    if (!client.current) return;
+    if (!client.current) return null;
     const result = await client.current.call<{
       text: string;
       revision: number;
     }>("text");
+    let scope: SourceScope | null = null;
+    if (path.length) {
+      try {
+        const range = await client.current.call<{ from: number; to: number }>(
+          "locate",
+          { path },
+        );
+        scope = { path: [...path], from: range.from, to: range.to };
+      } catch {
+        scope = null;
+      }
+    }
     setSource(result.text);
     setSourceBase(result.text);
     setSourceRevision(result.revision);
+    setSourceScope(scope);
     setMode("source");
+    return scope;
+  }
+  async function toggleReview() {
+    await run(async () => {
+      if (!client.current || !doc) return;
+      if (mode === "review") {
+        if (
+          sourceDirty &&
+          !(await discard(
+            "Close Review and discard its unapplied draft? Committed table edits are kept.",
+          ))
+        )
+          return;
+        if (reviewOrigin === "source")
+          await showSource(sourceScope?.path ?? []);
+        else {
+          const current = await client.current.call<{
+            text: string;
+            revision: number;
+          }>("text");
+          setSource(current.text);
+          setSourceBase(current.text);
+          setSourceRevision(current.revision);
+          setMode("table");
+        }
+        return;
+      }
+      if (sourceDirty)
+        throw new Error(
+          "Apply or discard the editor draft before reviewing changes.",
+        );
+      const current = await client.current.call<{
+        text: string;
+        revision: number;
+      }>("text");
+      setReviewOrigin(mode === "source" ? "source" : "table");
+      setSource(current.text);
+      setSourceBase(current.text);
+      setSourceRevision(current.revision);
+      setReview({ before: doc.text, after: current.text });
+      setMode("review");
+    });
   }
   async function history(action: "undo" | "redo") {
     await run(async () => {
@@ -779,7 +883,7 @@ export default function App() {
       await client.current?.call(action);
       setSelection(null);
       await refresh();
-      if (mode === "source") await showSource();
+      if (mode === "source") await showSource(sourceScope?.path ?? []);
       if (mode === "review" && doc && client.current) {
         const current = await client.current.call<{
           text: string;
@@ -953,33 +1057,28 @@ export default function App() {
       const raw = blank
         ? ""
         : await client.current!.call<string>("raw", { path: cell.path });
+      if (!blank && valueBarPresentation(cell, raw).previewOnly) {
+        setNotice(
+          "This value is too large for inline editing. Use Source or Edit value for its complete contents.",
+        );
+        return;
+      }
       const value =
         kind === "array"
-          ? raw.replace(/[\r\n\t]+/g, " ")
+          ? compactJson(raw)
           : !blank && kind === "string"
             ? (JSON.parse(raw) as string)
             : raw;
-      if (value.includes("\n") || value.includes("\r")) {
-        setEditing({
-          action: "replace",
-          path: cell.path,
-          revision: view.revision,
-          kind,
-          value,
-          key: "",
-        });
-        setEditError("");
-      } else
-        setInline({
-          cell,
-          kind,
-          selectAll: true,
-          revision: view.revision,
-          value,
-          row,
-          column,
-          error: "",
-        });
+      setInline({
+        cell,
+        kind,
+        selectAll: true,
+        revision: view.revision,
+        value,
+        row,
+        column,
+        error: "",
+      });
     });
   }
   async function addRow() {
@@ -1146,13 +1245,10 @@ export default function App() {
                   disabled={busy}
                   onClick={() =>
                     setSheetSelection(
-                      selectCell(
-                        selectCell(null, { r: 0, c: 0 }),
-                        {
-                          r: Math.max(0, view.matched - 1),
-                          c: view.headers.length - 1,
-                        },
-                        true,
+                      selectWholeTable(
+                        view.matched,
+                        view.headers.length,
+                        view.page * 500,
                       ),
                     )
                   }
@@ -1205,7 +1301,27 @@ export default function App() {
                 : "sheet-header",
               frozen: i < columnsFrozen,
               renderHeaderCell: () => (
-                <div className="sheet-column-heading">
+                <div
+                  className="sheet-column-heading"
+                  onClick={(event) => {
+                    if (
+                      busy ||
+                      (event.target as Element).closest(".header-filter")
+                    )
+                      return;
+                    setSheetSelection(
+                      selectHeader(
+                        sheetSelection,
+                        "columns",
+                        { r: view.page * 500, c: i },
+                        {
+                          extend: event.shiftKey,
+                          additive: event.ctrlKey || event.metaKey,
+                        },
+                      ),
+                    );
+                  }}
+                >
                   <button
                     className="column-select"
                     data-column-select
@@ -1228,7 +1344,7 @@ export default function App() {
                     }}
                   >
                     <small>{columnLetter(i)}</small>
-                    <span>
+                    <span title={columnLabel(view, i)}>
                       {columnLabel(view, i)}
                       {view.columnKinds[i] === "mixed" && (
                         <small
@@ -1288,6 +1404,7 @@ export default function App() {
                     <textarea
                       ref={inlineInput}
                       rows={1}
+                      wrap={wrapText ? "soft" : "off"}
                       title="Enter to finish editing. Alt+Enter adds a line to a string."
                       className="inline-cell"
                       aria-label={`Edit ${name} (${inline.kind})`}
@@ -1378,7 +1495,17 @@ export default function App() {
                         : undefined
                     }
                   >
-                    {blank ? "" : c.display}
+                    {blank
+                      ? ""
+                      : c.type === "array" &&
+                          !c.container &&
+                          singleCellSelected &&
+                          activeCell?.row === rowIdx &&
+                          activeCell.column === i &&
+                          selectedPresentation
+                        ? selectedPresentation.text.slice(0, 1024) +
+                          (selectedPresentation.text.length > 1024 ? "…" : "")
+                        : c.display}
                   </span>
                 );
               },
@@ -1393,6 +1520,8 @@ export default function App() {
       headerMenu,
       rowHeights,
       columnWidths,
+      automaticWidths,
+      selection,
       automaticHeights,
       sheetSelection,
       wrapText,
@@ -1688,7 +1817,7 @@ export default function App() {
     [selection],
   );
   const currentCell =
-    activeCell && activeCell.column >= 0
+    singleCellSelected && activeCell && activeCell.column >= 0
       ? view?.rows[activeCell.row]?.cells[activeCell.column]
       : undefined;
   function changeQuery(next: Query) {
@@ -1993,60 +2122,23 @@ export default function App() {
         </div>
       )}
       {!doc ? (
-        <main className="welcome">
-          <div className="file-symbol">{"{ }"}</div>
-          <h1>Work directly with your JSON.</h1>
-          <p>
-            Inspect nested data as tables. Edit values without losing their
-            types or numeric precision.
-          </p>
-          <div className="welcome-actions">
-            <button
-              className="primary"
-              disabled={busy}
-              onClick={() => void open()}
-            >
-              Open JSON file…
-            </button>
-            <button
-              disabled={busy}
-              onClick={() =>
-                void run(() => load({ name: "untitled.json", text: "{}\n" }))
-              }
-            >
-              New document
-            </button>
-          </div>
-          <button
-            className="text-button"
-            disabled={busy}
-            onClick={() =>
-              void run(() =>
-                load({ name: "bookshop-workspace.json", text: sample }, [
-                  "books",
-                ]),
-              )
-            }
-          >
-            Explore sample workspace
-          </button>
-          {installPrompt}
-          {updateStatus}
-          {!desktop && (
-            <section className="welcome-recovery">
-              {recoverySetting}
-              <p className="small">
-                Off by default. When enabled, unsaved document contents are
-                stored only in this browser on this device. This is recovery,
-                not a disk save. Turning it off removes stored drafts.
-              </p>
-            </section>
-          )}
-          <p className="small">
-            Local files only. Build limits: UTF-8 input, 64 MiB files, 256
-            nesting levels. Large-file performance is still under evaluation.
-          </p>
-        </main>
+        <HomeScreen
+          busy={busy}
+          onOpen={() => void open()}
+          onNew={() =>
+            void run(() => load({ name: "untitled.json", text: "{}\n" }))
+          }
+          onSample={() =>
+            void run(() =>
+              load({ name: "bookshop-workspace.json", text: sample }, [
+                "books",
+              ]),
+            )
+          }
+          installPrompt={installPrompt}
+          updateStatus={updateStatus}
+          recoverySetting={desktop ? null : recoverySetting}
+        />
       ) : (
         <>
           <div className="document-tab">
@@ -2118,22 +2210,16 @@ export default function App() {
             </div>
             <div className="spacer" />
             <button
-              disabled={busy || sourceDirty}
-              onClick={() =>
-                void run(async () => {
-                  const current = await client.current!.call<{
-                    text: string;
-                    revision: number;
-                  }>("text");
-                  setSource(current.text);
-                  setSourceBase(current.text);
-                  setSourceRevision(current.revision);
-                  setReview({ before: doc.text, after: current.text });
-                  setMode("review");
-                })
+              disabled={busy || (mode !== "review" && sourceDirty)}
+              aria-pressed={mode === "review"}
+              onClick={() => void toggleReview()}
+              title={
+                mode === "review"
+                  ? "Return to the previous view"
+                  : "Compare with the opened or saved version"
               }
             >
-              Review changes
+              {mode === "review" ? "Close review" : "Review changes"}
             </button>
             {mode === "table" && (
               <button
@@ -2233,6 +2319,32 @@ export default function App() {
                   ))}
                 </nav>
                 <div className="spacer" />
+                {mode === "source" && !!view?.path.length && (
+                  <div
+                    className="segmented source-scope-switch"
+                    role="group"
+                    aria-label="Source scope"
+                  >
+                    <button
+                      aria-pressed={!!sourceScope}
+                      disabled={busy || sourceDirty}
+                      onClick={() =>
+                        void run(() => showSource(view.path).then(() => {}))
+                      }
+                    >
+                      This table
+                    </button>
+                    <button
+                      aria-pressed={!sourceScope}
+                      disabled={busy || sourceDirty}
+                      onClick={() =>
+                        void run(() => showSource([]).then(() => {}))
+                      }
+                    >
+                      Whole document
+                    </button>
+                  </div>
+                )}
                 <div className="segmented">
                   <button
                     aria-pressed={mode === "table"}
@@ -2262,7 +2374,7 @@ export default function App() {
                         void showInSource(currentCell.path);
                       else {
                         setSourceTarget(null);
-                        void run(showSource);
+                        void run(() => showSource().then(() => {}));
                       }
                     }}
                   >
@@ -2331,8 +2443,9 @@ export default function App() {
                       }}
                     />
                   )}
-                  {selection && activeCell && (
+                  {selection && activeCell && singleCellSelected && (
                     <ValueBar
+                      key={`${activeId}:${pointer(selection.cell.path)}`}
                       address={
                         activeCell &&
                         activeCell.row >= 0 &&
@@ -2710,6 +2823,9 @@ export default function App() {
                       rows={frozen.rows}
                       columns={frozen.columns}
                       selection={activeCell}
+                      rangeSelection={sheetSelection}
+                      pageOffset={view.page * 500}
+                      pageRowCount={view.rows.length}
                       disabled={busy || !view.rows.length}
                       paused={freezePaused}
                       onChange={changeFreeze}
@@ -2760,7 +2876,11 @@ export default function App() {
                       <div className="spacer" />
                       <button
                         disabled={!sourceDirty || busy}
-                        onClick={() => void run(showSource)}
+                        onClick={() =>
+                          void run(() =>
+                            showSource(sourceScope?.path ?? []).then(() => {}),
+                          )
+                        }
                       >
                         Discard draft
                       </button>
@@ -2769,15 +2889,30 @@ export default function App() {
                         disabled={!sourceDirty || busy}
                         onClick={() =>
                           void run(async () => {
-                            await client.current!.call("source", {
-                              text: source,
-                              revision: sourceRevision,
-                            });
+                            const scopePath = sourceScope?.path ?? [];
+                            if (sourceScope)
+                              await client.current!.call("mutate", {
+                                command: {
+                                  action: "replace",
+                                  path: scopePath,
+                                  raw: scopedSourceText(
+                                    source,
+                                    sourceBase,
+                                    sourceScope,
+                                  ),
+                                },
+                                revision: sourceRevision,
+                              });
+                            else
+                              await client.current!.call("source", {
+                                text: source,
+                                revision: sourceRevision,
+                              });
                             setSelection(null);
                             setSheetSelection(null);
                             navigationHistory.current.delete(activeId);
                             await refresh();
-                            await showSource();
+                            await showSource(scopePath);
                           })
                         }
                       >
@@ -2786,8 +2921,13 @@ export default function App() {
                     </div>
                   )}
                   <SourceEditor
-                    value={source}
-                    onChange={setSource}
+                    key={`${activeId}:${sourceScope ? JSON.stringify(sourceScope.path) : "whole"}`}
+                    value={scopedSourceText(source, sourceBase, sourceScope)}
+                    onChange={(draft) =>
+                      setSource(
+                        applyScopedDraft(sourceBase, sourceScope, draft),
+                      )
+                    }
                     target={sourceTarget}
                   />
                 </>
@@ -2864,7 +3004,7 @@ export default function App() {
                     {query.records ? "Properties view" : "Records view"}
                   </button>
                 )}
-                {selection ? (
+                {selection && singleCellSelected ? (
                   <>
                     <label>Path</label>
                     <code className="path">
@@ -2966,7 +3106,11 @@ export default function App() {
                 ) : (
                   <div className="inspector-empty">
                     <span>{"{ }"}</span>
-                    <p>Select a cell to see its path, type and exact value.</p>
+                    <p>
+                      {sheetSelection && !singleCellSelected
+                        ? `${selectedCellCount(sheetSelection, view?.matched ?? 0, view?.headers.length ?? 0).toLocaleString()} cells selected. Select one cell to inspect its value.`
+                        : "Select a cell to see its path, type and exact value."}
+                    </p>
                     <p className="small">
                       Type or F2 edits a value.
                       <br />

@@ -1,48 +1,39 @@
 # Lattice — JSON Workbench
 
-Edit JSON with a spreadsheet-style interface. Open a local file, work with cells and nested tables, and inspect the source changes.
+JSON, laid out like a spreadsheet. Open a local file, edit cells and nested tables, then review the source changes.
 
-[Open Lattice in your browser](https://arsxd.github.io/lattice/) — install it as an app in a supported browser, or use the offline download below.
+[Open Lattice](https://arsxd.github.io/lattice/) · [Download offline HTML](https://github.com/arsxd/lattice/releases/download/v0.1.8/Lattice-Offline.html) · [Releases](https://github.com/arsxd/lattice/releases)
 
-## Download and run
+## Use
 
-1. [Download Lattice-Offline.html](https://github.com/arsxd/lattice/releases/download/v0.1.7/Lattice-Offline.html).
-2. Open the downloaded file in your browser.
-3. Choose **Open…** for your data, or **Explore sample workspace** to try the features.
-4. Save using supported browser file access, or Download an edited copy.
+Open Lattice in your browser, or download `Lattice-Offline.html` and open it directly. Choose **Open JSON file…**, **New document**, or **Explore sample workspace**. Save with supported browser file access, or Download an edited copy. The offline HTML requires no installation, Node or local server.
 
-No npm, installation or local server is needed to use the downloaded HTML. The repository's source ZIP is for development, not direct use.
-
-[Releases](https://github.com/arsxd/lattice/releases) · [User guide](docs/USER-GUIDE.md) · [Report a bug](https://github.com/arsxd/lattice/issues/new?template=bug_report.md)
+The hosted app can also be installed through a supported browser. Load it online once before using it offline. When an update is available, save your work and close all Lattice windows and tabs before reopening.
 
 ## Features
 
-- Document tabs, sheet navigation and nested tables.
-- Inline values and object-key editing; row and column operations.
+- Spreadsheet-style editing for JSON values, object keys and nested tables.
+- Document tabs, sheet navigation, row and column operations.
 - Range selection, TSV copy/paste and fill-down.
 - Column sorting and combined value filters.
-- Simple arrays inside cells, exact numeric tokens and source navigation.
-- Editable before/after review with validation, undoable per-change restore and atomic Apply.
-- Frozen rows/columns, resizable panes and compact multiline previews.
-- Optional on-device draft recovery and passive PWA update notifications.
+- Simple arrays inside cells and exact numeric tokens.
+- Source editing and before/after review with per-change restore, validation and undo.
+- Frozen rows and columns, resizable panes and multiline previews.
+- Optional local draft recovery.
 
-Documents are processed locally. No upload endpoint or analytics integration is implemented. Browser Save requires support and permission; Download is the fallback. The app detects some external-file conflicts but does not lock files. Optional local recovery stores unsaved drafts in this browser, off by default; it does not replace saving. Browser close/reload warnings are best effort.
+![The sample book catalogue in Lattice’s spreadsheet view](docs/images/table.png)
 
-## Release scope
+![Reviewing a price edit beside the saved JSON](docs/images/review.png)
 
-The public release line is `main` and distributes the browser/offline client only. The owner tested basic web workflows with real JSON on Windows at work. Broader coverage remains incomplete; keep backups of important files. Automated tests do not establish every browser permission, clipboard, focus or accessibility behavior.
+## Files and browser support
 
-The native desktop project and older experiments remain on `dev` and are not distributed. The current freeze implementation uses measured row heights; row freezing is bounded to 10,000 rendered cells per page and 40% of the grid height. Wider pages retain virtualization and column freezing.
+Documents are processed locally; no document-upload endpoint or analytics integration is implemented. Browser Save requires API support and permission; Download is the fallback. Local recovery is off by default and, when enabled, stores unsaved drafts in this browser. It does not replace saving. External-file conflict detection and close/reload warnings have limits; keep a separate copy of important files.
 
-Limits: 500-row pages, 200 record fields, 10,000-cell bulk operations, and 2,000 distinct checklist values. Paste can span pages but cannot grow the table. No formula evaluation, full Excel compatibility or schema validation.
+Input limits are UTF-8, 64 MiB and 256 nesting levels. Tables use 500-row pages and support up to 200 record fields, 10,000-cell bulk operations and 2,000 distinct checklist values. Paste cannot grow a table. There is no formula evaluation or schema validation. See the [user guide](docs/USER-GUIDE.md) for details and [browser checks](docs/WINDOWS.md) for verification steps.
 
-## Sample workspace
+## Examples
 
-[Downloadable examples and screenshot recipes](examples/README.md) cover a fictional bookshop, store orders, application settings, JSON value shapes and a before/after review pair.
-
-The bundled fictional bookshop contains a keyed catalogue, orders, reading lists, simple arrays, blanks, nested details and precision-sensitive numbers. No work-specific schemas or datasets are used.
-
-For a screenshot: open the sample, select the books sheet, choose a useful column filter or nested book details, and capture the actual UI. Use the orders sheet for an array-of-records example. Screenshots should reflect the released app; none are fabricated or included as unverified mockups.
+The bundled sample is a fictional bookshop with a keyed catalogue, orders, reading lists, nested details and precision-sensitive numbers. [Additional examples](examples/README.md) include store orders, application settings, JSON value shapes and a before/after review pair.
 
 ## Develop
 
@@ -53,23 +44,15 @@ npm ci
 npm run web:dev
 ```
 
-| Command | Purpose |
-|---|---|
-| `npm test` | Unit/regression checks |
-| `npm run test:browser` | Chromium browser workflows; CI runs Windows and Linux |
+| Command                 | Purpose                                      |
+| ----------------------- | -------------------------------------------- |
+| `npm test`              | Unit and regression checks                   |
+| `npm run test:browser`  | Chromium browser workflows                   |
 | `npm run offline:build` | Self-contained `output/Lattice-Offline.html` |
-| `npm run web:build` | Static site in `dist/` |
-| `npm run web:preview` | Preview the built site |
-| `npm run bench` | Machine-specific engine benchmark |
+| `npm run web:build`     | Static site in `dist/`                       |
+| `npm run web:preview`   | Preview the built site                       |
+| `npm run bench`         | Machine-specific engine benchmark            |
 
-Third-party license notices are included in the [distribution](public/third-party-notices.txt) and embedded in the standalone HTML.
+Read [CONTRIBUTING.md](CONTRIBUTING.md), [the web guide](docs/WEB.md) and [CHANGELOG.md](CHANGELOG.md). Report issues through the [bug report form](https://github.com/arsxd/lattice/issues/new?template=bug_report.md).
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md), [the web guide](docs/WEB.md) and [CHANGELOG.md](CHANGELOG.md). Generated output, private development notes and local fixtures are excluded from Git. No project license has been selected; public source availability alone does not grant an open-source license.
-
-## Install the web app
-
-Open [Lattice](https://arsxd.github.io/lattice/) in Chrome or Edge and use the browser’s address-bar install icon or install command in its menu. It opens in a separate app window. After the first successful load it can run offline. Installation may be restricted by corporate browser policy. Your JSON stays in your browser. The single-file offline download remains available.
-
-The hosted welcome page includes dismissible installation guidance. It shows **Install Lattice** when the browser offers a direct prompt, and browser-menu instructions otherwise. It stays out of the editing workspace; **Not now** hides it for the browser session.
-
-Updates wait until every Lattice window/tab closes. **Update available** in the status bar explains how to save and reopen; it never forces a reload. See the [Windows verification guide](docs/WINDOWS.md) for managed-laptop checks and the distinction between automated Windows testing and corporate-policy verification.
+Third-party license notices are included in the [distribution](public/third-party-notices.txt) and embedded in the standalone HTML. No project license has been selected; public source availability alone does not grant an open-source license.

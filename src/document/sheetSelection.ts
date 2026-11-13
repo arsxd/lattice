@@ -135,3 +135,19 @@ export function selectedCellCount(
     )
   );
 }
+
+/** Whole-table selection is a header selection, even for a one-cell table. */
+export function selectWholeTable(
+  rows: number,
+  columns: number,
+  anchorRow = 0,
+): SheetSelection | null {
+  if (rows <= 0 || columns <= 0) return null;
+  const r = Math.max(0, Math.min(rows - 1, anchorRow));
+  return {
+    mode: "columns",
+    anchor: { r, c: 0 },
+    end: { r, c: columns - 1 },
+    spans: [[0, columns - 1]],
+  };
+}

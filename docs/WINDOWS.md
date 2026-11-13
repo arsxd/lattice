@@ -1,23 +1,21 @@
-# Windows checks
+# Browser checks on Windows
 
-## Use without developer tools
+Use [the hosted app](https://arsxd.github.io/lattice/) or download `Lattice-Offline.html` from [Releases](https://github.com/arsxd/lattice/releases). The downloaded HTML needs no Node installation or local server. Browser file access, clipboard permissions and app installation depend on browser support and settings.
 
-Download `Lattice-Offline.html` from [Releases](https://github.com/arsxd/lattice/releases) and open it in Chrome or Edge. Transfer only that HTML; npm and Node are not needed. Alternatively open [the hosted app](https://arsxd.github.io/lattice/) and use the browser install menu when your policy permits. Load it successfully online before testing cached offline startup.
+## Automated coverage
 
-## Automated Windows coverage
+The Web verification workflow runs Playwright Chromium on Windows and Ubuntu with generated fixtures. Results are available in [Actions](https://github.com/arsxd/lattice/actions/workflows/web.yml). Automated checks do not establish every native file-picker, clipboard or browser-permission interaction.
 
-The Web verification workflow runs Playwright Chromium on `windows-latest` and Ubuntu. These checks use generated public/non-sensitive fixtures. They verify application behavior and are required before Pages deploys. They do not emulate your company's policies, native permission decisions or monitoring tools. Workflow results are visible in [Actions](https://github.com/arsxd/lattice/actions/workflows/web.yml).
+## Manual checks
 
-## Manual managed-laptop protocol
+Use a disposable file and keep its original copy.
 
-Use a disposable non-confidential file first; keep its original copy.
+1. Open the hosted app and downloaded HTML. Check menus, selection and dropdowns in light and dark themes at your display scaling.
+2. Open, edit and Save a file, then verify its contents in another editor. Cancel Save as and check that unsaved changes remain. Verify Download when direct Save is unavailable.
+3. Modify the original file externally, then try Save to check conflict handling. Reload source and inspect the current location and selection.
+4. Check keyboard and menu clipboard actions, including denied permissions.
+5. Enable Local recovery, edit a value or leave an incomplete Source draft, wait at least two seconds, and reopen. Restore the draft and save a copy. Turn recovery off to remove stored drafts.
+6. Load the hosted app online, close it, disconnect and reopen to check offline startup. For updates, save and close all app windows and tabs before reopening.
+7. Freeze rows and columns in a multiline table, scroll in both directions, edit, resize, filter, sort and unfreeze. Wide pages may disable row freezing to preserve rendering bounds.
 
-1. Open both the downloaded HTML and installed PWA where allowed. Confirm menus, dropdowns and selection are readable in light/dark themes and at your normal Windows display scaling.
-2. Open, edit and Save a disposable file. Reopen it in another editor to verify contents. Cancel Save as and confirm the app retains its unsaved state. If browser APIs are restricted, verify Download exports a valid edited copy.
-3. Modify the original file externally, then try Save. Confirm conflict handling preserves your changes. Reload source and check the location/page/selection; external array reordering retains positional indices.
-4. Test Ctrl+C/Ctrl+V and right-click clipboard actions. Permission denial should explain the fallback rather than claim success.
-5. On non-sensitive data, optionally enable Local recovery, commit an edit or leave an incomplete Source draft, wait at least two seconds, then reload/reopen. Restore it and save a new copy. Turn recovery off afterward to remove test drafts.
-6. Close the installed app, disconnect from the network, reopen and test local opening/editing. Reconnect before updating. Save and close ALL app windows/tabs when Update available appears.
-7. Test a wrapped multi-line table with frozen rows/columns: scroll both directions, edit a frozen cell, resize rows, filter/sort and unfreeze. Wide pages may disallow row freeze to preserve rendering bounds.
-
-Record browser/version, OS/display scaling, delivery mode, steps, expected/actual result and sanitized error text. Corporate-policy permission and monitoring outcomes remain unverified until performed on that actual environment. Do not bypass restrictions or use confidential data for bug reports.
+For bug reports, include browser version, OS, display scaling, hosted/offline mode, reproduction steps and expected versus actual behavior. Remove personal data and file paths.

@@ -1,4 +1,5 @@
 import { sourceLineSeparator, sourceTextMatches } from "./sourceText";
+import { sourceRawRangeToDocument } from "./sourceScope";
 import { useEffect, useRef } from "react";
 import { EditorState } from "@codemirror/state";
 import {
@@ -84,10 +85,11 @@ export function SourceEditor({
   useEffect(() => {
     const editor = view.current;
     if (!editor || !target) return;
-    if (target.to > editor.state.doc.length) return;
+    const selection = sourceRawRangeToDocument(value, target);
+    if (!selection || selection.to > editor.state.doc.length) return;
     editor.dispatch({
-      selection: { anchor: target.from, head: target.to },
-      effects: EditorView.scrollIntoView(target.from, { y: "center" }),
+      selection: { anchor: selection.from, head: selection.to },
+      effects: EditorView.scrollIntoView(selection.from, { y: "center" }),
     });
     editor.focus();
   }, [target]);

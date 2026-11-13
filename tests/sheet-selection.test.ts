@@ -99,3 +99,12 @@ it("rejects an oversized full column without copying a partial page", () => {
   expect(selectedCellCount(selection, 10001, 2)).toBe(10001);
   expect(() => copySelection(engine, q, selection, 0)).toThrow("10,000");
 });
+it("keeps whole-table selection distinct from an individual cell", async () => {
+  const { selectWholeTable } = await import("../src/document/sheetSelection");
+  expect(selectWholeTable(1, 1)).toMatchObject({
+    mode: "columns",
+    spans: [[0, 0]],
+  });
+  expect(selectWholeTable(0, 2)).toBeNull();
+  expect(selectWholeTable(620, 3, 500)?.anchor).toEqual({ r: 500, c: 0 });
+});

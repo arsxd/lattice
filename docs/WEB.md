@@ -27,7 +27,7 @@ Picker hints and layout preferences are optional metadata. JSON recovery is sepa
 
 [Hosted app](https://arsxd.github.io/lattice/) installation uses the browser's own prompt/menu. Welcome guidance is dismissible and stays out of the editor toolbar. A waiting service worker exposes **Update available** in the existing status area. Updates never call skipWaiting or force reload; save and close all app tabs/windows before reopening. Hourly/visibility update checks carry no document content.
 
-The service worker caches application assets, not JSON files. Once successfully cached, the shell works offline. JSON recovery, if explicitly enabled, is local IndexedDB storage independent of that asset cache. The standalone HTML has no manifest, does not register a service worker and shows no install/update guidance, even when served over HTTP. No document-upload endpoint or analytics integration is implemented. This cannot establish what corporate endpoint software observes; see [Windows checks](WINDOWS.md).
+The service worker caches application assets, not JSON files. Once successfully cached, the shell works offline. JSON recovery, if explicitly enabled, is local IndexedDB storage independent of that asset cache. The standalone HTML has no manifest, does not register a service worker and shows no install/update guidance, even when served over HTTP. No document-upload endpoint or analytics integration is implemented. See [browser checks on Windows](WINDOWS.md) for manual verification.
 
 ## Rendering and freeze limits
 
@@ -37,7 +37,7 @@ Details tables cap 20 rows, 10 columns, 100 cells, 32,768 source characters and 
 
 ## Verification boundaries
 
-Unit tests cover revision/atomicity, exact numeric tokens, CRLF, partial drafts, reload remapping, freeze geometry, recovery ownership/storage errors and update lifecycle. Browser tests cover actual input, selection, draft validation/restore, tab continuity, frozen scrolling, recovery after refresh, offline startup and a real waiting worker. GitHub-hosted Windows automation does not verify managed corporate browser policy, installation approval, endpoint monitoring or actual file-picker permission prompts. Direct file: execution must be checked manually because the local browser automation tool blocks file: URLs.
+Unit tests cover revision/atomicity, exact numeric tokens, CRLF, partial drafts, reload remapping, freeze geometry, recovery ownership/storage errors and update lifecycle. Browser tests cover actual input, selection, draft validation/restore, tab continuity, frozen scrolling, recovery after refresh, offline startup and a real waiting worker. GitHub-hosted Windows automation does not verify every browser permission or native file-picker interaction. Direct file: execution must be checked manually because the local browser automation tool blocks file: URLs.
 
 ## Accurate review matching
 

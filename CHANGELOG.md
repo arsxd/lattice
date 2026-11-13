@@ -1,10 +1,17 @@
 # Changelog
 
+## 0.1.8 — 2026-11-13
+
+- Source opens the current table by default, with a Whole document switch. Scoped edits preserve sibling data and complete recovery drafts.
+- Compact array editing, consistent text selection, longer bounded selected-value previews and a three-line value bar.
+- Content-based default column widths, reserved filter space and complete header selection. Header/range selections show a range summary in Details.
+- Freeze actions follow selected row/column headers, and Close review returns to the previous view with draft safeguards.
+- Refreshed start screen, GitHub link, concise public documentation and real sample screenshots.
+
 ## 0.1.7 — 2026-11-13
 
 - Fixed false diff highlights after distant edits with bounded line-first matching and exact changed-text spans. Unchanged lines remain neutral.
 - Simplified Review to one toolbar, compact restore arrows, automatic background validation and error-only feedback below the editors. Draft undo/redo shortcuts remain available.
-
 
 - Unified full-column header highlighting and removed the repeated Browse filename. Browser filename tooltips explain that full disk paths are unavailable.
 
@@ -17,7 +24,6 @@
 - Passive PWA update-ready status; no forced reload.
 - Windows/Linux Chromium browser checks gate deployment; updated offline download and verification guide.
 
-
 - Fixed squeezed Details tables with readable column widths, single-line headers, three-line value previews and bounded internal scrolling.
 
 - Aligned document tabs with the table beside Browse and moved table/selection counts into the status bar, keeping action buttons together.
@@ -28,7 +34,6 @@
 - Resizable Browse/Details panes, Browse above the sidebar, bounded wrapping of long column titles and consolidated bottom controls.
 - Small record tables in Details and compact lossless array previews; large/deep previews stay bounded.
 - In-place delayed busy ring, compact reload toast and consistent navigation buttons.
-
 
 - Fixed heavy UI work when selecting large nested values: container summaries in the value bar, bounded Details JSON previews, and duplicate selection-read suppression.
 - Oversized scalar value-bar previews are read-only; full-value Copy JSON and Source remain available.
@@ -67,7 +72,6 @@
 - Added downloadable generic examples, value-shape fixtures, before/after review pair and screenshot recipes.
 - Bundled demo now opens the books sheet from the canonical example JSON.
 - 79 automated tests pass, including example validity and exact numeric token preservation.
-
 
 ## 0.1.4 — 2026-11-11 (web development preview)
 

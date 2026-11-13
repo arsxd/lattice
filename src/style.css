@@ -1174,3 +1174,15 @@ select optgroup {
 .diff-review .diff-host .cm-editor .cm-collapsedLines { background: var(--chrome); color: var(--muted); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font-size: 11px; padding: 4px 10px; }
 .diff-host .cm-collapsedLines:before { content: "⋯"; }
 .diff-host .cm-collapsedLines:after { display: none; }
+
+/* Header title and filter have distinct layout slots inside one selection surface. */
+.data-grid .sheet-header { padding: 0; }
+.sheet-column-heading { display: grid; grid-template-columns: minmax(0,1fr) 28px; width: 100%; height: 100%; padding: 0; line-height: 17px; }
+.sheet-column-heading .column-select { width: 100%; height: 100%; padding: 4px 8px; box-sizing: border-box; overflow: hidden; }
+.sheet-column-heading .column-select > span { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.sheet-column-heading .header-filter { position: static; align-self: end; width: 28px; height: 28px; margin: 0; padding: 0; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; }
+.sheet-column-heading .header-filter:hover { background: var(--selection); }
+.data-grid .inline-cell { color: var(--text); caret-color: var(--text); white-space: pre; }
+.wrap-text .inline-cell { white-space: pre-wrap; overflow-wrap: anywhere; }
+.data-grid .cell-value::selection, .data-grid .inline-cell::selection { background: var(--accent); color: #fff; -webkit-text-fill-color: #fff; }
+.source-scope-switch { margin-right: 8px; }
