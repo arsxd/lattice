@@ -25,10 +25,10 @@ export function HomeScreen({
       <div className="home-screen-symbol" aria-hidden="true">
         {"{ }"}
       </div>
-      <h1>JSON, laid out like a spreadsheet.</h1>
+      <h1>Edit JSON like a spreadsheet.</h1>
       <p className="home-screen-description">
-        Open a local file. Edit cells, explore nested tables, and review your
-        changes alongside the JSON source.
+        Work with cells, rows, and columns. Explore nested data and review your
+        changes—without wrestling with JSON syntax.
       </p>
       <div className="home-screen-actions">
         <button className="primary" disabled={busy} onClick={onOpen}>

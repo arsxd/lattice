@@ -1,6 +1,6 @@
 # Lattice — JSON Workbench
 
-JSON, laid out like a spreadsheet. Open a local file, edit cells and nested tables, then review the source changes.
+Edit JSON like a spreadsheet. Work with cells, rows, and columns. Explore nested data and review your changes—without wrestling with JSON syntax.
 
 [Open Lattice](https://arsxd.github.io/lattice/) · [Download offline HTML](https://github.com/arsxd/lattice/releases/download/v0.1.10/Lattice-Offline.html) · [Releases](https://github.com/arsxd/lattice/releases)
 
