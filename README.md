@@ -2,7 +2,7 @@
 
 JSON, laid out like a spreadsheet. Open a local file, edit cells and nested tables, then review the source changes.
 
-[Open Lattice](https://arsxd.github.io/lattice/) · [Download offline HTML](https://github.com/arsxd/lattice/releases/download/v0.1.8/Lattice-Offline.html) · [Releases](https://github.com/arsxd/lattice/releases)
+[Open Lattice](https://arsxd.github.io/lattice/) · [Download offline HTML](https://github.com/arsxd/lattice/releases/download/v0.1.9/Lattice-Offline.html) · [Releases](https://github.com/arsxd/lattice/releases)
 
 ## Use
 
@@ -29,7 +29,7 @@ The hosted app can also be installed through a supported browser. Load it online
 
 Documents are processed locally; no document-upload endpoint or analytics integration is implemented. Browser Save requires API support and permission; Download is the fallback. Local recovery is off by default and, when enabled, stores unsaved drafts in this browser. It does not replace saving. External-file conflict detection and close/reload warnings have limits; keep a separate copy of important files.
 
-Input limits are UTF-8, 64 MiB and 256 nesting levels. Tables use 500-row pages and support up to 200 record fields, 10,000-cell bulk operations and 2,000 distinct checklist values. Paste cannot grow a table. There is no formula evaluation or schema validation. See the [user guide](docs/USER-GUIDE.md) for details and [browser checks](docs/WINDOWS.md) for verification steps.
+Input limits are UTF-8, 64 MiB and 256 nesting levels. Tables use 500-row pages and support up to 200 record fields, 10,000-cell bulk operations and 2,000 distinct checklist values. Paste cannot grow a table. There is no formula evaluation or schema validation. See the [measured performance and limitations](docs/PERFORMANCE.md) and [user guide](docs/USER-GUIDE.md) for details and [browser checks](docs/WINDOWS.md) for verification steps.
 
 ## Examples
 
@@ -53,6 +53,6 @@ npm run web:dev
 | `npm run web:preview`   | Preview the built site                       |
 | `npm run bench`         | Machine-specific engine benchmark            |
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md), [the web guide](docs/WEB.md) and [CHANGELOG.md](CHANGELOG.md). Report issues through the [bug report form](https://github.com/arsxd/lattice/issues/new?template=bug_report.md).
+Read [CONTRIBUTING.md](CONTRIBUTING.md), [the web guide](docs/WEB.md), [keyboard checks](docs/ACCESSIBILITY.md) and [CHANGELOG.md](CHANGELOG.md). Report issues through the [bug report form](https://github.com/arsxd/lattice/issues/new?template=bug_report.md).
 
 Third-party license notices are included in the [distribution](public/third-party-notices.txt) and embedded in the standalone HTML. No project license has been selected; public source availability alone does not grant an open-source license.

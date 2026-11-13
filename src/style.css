@@ -1186,3 +1186,9 @@ select optgroup {
 .wrap-text .inline-cell { white-space: pre-wrap; overflow-wrap: anywhere; }
 .data-grid .cell-value::selection, .data-grid .inline-cell::selection { background: var(--accent); color: #fff; -webkit-text-fill-color: #fff; }
 .source-scope-switch { margin-right: 8px; }
+
+/* Preserve all file/theme controls at the desktop minimum width and high zoom. */
+@media (max-width: 900px) {
+  .toolbar { gap: 4px; }
+  .toolbar strong { margin-right: 4px; }
+}

@@ -1,7 +1,7 @@
 {
   "name": "lattice-json-workbench",
   "private": true,
-  "version": "0.1.8",
+  "version": "0.1.9",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
@@ -13,7 +13,8 @@
     "web:preview": "vite preview --host 127.0.0.1",
     "offline:build": "npm run web:build && node scripts/build-offline.mjs",
     "pwa:build": "npm run web:build && node scripts/build-pwa.mjs",
-    "test:browser": "playwright test"
+    "test:browser": "playwright test",
+    "bench:browser": "node scripts/benchmark-browser.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "6.11.1",

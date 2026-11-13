@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.9 — 2026-11-13
+
+- Prevented sorting/filter changes during the final refresh of a cell edit, keeping indicators consistent with the displayed data.
+- Fixed keyboard activation of header filters and restored focus to their button on Escape.
+- Kept all file/theme toolbar controls visible at the supported 720-pixel minimum width.
+- Added a reproducible production-browser benchmark, measured 1/5/25 MiB workflows, keyboard regressions and explicit accessibility verification limits.
+
 ## 0.1.8 — 2026-11-13
 
 - Source opens the current table by default, with a Whole document switch. Scoped edits preserve sibling data and complete recovery drafts.

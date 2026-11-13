@@ -1370,6 +1370,8 @@ export default function App() {
                   </button>
                   <button
                     className="header-filter"
+                    onKeyDown={(e) => e.stopPropagation()}
+                    disabled={operationBusy}
                     aria-label={`Sort and filter ${columnLabel(view, i)}`}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1821,6 +1823,7 @@ export default function App() {
       ? view?.rows[activeCell.row]?.cells[activeCell.column]
       : undefined;
   function changeQuery(next: Query) {
+    if (busyRef.current) return;
     ++selectionRequest.current;
     setSelection(null);
     const { page: _page, ...currentQuery } = query;

@@ -94,7 +94,11 @@ export function ColumnMenu({
       role="dialog"
       aria-label={`Sort and filter ${name}`}
       onKeyDown={(e) => {
-        if (e.key === "Escape") onClose();
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          onClose();
+          anchor?.focus();
+        }
       }}
     >
       <strong>{name}</strong>

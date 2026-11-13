@@ -732,3 +732,137 @@ test("value bar commits and cancels bounded multiline edits", async ({
     page.getByRole("textbox", { name: "JSON source draft" }),
   ).toContainText("line one\\nline two");
 });
+
+test("sort waits for the complete nested-table edit refresh", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const NativeWorker = window.Worker;
+    window.Worker = new Proxy(NativeWorker, {
+      construct(Target, args) {
+        const worker = new Target(...(args as [string | URL, WorkerOptions?]));
+        let pending = -1;
+        const post = worker.postMessage.bind(worker);
+        worker.postMessage = (message: any, options?: any) => {
+          if (message.action === "mutate") pending = 0;
+          post(message, options);
+        };
+        Object.defineProperty(worker, "onmessage", {
+          set(handler) {
+            worker.addEventListener("message", (event) => {
+              const value = event.data.value;
+              if (
+                pending >= 0 &&
+                value?.rows &&
+                value?.headers &&
+                ++pending === 2
+              ) {
+                pending = -1;
+                (window as any).delayedRefresh = true;
+                setTimeout(() => handler.call(worker, event), 1000);
+              } else handler.call(worker, event);
+            });
+          },
+        });
+        return worker;
+      },
+    });
+  });
+  await page.reload();
+  await open(page, '{"records":[{"price":12.5},{"price":12.5}]}');
+  const records = page.getByRole("gridcell", { name: "records", exact: true });
+  if (await records.count()) await records.dblclick();
+  await cell(page, 0, 1).dblclick();
+  await page
+    .getByRole("textbox", { name: "Edit price (number)" })
+    .fill("19.75");
+  await page
+    .getByRole("textbox", { name: "Edit price (number)" })
+    .press("Enter");
+  await expect(cell(page, 0, 1)).toHaveText("19.75");
+  const filter = page.getByRole("button", {
+    name: "Sort and filter price",
+    exact: true,
+  });
+  await expect
+    .poll(() => page.evaluate(() => (window as any).delayedRefresh))
+    .toBe(true);
+  await expect(filter).toBeDisabled();
+  await expect(filter).toBeEnabled();
+  await filter.click();
+  await page
+    .getByRole("button", { name: "Sort ascending ↑", exact: true })
+    .click();
+  await expect(cell(page, 0, 1)).toHaveText("12.5");
+});
+
+test("keyboard navigation, editing and filter dismissal retain usable focus", async ({
+  page,
+}) => {
+  await open(page, '[{"name":"Alpha","count":1},{"name":"Beta","count":2}]');
+  await cell(page, 0, 1).click();
+  await page.keyboard.press("ArrowRight");
+  await expect(cell(page, 0, 2)).toBeFocused();
+  await page.keyboard.press("F2");
+  const editor = page.getByRole("textbox", { name: "Edit count (number)" });
+  await expect(editor).toBeFocused();
+  await editor.fill("99");
+  await editor.press("Escape");
+  await expect(cell(page, 0, 2)).toHaveText("1");
+  await expect(cell(page, 0, 2)).toBeFocused();
+  const filter = page.getByRole("button", {
+    name: "Sort and filter count",
+    exact: true,
+  });
+  await filter.focus();
+  await filter.press("Enter");
+  await expect(
+    page.getByRole("textbox", { name: "Search filter values" }),
+  ).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("dialog", { name: "Sort and filter count" }),
+  ).toHaveCount(0);
+  await expect(filter).toBeFocused();
+});
+
+test("minimum-width toolbar retains all controls and confirmation traps focus", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 720, height: 500 });
+  await open(page, '[{"name":"Alpha"}]');
+  const bounds = await page.locator(".toolbar").evaluate((element) => ({
+    width: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+    right: Math.max(
+      ...[...element.querySelectorAll("button, select")].map(
+        (control) => control.getBoundingClientRect().right,
+      ),
+    ),
+  }));
+  expect(bounds.scrollWidth).toBeLessThanOrEqual(bounds.width);
+  expect(bounds.right).toBeLessThanOrEqual(718);
+  await page
+    .getByRole("button", { name: "Review changes", exact: true })
+    .click();
+  await page
+    .getByRole("textbox", { name: "Current JSON draft" })
+    .fill('[{"name":"Changed"}]');
+  await page
+    .getByRole("button", { name: "Apply changes", exact: true })
+    .waitFor();
+  await page.getByRole("button", { name: "Close review", exact: true }).click();
+  const keep = page.getByRole("button", { name: "Keep editing", exact: true });
+  await expect(keep).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(
+    page.getByRole("button", { name: "Discard changes", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(keep).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  await expect(
+    page.getByRole("textbox", { name: "Current JSON draft" }),
+  ).toContainText("Changed");
+});
