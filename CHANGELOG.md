@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.10 — 2026-11-13
+
+- Filled the Details contents table across wide panes, removing the empty strip inside its right border. Narrow panes retain minimum column widths and horizontal scrolling.
+
 ## 0.1.9 — 2026-11-13
 
 - Prevented sorting/filter changes during the final refresh of a cell edit, keeping indicators consistent with the displayed data.

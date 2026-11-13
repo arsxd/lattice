@@ -866,3 +866,38 @@ test("minimum-width toolbar retains all controls and confirmation traps focus", 
     page.getByRole("textbox", { name: "Current JSON draft" }),
   ).toContainText("Changed");
 });
+
+test("Details contents fill a wide pane and retain readable widths in a narrow pane", async ({
+  page,
+}) => {
+  await page.evaluate(() =>
+    localStorage.setItem("lattice-pane-details", "520"),
+  );
+  await page.reload();
+  await open(
+    page,
+    '[{"nested":[{"areas":[1,2,3],"seatCategoryId":338937277},{"areas":[4,5],"seatCategoryId":338937278}]}]',
+  );
+  await cell(page, 0, 1).click();
+  await page.getByRole("button", { name: "Toggle value inspector" }).click();
+  const table = page.getByRole("table", { name: "Selected value contents" });
+  await expect(table).toBeVisible();
+  const dimensions = () =>
+    table.evaluate((element) => ({
+      table: element.getBoundingClientRect().width,
+      viewport: element.parentElement!.clientWidth,
+      scroll: element.parentElement!.scrollWidth,
+    }));
+  const wide = await dimensions();
+  expect(wide.viewport).toBeGreaterThan(424);
+  expect(Math.abs(wide.table - wide.viewport)).toBeLessThanOrEqual(1);
+  await page
+    .getByRole("separator", { name: "Resize Details pane" })
+    .press("Home");
+  await expect
+    .poll(async () => (await dimensions()).viewport)
+    .toBeLessThan(424);
+  const narrow = await dimensions();
+  expect(narrow.table).toBeGreaterThanOrEqual(424);
+  expect(narrow.scroll).toBeGreaterThan(narrow.viewport);
+});

@@ -2,7 +2,7 @@
 
 JSON, laid out like a spreadsheet. Open a local file, edit cells and nested tables, then review the source changes.
 
-[Open Lattice](https://arsxd.github.io/lattice/) · [Download offline HTML](https://github.com/arsxd/lattice/releases/download/v0.1.9/Lattice-Offline.html) · [Releases](https://github.com/arsxd/lattice/releases)
+[Open Lattice](https://arsxd.github.io/lattice/) · [Download offline HTML](https://github.com/arsxd/lattice/releases/download/v0.1.10/Lattice-Offline.html) · [Releases](https://github.com/arsxd/lattice/releases)
 
 ## Use
 

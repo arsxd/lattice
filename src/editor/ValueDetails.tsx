@@ -17,10 +17,11 @@ export function ValueDetails({ raw }: { raw: string }) {
             <table
               aria-label="Selected value contents"
               style={{
-                width:
+                width: "100%",
+                minWidth:
                   preview.headers.length > 2
                     ? 104 + (preview.headers.length - 1) * 160
-                    : "100%",
+                    : 300,
               }}
             >
               <colgroup>
