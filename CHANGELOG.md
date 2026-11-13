@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.1.7 — 2026-11-13
+
+- Fixed false diff highlights after distant edits with bounded line-first matching and exact changed-text spans. Unchanged lines remain neutral.
+- Simplified Review to one toolbar, compact restore arrows, automatic background validation and error-only feedback below the editors. Draft undo/redo shortcuts remain available.
+
 
 - Unified full-column header highlighting and removed the repeated Browse filename. Browser filename tooltips explain that full disk paths are unavailable.
 

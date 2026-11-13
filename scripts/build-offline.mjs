@@ -22,6 +22,12 @@ for (const match of [
   );
 }
 
+const notices = await readFile("public/third-party-notices.txt", "utf8");
+html = html.replace(
+  "</body>",
+  () =>
+    `<script type="text/plain" id="third-party-notices">${notices.replace(/<\/script/gi, "<\\/script")}</script></body>`,
+);
 await mkdir("output", { recursive: true });
 await writeFile("output/Lattice-Offline.html", html);
 console.log("Created output/Lattice-Offline.html");

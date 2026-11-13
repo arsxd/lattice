@@ -68,7 +68,7 @@ test("review blocks invalid drafts and selectively restores a changed region", a
     page.getByRole("button", { name: "Apply changes", exact: true }),
   ).toBeDisabled();
   await expect(
-    page.getByRole("status").filter({ hasText: /validation issue/ }),
+    page.getByRole("alert").filter({ hasText: /Cannot apply/ }),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "Discard draft", exact: true })
@@ -89,7 +89,7 @@ test("review blocks invalid drafts and selectively restores a changed region", a
     .click();
   await expect(
     page.getByRole("button", { name: "Apply changes", exact: true }),
-  ).toBeDisabled();
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Table", exact: true }),
@@ -384,4 +384,71 @@ test("highlights the entire selected header and avoids a duplicate Browse filena
     "title",
     /full disk path/,
   );
+});
+
+test("review keeps unchanged lines neutral for distant JSON edits and uses one toolbar", async ({
+  page,
+}) => {
+  const before = JSON.stringify(
+    Array.from({ length: 240 }, (_, id) => ({
+      id,
+      logo: null,
+      name: null,
+      prices: Array.from({ length: 24 }, (_, i) => ({
+        amount: i,
+        category: "regular",
+      })),
+    })),
+    null,
+    2,
+  );
+  await open(page, before, "sparse-edits.json");
+  for (const id of [1, 40, 80, 120, 160, 200]) {
+    await page
+      .getByRole("grid", { name: "JSON data table" })
+      .evaluate((element, top) => (element.scrollTop = top), id * 28);
+    await cell(page, id, 1).dblclick();
+    const editor = page.getByRole("textbox", { name: "Edit id (number)" });
+    await editor.fill("445");
+    await editor.press("Enter");
+    await expect(editor).toHaveCount(0);
+    await expect(cell(page, id, 1)).toHaveText("445");
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    );
+  }
+  await page
+    .getByRole("button", { name: "Review changes", exact: true })
+    .click();
+  await expect(page.locator(".diff-tools")).toContainText("6 changed regions");
+  await expect(page.locator(".diff-tools")).toHaveCount(1);
+  await expect(
+    page.getByRole("button", { name: "Validate", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.locator(".diff-review").getByText("Valid JSON", { exact: true }),
+  ).toHaveCount(0);
+  const changed = page.locator(".diff-host .cm-changedLine");
+  expect(await changed.count()).toBeGreaterThan(0);
+  for (const text of await changed.allTextContents())
+    expect(text).toContain('"id":');
+  const neutral = page
+    .locator(".diff-host .cm-line")
+    .filter({ hasText: '"logo": null' })
+    .first();
+  await expect(neutral).not.toHaveClass(/cm-changedLine/);
+  const draft = page.getByRole("textbox", { name: "Current JSON draft" });
+  await draft.click();
+  await draft.press("ControlOrMeta+Home");
+  await page.keyboard.type("x");
+  await expect(
+    page.getByRole("button", { name: "Apply changes", exact: true }),
+  ).toBeDisabled();
+  await draft.press("ControlOrMeta+z");
+  await expect(
+    page.getByRole("button", { name: "Apply changes", exact: true }),
+  ).toHaveCount(0);
 });

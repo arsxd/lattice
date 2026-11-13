@@ -6,7 +6,7 @@ Edit JSON with a spreadsheet-style interface. Open a local file, work with cells
 
 ## Download and run
 
-1. [Download Lattice-Offline.html](https://github.com/arsxd/lattice/releases/download/v0.1.6/Lattice-Offline.html).
+1. [Download Lattice-Offline.html](https://github.com/arsxd/lattice/releases/download/v0.1.7/Lattice-Offline.html).
 2. Open the downloaded file in your browser.
 3. Choose **Open…** for your data, or **Explore sample workspace** to try the features.
 4. Save using supported browser file access, or Download an edited copy.
@@ -61,6 +61,8 @@ npm run web:dev
 | `npm run web:build` | Static site in `dist/` |
 | `npm run web:preview` | Preview the built site |
 | `npm run bench` | Machine-specific engine benchmark |
+
+Third-party license notices are included in the [distribution](public/third-party-notices.txt) and embedded in the standalone HTML.
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md), [the web guide](docs/WEB.md) and [CHANGELOG.md](CHANGELOG.md). Generated output, private development notes and local fixtures are excluded from Git. No project license has been selected; public source availability alone does not grant an open-source license.
 

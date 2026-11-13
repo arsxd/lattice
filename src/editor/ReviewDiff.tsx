@@ -1,3 +1,4 @@
+import { compareReviewText } from "./reviewComparison";
 import { useEffect, useRef, useState } from "react";
 import { MergeView } from "@codemirror/merge";
 import { Compartment, EditorState } from "@codemirror/state";
@@ -9,13 +10,7 @@ import {
   keymap,
 } from "@codemirror/view";
 import { json } from "@codemirror/lang-json";
-import {
-  defaultKeymap,
-  history,
-  historyKeymap,
-  undo,
-  redo,
-} from "@codemirror/commands";
+import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import ValidationWorker from "./diffValidation.worker?worker&inline";
 import type { Diagnostic } from "../document/engine";
 import {
@@ -50,14 +45,13 @@ export default function ReviewDiff({
     text: string;
     diagnostics: Diagnostic[];
   } | null>(null);
-  const [validating, setValidating] = useState(false);
   const [error, setError] = useState("");
   const [applying, setApplying] = useState(false);
   const validator = useRef<Worker | null>(null);
   const separator = useRef(new Compartment());
   const editable = useRef(new Compartment());
   const baselineSeparator = useRef(new Compartment());
-  const [validationRequest, setValidationRequest] = useState(0);
+  const [comparisonLimited, setComparisonLimited] = useState(false);
   const [count, setCount] = useState(0);
   const [collapsed, setCollapsed] = useState(true);
   const [active, setActive] = useState(-1);
@@ -147,7 +141,7 @@ export default function ReviewDiff({
       renderRevertControl: () => {
         const button = document.createElement("button");
         button.type = "button";
-        button.textContent = "Restore";
+        button.textContent = "→";
         button.title =
           "Restore this region from saved version into draft (undoable)";
         button.setAttribute(
@@ -177,7 +171,16 @@ export default function ReviewDiff({
       highlightChanges: true,
       gutter: true,
       collapseUnchanged: collapsed ? { margin: 3, minSize: 8 } : undefined,
-      diffConfig: { scanLimit: 1000, timeout: 1000 },
+      diffConfig: {
+        override: (a, b) => {
+          const result = compareReviewText(a, b);
+          if (!result.complete)
+            queueMicrotask(() => {
+              if (merge.current) setComparisonLimited(true);
+            });
+          return result.changes;
+        },
+      },
     });
     merge.current = view;
     setCount(view.chunks.length);
@@ -228,20 +231,18 @@ export default function ReviewDiff({
   }, [after]);
   useEffect(() => {
     setValidation(null);
-    setValidating(false);
     const timer = setTimeout(() => {
       const worker = new ValidationWorker();
       validator.current = worker;
-      setValidating(true);
       worker.onmessage = ({ data }) => {
         if (data.error) setError(data.error);
         else setValidation({ text: draft, diagnostics: data.diagnostics });
-        setValidating(false);
         worker.terminate();
       };
       worker.onerror = () => {
-        setError("Draft validation worker failed. Retry Validate.");
-        setValidating(false);
+        setError(
+          "Draft validation failed. Edit the draft to retry; changes have not been applied.",
+        );
         worker.terminate();
       };
       worker.postMessage({ text: draft });
@@ -250,7 +251,7 @@ export default function ReviewDiff({
       clearTimeout(timer);
       validator.current?.terminate();
     };
-  }, [draft, validationRequest]);
+  }, [draft]);
   useEffect(() => {
     const view = merge.current;
     if (!view) return;
@@ -261,8 +262,19 @@ export default function ReviewDiff({
         EditorView.editable.of(!locked),
       ]),
     });
-    view.reconfigure({ revertControls: locked ? undefined : "a-to-b" });
-  }, [busy, applying]);
+    view.reconfigure({
+      revertControls: locked || comparisonLimited ? undefined : "a-to-b",
+    });
+  }, [busy, applying, comparisonLimited]);
+  useEffect(() => {
+    if (comparisonLimited)
+      merge.current?.reconfigure({
+        highlightChanges: false,
+        gutter: false,
+        collapseUnchanged: undefined,
+        revertControls: undefined,
+      });
+  }, [comparisonLimited]);
   const valid =
     validation?.text === draft && validation.diagnostics.length === 0;
   async function apply() {
@@ -291,86 +303,72 @@ export default function ReviewDiff({
     <section className="diff-review">
       <div className="diff-tools">
         <span>
-          {count
-            ? active >= 0
-              ? `Change ${active + 1} of ${count}`
-              : `${count} changed region${count === 1 ? "" : "s"}`
-            : "No changes"}
+          {comparisonLimited
+            ? "Comparison unavailable"
+            : count
+              ? active >= 0
+                ? `Change ${active + 1} of ${count}`
+                : `${count} changed region${count === 1 ? "" : "s"}`
+              : "No changes"}
         </span>
-        <button disabled={!count} onClick={() => jump(-1)}>
+        <button disabled={!count || comparisonLimited} onClick={() => jump(-1)}>
           Previous change
         </button>
-        <button disabled={!count} onClick={() => jump(1)}>
+        <button disabled={!count || comparisonLimited} onClick={() => jump(1)}>
           Next change
         </button>
         <button
           aria-pressed={!collapsed}
+          disabled={comparisonLimited}
           onClick={() => setCollapsed(!collapsed)}
         >
           {collapsed ? "Show unchanged lines" : "Hide unchanged lines"}
         </button>
+        <div className="spacer" />
+        {draft !== after && (
+          <>
+            <button
+              title={
+                !valid
+                  ? "Checking the draft; invalid JSON cannot be applied."
+                  : "Apply draft as one undoable document change"
+              }
+              disabled={
+                !valid || draft === after || busy || applying || !onApply
+              }
+              onClick={() => void apply()}
+            >
+              Apply changes
+            </button>
+            <button
+              disabled={draft === after || busy || applying}
+              onClick={discard}
+            >
+              Discard draft
+            </button>
+          </>
+        )}
       </div>
-      <div className="diff-tools">
-        <button
-          disabled={!valid || draft === after || busy || applying || !onApply}
-          onClick={() => void apply()}
-        >
-          Apply changes
-        </button>
-        <button
-          disabled={draft === after || busy || applying}
-          onClick={discard}
-        >
-          Discard draft
-        </button>
-        <button
-          disabled={validating}
-          onClick={() => {
-            setError("");
-            setValidationRequest((n) => n + 1);
-          }}
-        >
-          Validate
-        </button>
-        <button
-          disabled={busy || applying}
-          onClick={() => {
-            if (merge.current) undo(merge.current.b);
-          }}
-        >
-          Undo draft
-        </button>
-        <button
-          disabled={busy || applying}
-          onClick={() => {
-            if (merge.current) redo(merge.current.b);
-          }}
-        >
-          Redo draft
-        </button>
-        <span role="status">
-          {validating
-            ? "Validating…"
-            : validation?.text === draft
-              ? valid
-                ? "Valid JSON"
-                : `${validation.diagnostics.length} validation issue(s)`
-              : "Validation pending"}
-        </span>
-      </div>
-      {error && <p role="alert">{error}</p>}
-      {validation?.text === draft && validation.diagnostics.length > 0 && (
+      {comparisonLimited && (
         <p role="alert">
-          {validation.diagnostics[0].message} (line{" "}
+          This comparison exceeded its accuracy budget. Highlighting and restore
+          are paused; reopen Review to compare again.
+        </p>
+      )}
+      {error && <p role="alert">{error}</p>}
+
+      <div className="diff-headings">
+        <strong>Saved / opened</strong>
+        <strong>Current draft</strong>
+      </div>
+      <div className="diff-host" ref={parent} />
+      {validation?.text === draft && validation.diagnostics.length > 0 && (
+        <p className="diff-error" role="alert">
+          Cannot apply: {validation.diagnostics[0].message} (line{" "}
           {validation.diagnostics[0].line}, column{" "}
           {validation.diagnostics[0].column})
         </p>
       )}
-      <div className="diff-headings">
-        <strong>Saved / opened</strong>
-        <strong>Current document</strong>
-      </div>
-      <div className="diff-host" ref={parent} />
     </section>
   );
 }

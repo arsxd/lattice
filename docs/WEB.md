@@ -1,6 +1,6 @@
 # Web architecture and verification
 
-Lattice 0.1.6 distributes a hosted PWA and a single-file offline HTML. Native apps are not released. Node 24 is for development only; end users need only a supported desktop browser.
+Lattice 0.1.7 distributes a hosted PWA and a single-file offline HTML. Native apps are not released. Node 24 is for development only; end users need only a supported desktop browser.
 
 ## Build and verification
 
@@ -38,3 +38,7 @@ Details tables cap 20 rows, 10 columns, 100 cells, 32,768 source characters and 
 ## Verification boundaries
 
 Unit tests cover revision/atomicity, exact numeric tokens, CRLF, partial drafts, reload remapping, freeze geometry, recovery ownership/storage errors and update lifecycle. Browser tests cover actual input, selection, draft validation/restore, tab continuity, frozen scrolling, recovery after refresh, offline startup and a real waiting worker. GitHub-hosted Windows automation does not verify managed corporate browser policy, installation approval, endpoint monitoring or actual file-picker permission prompts. Direct file: execution must be checked manually because the local browser automation tool blocks file: URLs.
+
+## Accurate review matching
+
+Review uses pinned jsdiff 9.0.0 line matching before character matching within changed runs. This avoids CodeMirror's scan-limit fallback that could mark a megabyte of unchanged lines as replaced after a few distant edits. Comparison has a 200ms matching budget, 20,000 line-edit bound and 4,000 character-edit bound per changed run. An exhausted budget returns an explicit incomplete result; the view pauses highlighting and per-hunk restore, rather than claiming no changes or showing an approximate replacement. Validation remains worker-based and automatic, with only blocking errors visible below the editors. Keyboard history is retained; the toolbar contains navigation, unchanged-line toggle and conditional Apply/Discard actions.

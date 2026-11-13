@@ -5,6 +5,7 @@ const files = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
+  "./third-party-notices.txt",
   "./icon-192.png",
   "./icon-512.png",
   ...assets,
@@ -16,7 +17,8 @@ await writeFile(
   JSON.stringify({
     id: "./",
     name: "Lattice",
-    description: "JSON Workbench — edit local JSON as spreadsheet-style tables.",
+    description:
+      "JSON Workbench — edit local JSON as spreadsheet-style tables.",
     short_name: "Lattice",
     start_url: "./",
     scope: "./",
