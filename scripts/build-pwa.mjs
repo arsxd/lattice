@@ -6,6 +6,7 @@ const files = [
   "./index.html",
   "./manifest.webmanifest",
   "./third-party-notices.txt",
+  "./license.txt",
   "./icon-192.png",
   "./icon-512.png",
   ...assets,

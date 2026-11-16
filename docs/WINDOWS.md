@@ -4,7 +4,7 @@ Use [the hosted app](https://arsxd.github.io/lattice/) or download `Lattice-Offl
 
 ## Automated coverage
 
-The Web verification workflow runs Playwright Chromium on Windows and Ubuntu with generated fixtures. Results are available in [Actions](https://github.com/arsxd/lattice/actions/workflows/web.yml). Automated checks do not establish every native file-picker, clipboard or browser-permission interaction.
+The Web verification workflow runs Playwright Chromium on Windows, Ubuntu and macOS with generated fixtures. Results are available in [Actions](https://github.com/arsxd/lattice/actions/workflows/web.yml). Automated checks do not establish every native file-picker, clipboard or browser-permission interaction.
 
 ## Manual checks
 
@@ -19,3 +19,5 @@ Use a disposable file and keep its original copy.
 7. Freeze rows and columns in a multiline table, scroll in both directions, edit, resize, filter, sort and unfreeze. Wide pages may disable row freezing to preserve rendering bounds.
 
 For bug reports, include browser version, OS, display scaling, hosted/offline mode, reproduction steps and expected versus actual behavior. Remove personal data and file paths.
+
+For the current release candidate, record results using the [candidate checklist](RELEASE-CANDIDATE.md).

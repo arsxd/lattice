@@ -17,13 +17,19 @@ jobs:
           node-version: "24"
           cache: npm
       - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
+      - run: npm run notices
+      - run: git diff --exit-code -- public/third-party-notices.txt public/license.txt
       - run: npm test
       - run: npm run offline:build
       - run: node scripts/build-pwa.mjs
+      - run: npm run release:checksums
       - uses: actions/upload-artifact@v4
         with:
           name: lattice-offline
-          path: output/Lattice-Offline.html
+          path: |
+            output/Lattice-Offline.html
+            output/SHA256SUMS.txt
           if-no-files-found: error
 
       - uses: actions/upload-pages-artifact@v3
@@ -35,7 +41,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -46,7 +52,7 @@ jobs:
       - run: npm ci
       - if: runner.os == 'Linux'
         run: npx playwright install --with-deps chromium --only-shell
-      - if: runner.os == 'Windows'
+      - if: runner.os != 'Linux'
         run: npx playwright install chromium --only-shell
       - run: npm run test:browser
       - uses: actions/upload-artifact@v4

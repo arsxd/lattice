@@ -5,10 +5,10 @@ labels: bug
 ---
 
 ## Environment
-- Lattice release:
+- Lattice release (include rc number when applicable):
 - OS and version:
 - Browser and version:
-- Offline HTML, hosted web, or native app:
+- Offline HTML, hosted web, or installed PWA:
 
 ## Steps to reproduce
 1.

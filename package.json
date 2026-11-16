@@ -1,20 +1,22 @@
 {
   "name": "lattice-json-workbench",
   "private": true,
-  "version": "0.1.10",
+  "version": "1.0.0-rc.1",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "tsc -b && vite build",
+    "build": "npm run notices && tsc -b && vite build",
     "test": "vitest run",
     "bench": "tsx scripts/benchmark.ts",
     "web:dev": "vite --host 127.0.0.1",
-    "web:build": "tsc -b && vite build --base=./",
+    "web:build": "npm run notices && tsc -b && vite build --base=./",
     "web:preview": "vite preview --host 127.0.0.1",
     "offline:build": "npm run web:build && node scripts/build-offline.mjs",
     "pwa:build": "npm run web:build && node scripts/build-pwa.mjs",
     "test:browser": "playwright test",
-    "bench:browser": "node scripts/benchmark-browser.mjs"
+    "bench:browser": "node scripts/benchmark-browser.mjs",
+    "notices": "node scripts/build-notices.mjs",
+    "release:checksums": "node scripts/build-checksums.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "6.11.1",
@@ -41,5 +43,6 @@
     "typescript": "7.0.2",
     "vite": "8.3.6",
     "vitest": "5.1.0"
-  }
+  },
+  "license": "0BSD"
 }

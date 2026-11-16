@@ -15,7 +15,7 @@ export default defineConfig({
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   webServer: {
     command:
-      "npm run pwa:build && npm run web:preview -- --port 1422 --strictPort",
+      "npm run offline:build && node scripts/build-pwa.mjs && npm run web:preview -- --port 1422 --strictPort",
     url: "http://127.0.0.1:1422",
     reuseExistingServer: false,
     timeout: 120_000,

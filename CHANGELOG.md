@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.0-rc.1 — 2026-11-16
+
+- Began a release-candidate validation round; this is not a stable release. No new editor features.
+- Applied 0BSD to project code, as requested; bundled dependencies retain their existing terms. Generate complete notices for all production dependencies and include project/dependency licenses in the standalone and hosted apps.
+- Added exact-byte offline export/reopen and linked-Save contract tests for cancellation, failed writes and external conflicts. Native browser permissions remain manual checks.
+- Added macOS Chromium to Windows/Linux CI, production advisory checks, notice drift detection and release SHA-256 checksums.
+- Synchronized the offline homepage copy with the hosted app and documented the remaining stable-release gates.
+
 ## 0.1.10 — 2026-11-13
 
 - Filled the Details contents table across wide panes, removing the empty strip inside its right border. Narrow panes retain minimum column widths and horizontal scrolling.

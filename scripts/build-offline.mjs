@@ -22,6 +22,12 @@ for (const match of [
   );
 }
 
+const projectLicense = await readFile("LICENSE", "utf8");
+html = html.replace(
+  "</body>",
+  () =>
+    `<script type="text/plain" id="project-license">${projectLicense.replace(/<\/script/gi, "<\\/script")}</script></body>`,
+);
 const notices = await readFile("public/third-party-notices.txt", "utf8");
 html = html.replace(
   "</body>",
