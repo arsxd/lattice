@@ -530,7 +530,7 @@ test("header and corner selections show a range summary instead of the first val
   await expect(page.locator(".column-menu")).toBeVisible();
 });
 
-test("column titles reserve filter space and two-column views use the available width", async ({
+test("column titles reserve filter space and compact property tables avoid horizontal scrolling", async ({
   page,
 }) => {
   await open(

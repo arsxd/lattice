@@ -380,7 +380,7 @@ export default function App() {
     );
     observer.observe(element);
     return () => observer.disconnect();
-  }, [mode, activeId, !!view]);
+  }, [mode, tableHeightKey, !!view]);
   const [theme, setTheme] = useState(
     localStorage.getItem("json-workbench-theme") ?? "system",
   );
@@ -2553,6 +2553,7 @@ export default function App() {
                     }}
                   >
                     <DataGrid<Row>
+                      key={tableHeightKey}
                       ref={grid}
                       className={`data-grid ${wrapText ? "wrap-text" : ""}`}
                       columns={columns}

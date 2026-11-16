@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.0-rc.2 — 2026-11-16
+
+- Removed forced viewport filling for small tables. Property values, primitive-array values, single-field records and scalar tables now start with bounded content widths, keeping numeric values near their keys. Manual column resizing remains available.
+- Prevented cached resized widths from carrying across unrelated tables/documents while retaining each table’s own manual width.
+- Added wide-window and manual-resize regression coverage. This remains a release candidate; manual stable-release gates are still pending.
+
 ## 1.0.0-rc.1 — 2026-11-16
 
 - Began a release-candidate validation round; this is not a stable release. No new editor features.

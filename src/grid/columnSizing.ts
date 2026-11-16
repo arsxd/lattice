@@ -8,25 +8,22 @@ export function contentColumnWidths(
 ): number[] {
   const count = projection.headers.length;
   if (!count) return [];
-  const available = Math.max(0, Math.floor(viewportWidth) - 44);
-  if (count === 1) return [available];
-  const cap = count > 6 ? 220 : 280;
+  const cap = Math.min(
+    count > 6 ? 220 : 280,
+    Math.max(88, Math.floor(viewportWidth) - 44),
+  );
   const widths = projection.headers.map((header, index) => {
     if (projection.columnKinds[index] === "index") return 88;
     let width = Math.max(88, measureText(header.slice(0, 240)) * 1.1 + 52);
     for (const row of projection.rows.slice(0, 50)) {
-      width = Math.max(
-        width,
-        measureText((row.cells[index]?.display ?? "").slice(0, 240)) + 24,
-      );
+      const cell = row.cells[index];
+      const text = (cell?.display ?? "").slice(0, 240);
+      // Numeric cells use tabular digits; zero gives their digit advance.
+      const measured =
+        cell?.type === "number" ? text.replace(/\d/g, "0") : text;
+      width = Math.max(width, measureText(measured) + 24);
     }
     return Math.ceil(Math.min(cap, width));
   });
-  if (count === 2) {
-    if (projection.columnKinds[0] === "index")
-      return [88, Math.max(0, available - 88)];
-    const key = Math.min(widths[0], Math.floor(available * 0.45));
-    return [key, available - key];
-  }
   return widths;
 }
