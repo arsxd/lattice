@@ -80,7 +80,7 @@ function ValueBarEditor({
       className={`value-bar ${readOnly ? "value-bar-readonly" : "value-bar-editable"}`}
     >
       {address && <output aria-label="Cell address">{address}</output>}
-      <label htmlFor="cell-value">{readOnly ? "Preview" : "Edit value"}</label>
+      <label htmlFor="cell-value">{readOnly ? "Preview" : "Value"}</label>
       <textarea
         ref={textarea}
         id="cell-value"

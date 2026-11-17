@@ -10,11 +10,16 @@ test("redesigned workspace keeps the value bar visibly editable in both themes",
   });
   await cell.click();
   const bar = page.getByRole("textbox", { name: "Selected cell value" });
-  await expect(page.locator(".value-bar label")).toHaveText("Edit value");
+  await expect(page.locator(".value-bar label")).toHaveText("Value");
   await expect(page.getByLabel("Cell address", { exact: true })).toHaveText(
     "B4",
   );
   await expect(bar).toBeEditable();
+  const detailsIcon = page
+    .getByRole("button", { name: "Toggle value inspector" })
+    .locator("svg");
+  await expect(detailsIcon).toHaveAttribute("viewBox", "0 0 24 24");
+  await expect(detailsIcon.locator("rect")).toHaveAttribute("rx", "2");
   await expect(bar).toHaveCSS("border-top-width", "1px");
   await expect(page.getByRole("group", { name: "View mode" })).toBeVisible();
   await page.getByRole("button", { name: "Toggle value inspector" }).click();

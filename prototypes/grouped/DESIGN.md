@@ -40,7 +40,7 @@ Regular and expanded sheets share the same SVG column-menu chevron. Their select
 
 Object collections enter child-array expansion only when every immediate member is an object. A single record mixing scalar fields and nested objects uses the mapping projection instead, preserving nested array cells and exact edit paths. This prevents the false fallback observed for GitHub event index 10.
 
-The approved workspace design is applied through src/workspace.css; real controls and data operations remain in place. The value bar is an explicit editable field (Edit value) or read-only Preview, without formula syntax. Expanded selections report their visible row/column to the App, and headers use the same letter helper as the compact grid. Expanded freezing measures actual header height instead of assuming fixed 34px rows.
+The approved workspace design is applied through src/workspace.css; real controls and data operations remain in place. The value bar is an explicit editable field (Value) or read-only Preview, without formula syntax. Expanded selections report their visible row/column to the App, and headers use the same letter helper as the compact grid. Expanded freezing measures actual header height instead of assuming fixed 34px rows.
 
 ## Spreadsheet reference: GridCraft
 
@@ -54,3 +54,5 @@ The user designated [storytold/gridcraft](https://github.com/storytold/gridcraft
 Implementation priorities: (1) keep the current value bar unmistakably editable, (2) unify selection/header behavior across compact and merged sheets, (3) improve tab overflow without moving established controls, (4) measure and implement bounded nested viewport rendering before revisiting size caps. This reference does not authorize a formula engine, an Excel ribbon, or a renderer rewrite.
 
 No GridCraft source code or assets have been copied. Its repository offers MIT and Apache-2.0 licenses; the inspected MIT file requires retaining its copyright and permission notice if substantial code is reused. Lattice's existing 0BSD license does not remove third-party notice obligations.
+
+The value bar uses the neutral label Value, with its border/caret conveying editing; read-only values retain Preview. The Details toggle uses the rounded-pane SVG from the approved design mockup, including its 24-unit viewBox and 1.6-unit stroke.
