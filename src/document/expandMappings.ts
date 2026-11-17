@@ -1,3 +1,4 @@
+import { orderFieldPaths } from "./columnPaths";
 import type { Node } from "jsonc-parser";
 import type { Cell, Path, Kind } from "./engine";
 import type {
@@ -18,7 +19,8 @@ export function expandMappings(
   revision: number,
   cell: (node: Node, path: Path) => Cell,
 ): ExpandedDocument {
-  if (node.type !== "object")
+  const array = node.type === "array";
+  if (node.type !== "object" && !array)
     throw new Error(
       "Open an object mapping or a record table to expand its nested values.",
     );
@@ -42,7 +44,14 @@ export function expandMappings(
         "Expanded mappings support up to 500 records. Open a smaller table.",
       );
   };
-  walk(node, path, []);
+  if (array) {
+    if ((node.children ?? []).some((n) => n.type !== "object"))
+      throw new Error("Expand an array of records to show nested fields.");
+    for (const [index, child] of (node.children ?? []).entries())
+      records.push({ node: child, path: [...path, index], labels: [] });
+    if (records.length > 500)
+      throw new Error("Expanded tables support up to 500 records.");
+  } else walk(node, path, []);
   const fields = new Map<string, string[]>();
   const values = records.map((record) => {
     const found = new Map<string, { node: Node; path: Path }>();
@@ -68,8 +77,8 @@ export function expandMappings(
     return found;
   });
   const grouped = records.some((r) => r.labels.length > 1);
-  const headers = [...fields.values()];
-  if (records.length * (headers.length + (grouped ? 2 : 1)) > 10000)
+  const headers = orderFieldPaths([...fields.values()]);
+  if (records.length * (headers.length + (array ? 0 : grouped ? 2 : 1)) > 10000)
     throw new Error("Expanded mappings support up to 10,000 cells.");
   const inputKinds = new Map<string, Kind>();
   for (const [id] of fields) {
@@ -103,8 +112,7 @@ export function expandMappings(
   });
   records.forEach((record, index) => {
     const top = grouped ? (record.labels[0] ?? "root") : null;
-    const groupPath =
-      grouped && record.labels.length ? [...path, top!] : record.path;
+    const groupPath = grouped && record.labels.length ? [...path, top!] : path;
     const identity = JSON.stringify(groupPath);
     let group = byGroup.get(identity);
     if (!group) {
@@ -118,12 +126,18 @@ export function expandMappings(
       groups.push(group);
     }
     const row: ExpandedCell[] = [
-      label(
-        grouped
-          ? record.labels.slice(1).join(" / ") || record.labels[0] || "root"
-          : record.labels.at(-1) || "root",
-        record.path,
-      ),
+      ...(!array
+        ? [
+            label(
+              grouped
+                ? record.labels.slice(1).join(" / ") ||
+                    record.labels[0] ||
+                    "root"
+                : record.labels.at(-1) || "root",
+              record.path,
+            ),
+          ]
+        : []),
     ];
     for (const relative of headers) {
       const found = values[index].get(JSON.stringify(relative));
@@ -168,8 +182,9 @@ export function expandMappings(
         mapping: true,
         recordPaths: records.map((r) => r.path),
         parentHeaders: grouped ? ["Group"] : [],
+        columnPaths: [...(array ? [] : [["Key"]]), ...headers],
         childHeaders: [
-          "Key",
+          ...(array ? [] : ["Key"]),
           ...headers.map((p) =>
             p
               .map((s) => s.replaceAll("~", "~0").replaceAll("/", "~1"))

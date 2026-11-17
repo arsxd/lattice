@@ -1,10 +1,11 @@
 # Changelog
 
-## 1.1.0-dev.2 — development only
+## 1.1.0-dev.3 — development only
 
+- Show nested properties under merged group headers and editable leaf subheaders; support sample Orders shipping objects as well as Books details. Rename the control to **Expand nested data**.
 - Fix expansion of nested object mappings at the root and inside named sheets. Render mappings as one worksheet with shared group cells and editable leaf values/row keys.
 - Apply the size bound to the selected table rather than rejecting small nested tables in a larger file.
-- Replace the read-only grouped preview with **Expand nested rows** in the normal app. Child arrays are discovered automatically; parent cells span their children and edit directly.
+- Replace the read-only grouped preview with **Expand nested data** in the normal app. Child arrays are discovered automatically; parent cells span their children and edit directly.
 - Keep edits, range paste and insertions tied to exact JSON paths and the existing undo history. Reject conflicting values for one merged parent atomically.
 - Support section sort/filter, row/column insertion, range copy/paste, column resize and whole-group freezing within documented bounds. Retain expanded state across Source navigation.
 - This feature remains on the experimental branch, excluded from RC3 and the hosted app. Real-file, platform and accessibility validation are release gates.

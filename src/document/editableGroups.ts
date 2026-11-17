@@ -14,6 +14,7 @@ export type ExpandedSection = {
   key: string;
   parentHeaders: string[];
   childHeaders: string[];
+  columnPaths?: string[][];
   groups: ExpandedGroup[];
 };
 export type ExpandedDocument = {
@@ -71,8 +72,7 @@ export function expandRecords(
         (n.children ?? []).every((c) => c.type === "object")
       )
         arrays.add(String(key));
-  if (!arrays.size)
-    throw new Error("This table has no child record arrays to expand.");
+  if (!arrays.size) return expandMappings(text, node, path, revision, cell);
   if (arrays.size > 8)
     throw new Error("Expand up to 8 child tables in one sheet.");
   let rendered = 0,
@@ -293,10 +293,10 @@ export function expandedRows(
     return children.map((row, index) => ({
       cells: [...group.parent, ...row],
       groupPath: group.path,
-      first,
-      end: start,
-      index,
-      count: children.length,
+      first: section.parentHeaders.length ? first : first + index,
+      end: section.parentHeaders.length ? start : first + index + 1,
+      index: section.parentHeaders.length ? index : 0,
+      count: section.parentHeaders.length ? children.length : 1,
     }));
   });
 }

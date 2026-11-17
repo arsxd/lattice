@@ -1,3 +1,4 @@
+import { groupedHeaderRows } from "./groupedHeaders";
 import {
   useEffect,
   useMemo,
@@ -205,6 +206,11 @@ function ExpandedTable({
   );
   const headers = [...section.parentHeaders, ...section.childHeaders],
     parents = section.parentHeaders.length;
+  const mappingHeaders = groupedHeaderRows([
+    ...section.parentHeaders.map((name) => [name]),
+    ...(section.columnPaths ?? section.childHeaders.map((name) => [name])),
+  ]);
+  const headerHeight = (section.mapping ? mappingHeaders.length : 2) * 34;
   const busy = props.busy || working;
   const selected = selection?.anchor;
   const [contextMenu, setContextMenu] = useState<{
@@ -495,7 +501,7 @@ function ExpandedTable({
       colFrozen = c < freeze.columns;
     return {
       position: rowFrozen || colFrozen ? "sticky" : undefined,
-      top: rowFrozen ? (section.mapping ? 34 : 68) + r * rowHeight : undefined,
+      top: rowFrozen ? headerHeight + r * rowHeight : undefined,
       left: colFrozen
         ? 40 +
           Array.from({ length: c }, (_, i) => width(i)).reduce(
@@ -514,8 +520,100 @@ function ExpandedTable({
     setSelection(null);
     props.onSelect(null);
   }
+  const renderHeader = (
+    header: string,
+    c: number,
+    label = header,
+    rowSpan = 1,
+  ) => (
+    <th
+      key={c}
+      rowSpan={rowSpan}
+      scope="col"
+      aria-selected={
+        selection?.mode === "columns" &&
+        selection.spans.some(([a, b]) => c >= a && c <= b)
+      }
+    >
+      <div className="sheet-column-heading">
+        <button
+          className="column-select"
+          disabled={busy || !!draft}
+          onClick={(e) => {
+            setSelection((previous) =>
+              selectHeader(
+                previous,
+                "columns",
+                { r: 0, c },
+                { extend: e.shiftKey },
+              ),
+            );
+            props.onSelect(null);
+          }}
+        >
+          {label}
+          {sort?.column === c ? (sort.direction === "ASC" ? " ↑" : " ↓") : ""}
+        </button>
+        <button
+          className="header-filter"
+          disabled={busy || !!draft}
+          aria-label={`Sort and filter ${section.key} ${header}`}
+          onClick={(e) => setMenu({ column: c, anchor: e.currentTarget })}
+        >
+          ⌄{filters[String(c)] && <span className="filter-dot" />}
+        </button>
+      </div>
+      <span
+        className="expanded-column-resize"
+        role="separator"
+        aria-label={`Resize ${section.key} ${header}`}
+        aria-orientation="vertical"
+        tabIndex={0}
+        onPointerDown={(e) => {
+          resize.current = {
+            column: c,
+            x: e.clientX,
+            width: width(c),
+          };
+          e.currentTarget.setPointerCapture(e.pointerId);
+          e.preventDefault();
+        }}
+        onPointerMove={(e) => {
+          if (resize.current)
+            setWidths((previous) => ({
+              ...previous,
+              [c]: Math.max(
+                80,
+                Math.min(
+                  600,
+                  resize.current!.width + e.clientX - resize.current!.x,
+                ),
+              ),
+            }));
+        }}
+        onPointerUp={() => {
+          resize.current = null;
+        }}
+        onPointerCancel={() => {
+          resize.current = null;
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+            e.preventDefault();
+            setWidths((previous) => ({
+              ...previous,
+              [c]: Math.max(
+                80,
+                Math.min(600, width(c) + (e.key === "ArrowRight" ? 12 : -12)),
+              ),
+            }));
+          }
+        }}
+      />
+    </th>
+  );
   const corner = (
-    <th rowSpan={section.mapping ? 1 : 2}>
+    <th rowSpan={section.mapping ? mappingHeaders.length : 2}>
       <button
         aria-label={`Select all ${section.key}`}
         onClick={() => {
@@ -664,124 +762,86 @@ function ExpandedTable({
             ))}
           </colgroup>
           <thead>
-            {!section.mapping && (
-              <tr>
-                {corner}
-                {parents > 0 && (
-                  <th colSpan={parents} scope="colgroup">
-                    Parent
-                  </th>
+            {section.mapping ? (
+              mappingHeaders.map((row, depth) => (
+                <tr key={depth}>
+                  {depth === 0 && corner}
+                  {row.map((cell) =>
+                    cell.leaf ? (
+                      renderHeader(
+                        headers[cell.column],
+                        cell.column,
+                        cell.label,
+                        cell.rowSpan,
+                      )
+                    ) : (
+                      <th
+                        key={cell.column}
+                        colSpan={cell.colSpan}
+                        scope="colgroup"
+                        aria-selected={
+                          selection?.mode === "columns" &&
+                          Array.from(
+                            { length: cell.colSpan },
+                            (_, i) => i + cell.column,
+                          ).every((column) =>
+                            selection.spans.some(
+                              ([a, b]) => column >= a && column <= b,
+                            ),
+                          )
+                        }
+                      >
+                        <button
+                          className="expanded-group-label"
+                          disabled={busy || !!draft}
+                          aria-label={`Select ${cell.label} columns`}
+                          onClick={() => {
+                            const first = selectHeader(null, "columns", {
+                              r: 0,
+                              c: cell.column,
+                            });
+                            setSelection(
+                              selectHeader(
+                                first,
+                                "columns",
+                                { r: 0, c: cell.column + cell.colSpan - 1 },
+                                { extend: true },
+                              ),
+                            );
+                            selectedPath.current = null;
+                            props.onSelect(null);
+                          }}
+                        >
+                          {cell.label}
+                        </button>
+                      </th>
+                    ),
+                  )}
+                </tr>
+              ))
+            ) : (
+              <>
+                {!section.mapping && (
+                  <tr>
+                    {corner}
+                    {parents > 0 && (
+                      <th colSpan={parents} scope="colgroup">
+                        Parent
+                      </th>
+                    )}
+                    <th colSpan={section.childHeaders.length} scope="colgroup">
+                      {section.key}
+                    </th>
+                  </tr>
                 )}
-                <th colSpan={section.childHeaders.length} scope="colgroup">
-                  {section.key}
-                </th>
-              </tr>
+                <tr>{headers.map((header, c) => renderHeader(header, c))}</tr>
+              </>
             )}
-            <tr>
-              {section.mapping && corner}
-              {headers.map((header, c) => (
-                <th
-                  key={c}
-                  scope="col"
-                  aria-selected={
-                    selection?.mode === "columns" &&
-                    selection.spans.some(([a, b]) => c >= a && c <= b)
-                  }
-                >
-                  <div className="sheet-column-heading">
-                    <button
-                      className="column-select"
-                      disabled={busy || !!draft}
-                      onClick={(e) => {
-                        setSelection((previous) =>
-                          selectHeader(
-                            previous,
-                            "columns",
-                            { r: 0, c },
-                            { extend: e.shiftKey },
-                          ),
-                        );
-                        props.onSelect(null);
-                      }}
-                    >
-                      {header}
-                      {sort?.column === c
-                        ? sort.direction === "ASC"
-                          ? " ↑"
-                          : " ↓"
-                        : ""}
-                    </button>
-                    <button
-                      className="header-filter"
-                      disabled={busy || !!draft}
-                      aria-label={`Sort and filter ${section.key} ${header}`}
-                      onClick={(e) =>
-                        setMenu({ column: c, anchor: e.currentTarget })
-                      }
-                    >
-                      ⌄{filters[String(c)] && <span className="filter-dot" />}
-                    </button>
-                  </div>
-                  <span
-                    className="expanded-column-resize"
-                    role="separator"
-                    aria-label={`Resize ${section.key} ${header}`}
-                    aria-orientation="vertical"
-                    tabIndex={0}
-                    onPointerDown={(e) => {
-                      resize.current = {
-                        column: c,
-                        x: e.clientX,
-                        width: width(c),
-                      };
-                      e.currentTarget.setPointerCapture(e.pointerId);
-                      e.preventDefault();
-                    }}
-                    onPointerMove={(e) => {
-                      if (resize.current)
-                        setWidths((previous) => ({
-                          ...previous,
-                          [c]: Math.max(
-                            80,
-                            Math.min(
-                              600,
-                              resize.current!.width +
-                                e.clientX -
-                                resize.current!.x,
-                            ),
-                          ),
-                        }));
-                    }}
-                    onPointerUp={() => {
-                      resize.current = null;
-                    }}
-                    onPointerCancel={() => {
-                      resize.current = null;
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-                        e.preventDefault();
-                        setWidths((previous) => ({
-                          ...previous,
-                          [c]: Math.max(
-                            80,
-                            Math.min(
-                              600,
-                              width(c) + (e.key === "ArrowRight" ? 12 : -12),
-                            ),
-                          ),
-                        }));
-                      }
-                    }}
-                  />
-                </th>
-              ))}
-            </tr>
           </thead>
           <tbody>
             {rows.map((row, r) => (
               <tr
-                key={JSON.stringify(row.groupPath) + ":" + row.index}
+                key={JSON.stringify(row.groupPath) + ":" + r}
                 style={{ height: rowHeight }}
               >
                 <th className="expanded-row-number" scope="row">
@@ -969,7 +1029,12 @@ function ExpandedTable({
           onClick={() => {
             const row = selected && rows[selected.r];
             if (section.mapping) {
-              const record = row?.cells[parents]?.cell.path;
+              const candidate = row?.cells[parents]?.cell.path;
+              const record = section.recordPaths?.find(
+                (path) =>
+                  candidate &&
+                  path.every((part, index) => part === candidate[index]),
+              );
               if (record?.length)
                 void act(() =>
                   props.onMutate(

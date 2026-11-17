@@ -1,10 +1,10 @@
 # Editable expanded rows
 
-Development build: `1.1.0-dev.2`. This replaces the earlier standalone read-only preview. It is integrated into the normal app on the experimental branch and is not included in RC3.
+Development build: `1.1.0-dev.3`. This replaces the earlier standalone read-only preview. It is integrated into the normal app on the experimental branch and is not included in RC3.
 
 ## Workflow
 
-Open a record collection and choose **Expand nested rows** beside Table/Source. The app discovers child record arrays automatically. Nested object mappings render as one worksheet, with shared group keys, record keys as rows and leaf properties as columns. Nested value objects use path-labelled columns. Object mappings work at the root and inside named sheets. Child arrays still use separate sections; sibling arrays are never joined into combinations that do not exist in the JSON.
+Open a record collection and choose **Expand nested data** beside Table/Source. The app discovers child record arrays automatically. Nested object mappings render as one worksheet, with shared group keys, record keys as rows and leaf properties as columns. Nested value objects use merged group headers with leaf-property subheaders. Ordinary column headings span the header levels. JSON path metadata is retained separately from displayed labels; literal slash characters in keys remain literal. Object mappings work at the root and inside named sheets. Child arrays still use separate sections; sibling arrays are never joined into combinations that do not exist in the JSON.
 
 Parent fields span their visible child rows. Type or double-click to edit. Enter commits, Tab commits and moves, Escape cancels. Edits use canonical JSON paths in the existing worker, revision guards, atomic mutations and undo history. The existing value bar, Details and Source inspect the selected value. Source/table switching retains expanded selection and view settings in memory for the document.
 
@@ -23,3 +23,5 @@ Run `npm run grouped:build` to build the complete editable offline app as `outpu
 Before release: required Windows/Linux/macOS CI, real-file user testing, keyboard/accessibility checks and merged-row behavior at display scaling. No stable-release claim follows from automated checks alone. Native browser permissions and recovery of an uncommitted inline draft remain outside these tests, as with ordinary inline edits.
 
 Object-map expansion supports up to 500 terminal records and 18 value columns within the same 10,000-cell bound. Add row creates a new keyed record beside the selected record; Add column inserts a field across displayed records. Keys can be renamed directly. Missing nested containers remain read-only in the flattened view; create the container through compact view or Source first.
+
+Arrays of records containing nested objects (for example sample Orders shipping) use the same grouped-column renderer without adding a generated index. Header groups remain contiguous when a field is discovered in a later record. Group-header selection selects its leaf columns. Freeze offsets include every visible header row.

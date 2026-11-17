@@ -22,7 +22,7 @@ it("also works inside a named sheet rather than only All data", () => {
   const s = new DocumentEngine(text).expanded(["key1"]).sections[0];
   expect(s.parentHeaders).toEqual([]);
   expect(s.childHeaders).toEqual(["Key", "val1", "val2"]);
-  expect(s.groups[1].children[0][1].cell.path).toEqual([
+  expect(s.groups[0].children[1][1].cell.path).toEqual([
     "key1",
     "key12",
     "val1",
@@ -44,7 +44,9 @@ it("adds mapping rows and retains numeric input types in blank cells", () => {
   const e = new DocumentEngine(text);
   e.mutate({ action: "add-row", path: ["key1"] }, 0);
   const s = e.expanded(["key1"]).sections[0];
-  const row = s.groups.find((g) => g.path.at(-1) === "row_1")!.children[0];
+  const row = s.groups[0].children.find(
+    (row) => row[0].cell.path.at(-1) === "row_1",
+  )!;
   expect(row[1].cell.type).toBe("null");
   expect(row[1].cell.inputKind).toBe("number");
 });

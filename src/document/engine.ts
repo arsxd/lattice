@@ -300,11 +300,40 @@ export class DocumentEngine {
       this.revision,
       (node, at) => this.cell(node, at),
     );
-    if (query && !result.sections.some((section) => section.mapping)) {
+    if (
+      query &&
+      (this.node(path).type === "array" ||
+        !result.sections.some((section) => section.mapping))
+    ) {
       const paths = this.project({ ...query, path, page: 0 }).rows.map((row) =>
         JSON.stringify(row.path),
       );
       for (const section of result.sections) {
+        if (section.mapping) {
+          const byRecord = new Map<
+            string,
+            (typeof section.groups)[number]["children"][number]
+          >();
+          for (const group of section.groups)
+            for (const row of group.children) {
+              const record = section.recordPaths?.find((record) =>
+                record.every(
+                  (part, index) => row[0]?.cell.path[index] === part,
+                ),
+              );
+              if (record) byRecord.set(JSON.stringify(record), row);
+            }
+          for (const group of section.groups)
+            group.children = paths.flatMap((path) => {
+              const row = byRecord.get(path);
+              return row ? [row] : [];
+            });
+          section.groups = section.groups.filter(
+            (group) => group.children.length > 0,
+          );
+          continue;
+        }
+
         const byPath = new Map(
           section.groups.map((group) => [JSON.stringify(group.path), group]),
         );

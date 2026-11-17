@@ -23,7 +23,7 @@ async function open(page: Page, source = text, url = "/") {
     buffer: Buffer.from(source),
   });
   await page
-    .getByRole("button", { name: "Expand nested rows", exact: true })
+    .getByRole("button", { name: "Expand nested data", exact: true })
     .click();
   await expect(
     page.getByRole("table", { name: "items data", exact: true }),
