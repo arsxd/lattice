@@ -1,3 +1,4 @@
+import { ColumnMenuChevron, SelectAllCorner } from "./grid/SheetIcons";
 import { NestedViewNotice } from "./grid/NestedViewNotice";
 import { ExpandedSheet } from "./grid/ExpandedSheet";
 import { FileDropZone, type DroppedFile } from "./workspace/FileDropZone";
@@ -1360,7 +1361,7 @@ export default function App() {
                     )
                   }
                 >
-                  <span className="select-all-corner" aria-hidden="true" />
+                  <SelectAllCorner />
                 </button>
               ),
               renderCell: ({ rowIdx, row }) => (
@@ -1486,17 +1487,7 @@ export default function App() {
                       setHeaderMenu(headerMenu === i ? null : i);
                     }}
                   >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 16 16"
-                      aria-hidden="true"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                    >
-                      <path d="m4 6 4 4 4-4" />
-                    </svg>
+                    <ColumnMenuChevron />
                     {query.valueFilters?.[String(i)] !== undefined && (
                       <span className="filter-dot" />
                     )}

@@ -97,11 +97,14 @@ test("nested checkbox keeps content-sized widths and compact sizing survives tog
     .poll(async () => (await heading.boundingBox())!.width)
     .toBeGreaterThan(100);
   const initial = (await heading.boundingBox())!.width;
+  const compactChevron = await heading.locator(".header-filter svg path").getAttribute("d");
   await checkbox.check();
   const table = page.getByRole("table", { name: "orders data", exact: true });
   const quantity = table.locator('[data-r="0"][data-c="2"]'),
     note = table.locator('[data-r="0"][data-c="7"]');
   await expect(table).toBeVisible();
+  expect(await table.locator(".header-filter svg path").first().getAttribute("d")).toBe(compactChevron);
+  await expect(table.locator(".select-all-corner")).toHaveCount(1);
   expect((await quantity.boundingBox())!.width).toBeLessThan(150);
   expect((await note.boundingBox())!.width).toBeGreaterThan(
     (await quantity.boundingBox())!.width,

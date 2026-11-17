@@ -136,7 +136,7 @@ test("bounded nested sheets explain fallback in a nonoverlapping alert", async (
   await expect(icon).toHaveCSS("border-top-width", "0px");
   await icon.hover();
   await expect(page.locator(".nested-warning")).toContainText("100 parent records");
-  await expect(page.locator(".nested-warning")).toHaveCSS("text-align", "right");
+  await expect(page.locator(".nested-warning")).toHaveCSS("text-align", "left");
   await page.mouse.move(0, 0);
   await expect(page.locator(".nested-warning")).toHaveCount(0);
   await icon.click();

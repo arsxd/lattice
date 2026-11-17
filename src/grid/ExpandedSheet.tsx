@@ -1,3 +1,4 @@
+import { ColumnMenuChevron, SelectAllCorner } from "./SheetIcons";
 import { contentColumnWidths, createTextMeasurer } from "./columnSizing";
 import { groupedHeaderRows } from "./groupedHeaders";
 import {
@@ -596,7 +597,7 @@ function ExpandedTable({
           aria-label={`Sort and filter ${section.key} ${header}`}
           onClick={(e) => setMenu({ column: c, anchor: e.currentTarget })}
         >
-          ⌄{filters[String(c)] && <span className="filter-dot" />}
+          <ColumnMenuChevron />{filters[String(c)] && <span className="filter-dot" />}
         </button>
       </div>
       <span
@@ -658,9 +659,7 @@ function ExpandedTable({
           props.onSelect(null);
         }}
       >
-        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-          <path d="M2 10 10 2v8Z" fill="currentColor" />
-        </svg>
+        <SelectAllCorner />
       </button>
     </th>
   );

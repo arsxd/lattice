@@ -34,7 +34,7 @@ export function NestedViewNotice({ reason }: { reason: string }) {
           <path d="M12 10v7m0-10v1" />
         </svg>
       </button>
-      {open && <div id={id} className="nested-warning" role="status"><strong>Showing regular table.</strong> {reason}</div>}
+      {open && <div id={id} className="nested-warning" role="status"><span className="nested-warning-title">Nested view unavailable</span><span>{reason}</span></div>}
     </div>
   );
 }
