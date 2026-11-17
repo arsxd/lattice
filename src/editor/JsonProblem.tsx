@@ -1,10 +1,11 @@
+import { ColumnMenuChevron } from "../grid/SheetIcons";
 import type { Diagnostic } from "../document/engine";
 
 export function jsonProblem(text: string, diagnostics: Diagnostic[]) {
   if (!text.replace(/^\ufeff/, "").trim())
     return {
       title: "This document is empty.",
-      message: "Choose another JSON file, or enter JSON in Source below.",
+      message: "Enter JSON in Source below.",
     };
   const issue = diagnostics[0];
   const messages: Record<string, string> = {
@@ -21,26 +22,26 @@ export function jsonProblem(text: string, diagnostics: Diagnostic[]) {
   };
   return {
     title: messages[issue?.message] ?? "This document is not valid JSON.",
-    message: `Check line ${issue?.line ?? 1}, column ${issue?.column ?? 1} in Source below, or choose another file.`,
+    message: `Check line ${issue?.line ?? 1}, column ${issue?.column ?? 1} in Source below.`,
   };
 }
 export function JsonProblem({
   text,
   diagnostics,
-  onOpen,
 }: {
   text: string;
   diagnostics: Diagnostic[];
-  onOpen: () => void;
 }) {
   const problem = jsonProblem(text, diagnostics);
   return (
     <section className="diagnostics" role="alert">
       <strong>{problem.title}</strong>
       <p>{problem.message}</p>
-      <button onClick={onOpen}>Open another file…</button>
       <details>
-        <summary>Technical details</summary>
+        <summary>
+          <ColumnMenuChevron />
+          Error details
+        </summary>
         {diagnostics.slice(0, 5).map((d, i) => (
           <p key={i}>
             Line {d.line}, column {d.column}: {d.message.slice(0, 400)}

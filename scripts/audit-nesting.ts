@@ -423,7 +423,7 @@ for (const fixture of fixtures) {
           for (const row of rows)
             for (const item of row.cells) {
               assert(item, "Undefined expanded cell");
-              if (item.identifier === undefined) {
+              if (item.identifier === undefined && !item.layoutGap) {
                 slots++;
                 if (item.cell.type !== "missing") filled++;
               }
@@ -446,13 +446,25 @@ for (const fixture of fixtures) {
               filledFraction: Number((filled / slots).toFixed(3)),
             });
           const fingerprint = (rows: ReturnType<typeof expandedRows>) =>
-            rows
-              .map((r) =>
-                JSON.stringify(
-                  r.cells.map((c) => [c.cell.path, c.identifier, c.value]),
-                ),
-              )
-              .sort();
+            section.dictionaryBands
+              ? [
+                  ...new Set(
+                    rows.flatMap((r) =>
+                      r.cells
+                        .filter((c) => c.cell.type !== "missing")
+                        .map((c) =>
+                          JSON.stringify([c.cell.path, c.identifier, c.value]),
+                        ),
+                    ),
+                  ),
+                ].sort()
+              : rows
+                  .map((r) =>
+                    JSON.stringify(
+                      r.cells.map((c) => [c.cell.path, c.identifier, c.value]),
+                    ),
+                  )
+                  .sort();
           if (width && rows.length) {
             const sorted = expandedRows(
               section,
@@ -466,7 +478,9 @@ for (const fixture of fixtures) {
                 JSON.stringify(fingerprint(sorted)),
               "Sort changed cell contents",
             );
-            const first = rows[0].cells.at(-1)!;
+            const first = rows
+              .find((row) => !row.cells.at(-1)!.layoutGap)
+              ?.cells.at(-1)!;
             const filtered = expandedRows(
               section,
               "",
@@ -478,8 +492,9 @@ for (const fixture of fixtures) {
               filtered.every((r) => {
                 const c = r.cells[width - 1];
                 return (
+                  c.layoutGap ||
                   c.cell.type + ":" + c.value ===
-                  first.cell.type + ":" + first.value
+                    first.cell.type + ":" + first.value
                 );
               }),
               "Filter returned wrong values",

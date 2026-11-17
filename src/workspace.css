@@ -377,3 +377,19 @@
 .expanded-grid .inline-cell:focus-visible {
   outline: 0;
 }
+
+/* Match error disclosure to the sheet's shared chevron, without a native marker. */
+.diagnostics summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  list-style: none;
+  border-radius: 3px;
+  padding: 3px 4px;
+}
+.diagnostics summary::-webkit-details-marker { display: none; }
+.diagnostics summary svg { transform: rotate(-90deg); }
+.diagnostics details[open] summary svg { transform: rotate(0deg); }
+.diagnostics summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.expanded-grid td.expanded-layout-gap { background: var(--chrome); pointer-events: none; border-bottom-color: var(--line); }

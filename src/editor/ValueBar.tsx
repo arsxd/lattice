@@ -126,13 +126,37 @@ function ValueBarEditor({
   );
 }
 
-/** Reserve the value-bar geometry so selecting a key does not move the sheet. */
-export function ValueBarPlaceholder() {
+/** Keep the bar stable; identifier selections still show their address and key. */
+export function ValueBarPlaceholder({
+  address,
+  value,
+}: {
+  address?: string;
+  value?: string;
+}) {
+  const selected = value !== undefined;
   return (
-    <div className="value-bar value-bar-empty" aria-hidden="true">
-      <span className="value-bar-address" />
-      <span className="value-bar-caption">Value</span>
-      <span className="value-bar-empty-field">Select a cell</span>
+    <div
+      className="value-bar value-bar-empty"
+      aria-hidden={!selected || undefined}
+    >
+      {selected && address ? (
+        <output aria-label="Cell address">{address}</output>
+      ) : (
+        <span className="value-bar-address value-bar-address-idle" />
+      )}
+      <span className="value-bar-caption">{selected ? "Key" : "Value"}</span>
+      <span
+        className="value-bar-empty-field"
+        aria-label={selected ? "Selected key" : undefined}
+        title={
+          selected
+            ? "Double-click the key in the table to rename it."
+            : undefined
+        }
+      >
+        {selected ? value : "Select a cell"}
+      </span>
     </div>
   );
 }

@@ -592,6 +592,18 @@ function ExpandedTable({
     setSelection(null);
     props.onSelect(null);
   }
+  const columnOrder = (c: number) =>
+    sort?.scopes
+      ? Object.values(sort.scopes).find((order) => order.column === c)
+      : sort?.column === c
+        ? sort
+        : undefined;
+  const dictionaryName = (c: number) =>
+    section.dictionaryBands?.find(
+      (b) => c >= parents + b.start && c < parents + b.start + 2,
+    )?.key;
+  const sortScope = (c: number) =>
+    c < parents ? "parent" : `dictionary:${dictionaryName(c)}`;
   const renderHeader = (
     header: string,
     c: number,
@@ -626,7 +638,11 @@ function ExpandedTable({
           <small aria-hidden="true">{columnLetter(c)}</small>
           <span>
             {label}
-            {sort?.column === c ? (sort.direction === "ASC" ? " ↑" : " ↓") : ""}
+            {columnOrder(c)
+              ? columnOrder(c)!.direction === "ASC"
+                ? " ↑"
+                : " ↓"
+              : ""}
           </span>
         </button>
         <button
@@ -711,6 +727,13 @@ function ExpandedTable({
         <ColumnMenu
           key={menu.column}
           name={headers[menu.column]}
+          scopeDescription={
+            section.dictionaryBands
+              ? menu.column < parents
+                ? "Sort and filter whole records."
+                : `Sort and filter ${dictionaryName(menu.column)} entries within each record. Other dictionaries stay visible.`
+              : undefined
+          }
           anchor={menu.anchor}
           selected={filters[String(menu.column)]}
           load={async () => {
@@ -722,13 +745,15 @@ function ExpandedTable({
             return {
               options: [
                 ...new Map(
-                  all.map((item) => [
-                    item.cell.type + ":" + item.value,
-                    {
-                      key: item.cell.type + ":" + item.value,
-                      label: item.value || "(blank)",
-                    },
-                  ]),
+                  all
+                    .filter((item) => !item.layoutGap)
+                    .map((item) => [
+                      item.cell.type + ":" + item.value,
+                      {
+                        key: item.cell.type + ":" + item.value,
+                        label: item.value || "(blank)",
+                      },
+                    ]),
                 ).values(),
               ],
               truncated: false,
@@ -737,9 +762,19 @@ function ExpandedTable({
           onClose={() => setMenu(null)}
           onSort={(direction) =>
             changeView(() => {
-              setSort(
-                direction ? { column: menu.column, direction } : undefined,
-              );
+              setSort((previous) => {
+                if (!section.dictionaryBands)
+                  return direction
+                    ? { column: menu.column, direction }
+                    : undefined;
+                const scopes = { ...previous?.scopes };
+                const scope = sortScope(menu.column)!;
+                if (direction)
+                  scopes[scope] = { column: menu.column, direction };
+                else delete scopes[scope];
+                const latest = Object.values(scopes).at(-1);
+                return latest ? { ...latest, scopes } : undefined;
+              });
               setMenu(null);
             })
           }
@@ -938,10 +973,21 @@ function ExpandedTable({
                   </button>
                 </th>
                 {row.cells.map((item, c) => {
-                  if (c < parents && row.index > 0) return null;
+                  if (
+                    (c < parents && row.index > 0) ||
+                    (item.rowOffset ?? 0) < 0
+                  )
+                    return null;
+                  if (
+                    item.layoutGap &&
+                    section.dictionaryBands?.some(
+                      (b) => c === parents + b.start + 1,
+                    )
+                  )
+                    return null;
                   const editing = draft?.r === r && draft.c === c;
                   const highlighted = Array.from(
-                    { length: c < parents ? row.count : 1 },
+                    { length: c < parents ? row.count : (item.rowSpan ?? 1) },
                     (_, i) => r + i,
                   ).some((index) =>
                     selectionContains(
@@ -956,9 +1002,11 @@ function ExpandedTable({
                       key={c}
                       data-r={r}
                       data-c={c}
-                      tabIndex={0}
-                      rowSpan={c < parents ? row.count : 1}
-                      className={`${highlighted ? "expanded-selected" : ""} ${selection?.mode === "cells" && selection.anchor.r === r && selection.anchor.c === c && selection.end.r === r && selection.end.c === c ? "expanded-active-cell" : ""} ${item.cell.container ? "container-value" : ""}`}
+                      tabIndex={item.layoutGap ? -1 : 0}
+                      aria-hidden={item.layoutGap || undefined}
+                      colSpan={item.layoutGap ? 2 : 1}
+                      rowSpan={c < parents ? row.count : (item.rowSpan ?? 1)}
+                      className={`${item.layoutGap ? "expanded-layout-gap" : ""} ${highlighted ? "expanded-selected" : ""} ${selection?.mode === "cells" && selection.anchor.r === r && selection.anchor.c === c && selection.end.r === r && selection.end.c === c ? "expanded-active-cell" : ""} ${item.cell.container ? "container-value" : ""}`}
                       style={sticky(r, c)}
                       title={JSON.stringify(item.cell.path)}
                       onClick={(e) => {
@@ -987,7 +1035,8 @@ function ExpandedTable({
                           let nr = r,
                             nc = c;
                           if (e.key === "ArrowDown")
-                            nr = c < parents ? row.end : r + 1;
+                            nr =
+                              c < parents ? row.end : r + (item.rowSpan ?? 1);
                           if (e.key === "ArrowUp") nr = r - 1;
                           if (e.key === "ArrowLeft") nc = c - 1;
                           if (e.key === "ArrowRight") nc = c + 1;
@@ -1006,6 +1055,35 @@ function ExpandedTable({
                           nr = Math.max(0, Math.min(rows.length - 1, nr));
                           nc = Math.max(0, Math.min(headers.length - 1, nc));
                           if (nc < parents) nr = rows[nr].first;
+                          else {
+                            if (rows[nr].cells[nc].layoutGap) {
+                              const dr =
+                                e.key === "ArrowDown"
+                                  ? 1
+                                  : e.key === "ArrowUp"
+                                    ? -1
+                                    : 0;
+                              const dc =
+                                e.key === "ArrowRight"
+                                  ? 1
+                                  : e.key === "ArrowLeft"
+                                    ? -1
+                                    : 0;
+                              while (
+                                rows[nr]?.cells[nc]?.layoutGap &&
+                                (dr || dc)
+                              ) {
+                                nr += dr;
+                                nc += dc;
+                              }
+                              if (!rows[nr]?.cells[nc]) {
+                                nr = r;
+                                nc = c;
+                              }
+                            }
+                            if (nc < parents) nr = rows[nr].first;
+                            else nr += rows[nr].cells[nc].rowOffset ?? 0;
+                          }
                           choose(nr, nc, e.shiftKey && e.key !== "Tab");
                           focus(nr, nc);
                         } else if (

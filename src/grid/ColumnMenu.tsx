@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useLayoutEffect } from "react";
 export function ColumnMenu({
   name,
+  scopeDescription,
   anchor,
   load,
   selected,
@@ -9,6 +10,7 @@ export function ColumnMenu({
   onClose,
 }: {
   name: string;
+  scopeDescription?: string;
   anchor: HTMLElement | null;
   load: () => Promise<{
     options: { key: string; label: string }[];
@@ -102,6 +104,7 @@ export function ColumnMenu({
       }}
     >
       <strong>{name}</strong>
+      {scopeDescription && <p className="muted">{scopeDescription}</p>}
       <button onClick={() => onSort("ASC")}>Sort ascending ↑</button>
       <button onClick={() => onSort("DESC")}>Sort descending ↓</button>
       <button onClick={() => onSort(undefined)}>Clear sort</button>

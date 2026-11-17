@@ -1,3 +1,4 @@
+import { alignBands } from "./dictionaryBands";
 import type { Node } from "jsonc-parser";
 import type { Cell, Path } from "./engine";
 import type { ExpandedCell, ExpandedDocument } from "./editableGroups";
@@ -35,7 +36,11 @@ function preferPairs(nodes: (Node | undefined)[], flatten = false) {
   const nonempty = nodes.filter(
     (n): n is Node => n?.type === "object" && !!n.children?.length,
   );
-  if (nonempty.length < 2) return false;
+  if (nonempty.length < 2)
+    return (
+      nonempty.length === 1 &&
+      nodes.some((n) => n?.type === "object" && !n.children?.length)
+    );
   const keys = new Set<string>();
   let filled = 0,
     overlapping = false;
@@ -81,6 +86,29 @@ export function dictionaryProjection(
     throw new Error(
       "Show up to 8 dictionary tables at once. Open a smaller table.",
     );
+  // Shared object ancestry belongs in the header, rather than every key cell.
+  const prefixes = new Map<string, string[]>();
+  for (const dictionary of candidates) {
+    if (dictionary === null) continue;
+    const paths = fields.flatMap((f) => {
+      const n = f.get(dictionary);
+      return n?.type === "object"
+        ? dictionaryLeaves(n).map((entry) => entry.relative)
+        : [];
+    });
+    const prefix = paths[0]?.slice(0, -1) ?? [];
+    for (const relative of paths) {
+      let shared = 0;
+      while (
+        shared < prefix.length &&
+        shared < relative.length - 1 &&
+        prefix[shared] === relative[shared]
+      )
+        shared++;
+      prefix.length = shared;
+    }
+    prefixes.set(dictionary, prefix);
+  }
   let rendered = 0,
     bytes = 0;
   const encoder = new TextEncoder();
@@ -124,6 +152,85 @@ export function dictionaryProjection(
       ),
     };
   };
+  if (candidates.length > 1) {
+    const dictionaries = candidates as string[];
+    const parentKeys = keys.filter((key) => !dictionaries.includes(key));
+    const columns = 1 + parentKeys.length + dictionaries.length * 2;
+    if (columns > 200)
+      throw new Error(
+        "This nested table has too many columns. Open a smaller table.",
+      );
+    let rows = 0;
+    const groups = records.map((record, index) => {
+      const bands = dictionaries.map((key) => {
+        const node = fields[index].get(key);
+        return node?.type === "object"
+          ? dictionaryLeaves(node).map(({ relative, node }) => {
+              const at = [...record.path, key, ...relative];
+              return [
+                label(
+                  relative
+                    .slice(prefixes.get(key)?.length ?? 0)
+                    .map((part) =>
+                      part.replaceAll("~", "~0").replaceAll("/", "~1"),
+                    )
+                    .join(" / "),
+                  at,
+                ),
+                value(node, at),
+              ];
+            })
+          : [];
+      });
+      rows += Math.max(
+        1,
+        bands.reduce((sum, band) => sum + band.length, 0),
+      );
+      if (rows > 500 || rows * columns > 10000)
+        throw new Error(
+          "This nested table is too large to expand. Open a smaller table.",
+        );
+      const children = alignBands(bands, record.path);
+      // Account for repeated merged values in the worker transfer as well.
+      children.forEach((row) => row.forEach((item) => track(item.value)));
+      return {
+        path: record.path,
+        arrayPresent: false,
+        parent: [
+          label(record.labels.join(" / ") || "root", record.path),
+          ...parentKeys.map((key) =>
+            value(fields[index].get(key), [...record.path, key]),
+          ),
+        ],
+        children,
+        bands,
+      };
+    });
+    return {
+      revision,
+      sections: [
+        {
+          key: String(path.at(-1) ?? "Data"),
+          mapping: true,
+          recordPaths: records.map((r) => r.path),
+          parentHeaders: ["Key", ...parentKeys],
+          childHeaders: dictionaries.flatMap((key) => [
+            key + " / Key",
+            key + " / Value",
+          ]),
+          columnPaths: dictionaries.flatMap((key) => [
+            [[key, ...(prefixes.get(key) ?? [])].join(" / "), "Key"],
+            [[key, ...(prefixes.get(key) ?? [])].join(" / "), "Value"],
+          ]),
+          dictionaryBands: dictionaries.map((key, i) => ({
+            key,
+            start: i * 2,
+          })),
+          groups,
+        },
+      ],
+    };
+  }
   return {
     revision,
     sections: candidates.map((dictionary) => {
@@ -196,6 +303,11 @@ export function dictionaryProjection(
               ...relative,
             ];
             const key = relative
+              .slice(
+                dictionary === null
+                  ? 0
+                  : (prefixes.get(dictionary)?.length ?? 0),
+              )
               .map((part) => part.replaceAll("~", "~0").replaceAll("/", "~1"))
               .join(" / ");
             return [label(key, at), value(node, at)];
@@ -218,8 +330,14 @@ export function dictionaryProjection(
                 [String(path.at(-1) ?? "Properties"), "Value"],
               ]
             : [
-                [dictionary, "Key"],
-                [dictionary, "Value"],
+                [
+                  [dictionary, ...(prefixes.get(dictionary) ?? [])].join(" / "),
+                  "Key",
+                ],
+                [
+                  [dictionary, ...(prefixes.get(dictionary) ?? [])].join(" / "),
+                  "Value",
+                ],
               ],
         groups,
       };

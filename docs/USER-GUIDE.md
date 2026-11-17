@@ -38,6 +38,8 @@ The checklist contains at most 2,000 distinct values; a truncation notice appear
 
 ## Source and review
 
+Source editing stays quiet while you type. **Apply source** validates the draft before changing the document; if it fails, an error explains what to fix. Resuming editing clears the previous draft error. Opening an invalid file still shows its initial error. **Error details** shows parser codes and line/column positions when needed.
+
 Select a cell, then Source to locate its exact JSON token. Missing fields have no source token. There is no separate source-jump row.
 
 Source opens only the current table when navigating within a document. Use **Whole document** to inspect or edit the full JSON, or **This table** to return. Apply or discard the draft before changing scope. Applying a table draft replaces that table only; sibling values and their numeric spelling are retained. Recovery checkpoints retain the complete document, including an unfinished table draft.
@@ -144,3 +146,7 @@ Row/column headers and the top-left corner select ranges. Details shows the numb
 Initial column widths sample up to 50 displayed rows and use bounded widths for wide tables. Small tables also use content-based widths; the last column does not stretch to fill unused workspace. Manual column resizing takes precedence. Primitive arrays remain compact while editing. The selected cell can show up to 1,024 characters; the value bar expands to at most three lines and 4,096 characters. Longer values use a read-only preview and remain available in Source. Enter commits value-bar input, Shift+Enter adds a line, and Escape cancels.
 
 The app version appears in the welcome screen footer and document status bar. Use it when reporting a problem.
+
+Sibling sparse dictionaries appear in separate vertical blocks within their shared parent. Entries in different dictionaries do not share a display row. Shaded layout areas are not JSON values and cannot be edited. Parent sorting moves whole blocks; dictionary sorting only reorders that dictionary's entries. Filters on different dictionaries require matching entries within the same parent, without pairing those entries.
+
+Selecting an expanded key shows its cell address and key text in the value bar. Double-click the key in the table to rename it. Independent dictionaries retain the separate-row layout; the side-by-side prototype was not adopted.

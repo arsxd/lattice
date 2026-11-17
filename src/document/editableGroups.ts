@@ -1,14 +1,24 @@
+import { dictionaryRows } from "./dictionaryBands";
 import { expandMappings } from "./expandMappings";
 import type { Node } from "jsonc-parser";
 import type { Cell, Path, AtomicMutation } from "./engine";
-export type ExpandedCell = { cell: Cell; value: string; identifier?: string };
+export type ExpandedCell = {
+  cell: Cell;
+  value: string;
+  identifier?: string;
+  rowSpan?: number;
+  layoutGap?: boolean;
+  rowOffset?: number;
+};
 export type ExpandedGroup = {
   path: Path;
   arrayPresent: boolean;
   parent: ExpandedCell[];
   children: ExpandedCell[][];
+  bands?: ExpandedCell[][][];
 };
 export type ExpandedSection = {
+  dictionaryBands?: { key: string; start: number }[];
   mapping?: boolean;
   recordPaths?: Path[];
   key: string;
@@ -47,22 +57,26 @@ export function expandRecords(
     );
   if (node.type === "object") {
     const immediate = entries(node);
-    const hasRecordArrays = immediate.every(([, n]) => n.type === "object") && immediate.some(
-      ([, n]) =>
-        n.type === "object" &&
-        entries(n).some(
-          ([, v]) =>
-            v.type === "array" &&
-            (v.children?.length ?? 0) > 0 &&
-            (v.children ?? []).every((c) => c.type === "object"),
-        ),
-    );
+    const hasRecordArrays =
+      immediate.every(([, n]) => n.type === "object") &&
+      immediate.some(
+        ([, n]) =>
+          n.type === "object" &&
+          entries(n).some(
+            ([, v]) =>
+              v.type === "array" &&
+              (v.children?.length ?? 0) > 0 &&
+              (v.children ?? []).every((c) => c.type === "object"),
+          ),
+      );
     if (!hasRecordArrays)
       return expandMappings(text, node, path, revision, cell);
   }
   const parents = entries(node);
   if (!parents.length || parents.some(([, n]) => n.type !== "object"))
-    throw new Error("Lattice cannot combine the values in this sheet into one nested table yet. You can still edit them here, or open a table inside this sheet to work with it separately.");
+    throw new Error(
+      "Lattice cannot combine the values in this sheet into one nested table yet. You can still edit them here, or open a table inside this sheet to work with it separately.",
+    );
   if (parents.length > 100)
     throw new Error("Expanded rows support up to 100 parent records.");
   const arrays = new Set<string>();
@@ -227,7 +241,11 @@ export function uniqueGroupEdits(
       : { action: "replace", path: cell.path, raw },
   );
 }
-export type ExpandedSort = { column: number; direction: "ASC" | "DESC" };
+export type ExpandedSort = {
+  column: number;
+  direction: "ASC" | "DESC";
+  scopes?: Record<string, { column: number; direction: "ASC" | "DESC" }>;
+};
 export function expandedRows(
   section: ExpandedSection,
   search: string,
@@ -245,6 +263,8 @@ export function expandedRows(
     );
   const matches = (cells: ExpandedCell[]) =>
     cells.some((c) => c.value.toLocaleLowerCase().includes(term));
+  if (section.dictionaryBands)
+    return dictionaryRows(section, search, sort, filters, compare);
   const groups = section.groups.flatMap((group) => {
     if (!accepts(group.parent, 0)) return [];
     const children = group.children.filter(
@@ -304,7 +324,7 @@ export function expandedRows(
 }
 /** Tab follows rendered cells, skipping parent cells covered by a vertical merge. */
 export function nextExpandedCell(
-  rows: { index: number }[],
+  rows: { index: number; cells?: ExpandedCell[] }[],
   columns: number,
   parents: number,
   row: number,
@@ -318,7 +338,12 @@ export function nextExpandedCell(
   ) {
     const r = Math.floor(index / columns),
       c = index % columns;
-    if (c < parents && rows[r].index > 0) continue;
+    if (
+      (c < parents && rows[r].index > 0) ||
+      (rows[r].cells?.[c]?.rowOffset ?? 0) < 0 ||
+      rows[r].cells?.[c]?.layoutGap
+    )
+      continue;
     return { r, c };
   }
   return { r: row, c: column };

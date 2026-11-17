@@ -133,3 +133,21 @@ it("keeps deeper dictionary paths as key/value rows instead of sparse path colum
     "a1",
   ]);
 });
+it("lifts a dictionary's shared path into its grouped headers without changing edit paths", () => {
+  const e = new DocumentEngine(
+    '{"a":{"name":"A","metadata":{"level_2":{"level_1":{"x":1,"y":2}}}},"b":{"name":"B","metadata":{"level_2":{"level_1":{"z":3}}}}}',
+  );
+  const s = e.expanded([]).sections[0];
+  expect(s.columnPaths).toEqual([
+    ["metadata / level_2 / level_1", "Key"],
+    ["metadata / level_2 / level_1", "Value"],
+  ]);
+  expect(s.groups[0].children[0][0].value).toBe("x");
+  expect(s.groups[0].children[0][1].cell.path).toEqual([
+    "a",
+    "metadata",
+    "level_2",
+    "level_1",
+    "x",
+  ]);
+});

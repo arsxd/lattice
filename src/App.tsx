@@ -4,6 +4,8 @@ import { NestedViewNotice } from "./grid/NestedViewNotice";
 import { ExpandedSheet } from "./grid/ExpandedSheet";
 import { FileDropZone, type DroppedFile } from "./workspace/FileDropZone";
 import { droppedJsonFile } from "./platform/files";
+import { validateSourceDraft } from "./editor/sourceValidation";
+import type { Diagnostic } from "./document/engine";
 import { JsonProblem } from "./editor/JsonProblem";
 import { HomeScreen } from "./HomeScreen";
 import { contentColumnWidths, createTextMeasurer } from "./grid/columnSizing";
@@ -210,6 +212,7 @@ export default function App() {
     key: string;
     path: string;
     address: string;
+    keyText?: string;
   } | null>(null);
   const groupedCommit = useRef<null | (() => Promise<boolean>)>(null);
   const busy = operationBusy;
@@ -236,7 +239,8 @@ export default function App() {
     !!view &&
     view.rows.some((row) =>
       row.cells.some(
-        (cell, index) => view.columnKinds[index] !== "index" && cell.container,
+        (cell, index) =>
+          view.columnKinds[index] !== "index" && cell.container && !cell.empty,
       ),
     ) &&
     unavailableNested[expandedKey]?.revision !== view.revision;
@@ -461,6 +465,19 @@ export default function App() {
   ]);
   const sourceDirty =
     (mode === "source" || mode === "review") && source !== sourceBase;
+  const [sourceValidation, setSourceValidation] = useState<{
+    id: string;
+    text: string;
+    diagnostics: Diagnostic[];
+  } | null>(null);
+  const latestSourceDraft = useRef({ id: activeId, text: source });
+  latestSourceDraft.current = { id: activeId, text: source };
+  const displayedDiagnostics =
+    mode === "source" && sourceDirty
+      ? sourceValidation?.id === activeId && sourceValidation.text === source
+        ? sourceValidation.diagnostics
+        : []
+      : (view?.diagnostics ?? []);
   const dirty = !!view?.dirty || sourceDirty;
   const anyDirty =
     dirty ||
@@ -967,6 +984,8 @@ export default function App() {
   }
   async function select(cell: Cell) {
     if (cell.writable === false) {
+      ++selectionRequest.current;
+      pendingSelection.current = null;
       setSelection(null);
       return;
     }
@@ -2135,7 +2154,7 @@ export default function App() {
               : "Choose the source file again to reload it"
           }
         >
-          Reload source…
+          {doc?.handle ? "Reload source" : "Reload source…"}
         </button>
         {!desktop && <span className="muted">Web client</span>}
         <label className="sr-only" htmlFor="theme">
@@ -2560,11 +2579,10 @@ export default function App() {
                   </div>
                 </div>
               </div>
-              {!!view?.diagnostics.length && (
+              {displayedDiagnostics.length > 0 && (
                 <JsonProblem
-                  text={sourceBase}
-                  diagnostics={view.diagnostics}
-                  onOpen={() => void open()}
+                  text={mode === "source" ? source : sourceBase}
+                  diagnostics={displayedDiagnostics}
                 />
               )}
               {mode === "table" && view && (
@@ -2619,7 +2637,18 @@ export default function App() {
                       }}
                     />
                   ) : (
-                    <ValueBarPlaceholder />
+                    <ValueBarPlaceholder
+                      address={
+                        expanded && expandedAddress?.key === expandedKey
+                          ? expandedAddress.address
+                          : undefined
+                      }
+                      value={
+                        expanded && expandedAddress?.key === expandedKey
+                          ? expandedAddress.keyText
+                          : undefined
+                      }
+                    />
                   )}
                   {expanded ? (
                     <ExpandedSheet
@@ -2659,6 +2688,10 @@ export default function App() {
                                 key: expandedKey,
                                 path: JSON.stringify(cell.path),
                                 address: `${columnLetter(position.column)}${position.row + 1}`,
+                                keyText:
+                                  cell.writable === false
+                                    ? cell.display
+                                    : undefined,
                               }
                             : null,
                         );
@@ -3139,11 +3172,7 @@ export default function App() {
                 <>
                   {sourceDirty && (
                     <div className="source-actions">
-                      <span>
-                        {sourceDirty
-                          ? "Source draft has unapplied changes"
-                          : "Source matches the document"}
-                      </span>
+                      <span>Source draft has unapplied changes</span>
                       <div className="spacer" />
                       <button
                         disabled={!sourceDirty || busy}
@@ -3160,6 +3189,19 @@ export default function App() {
                         disabled={!sourceDirty || busy}
                         onClick={() =>
                           void run(async () => {
+                            const diagnostics =
+                              await validateSourceDraft(source);
+                            if (
+                              latestSourceDraft.current.id !== activeId ||
+                              latestSourceDraft.current.text !== source
+                            )
+                              return;
+                            setSourceValidation({
+                              id: activeId,
+                              text: source,
+                              diagnostics,
+                            });
+                            if (diagnostics.length) return;
                             const scopePath = sourceScope?.path ?? [];
                             if (sourceScope)
                               await client.current!.call("mutate", {
@@ -3194,11 +3236,12 @@ export default function App() {
                   <SourceEditor
                     key={`${activeId}:${sourceScope ? JSON.stringify(sourceScope.path) : "whole"}`}
                     value={scopedSourceText(source, sourceBase, sourceScope)}
-                    onChange={(draft) =>
+                    onChange={(draft) => {
+                      setSourceValidation(null);
                       setSource(
                         applyScopedDraft(sourceBase, sourceScope, draft),
-                      )
-                    }
+                      );
+                    }}
                     target={sourceTarget}
                   />
                 </>
