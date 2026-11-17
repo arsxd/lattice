@@ -1237,3 +1237,8 @@ select optgroup {
 .nested-data-toggle { display: inline-flex; align-items: center; gap: 6px; margin-right: 10px; font-size: 13px; white-space: nowrap; color: var(--text); cursor: pointer; }
 .nested-data-toggle input { margin: 0; accent-color: var(--accent); }
 .expanded-grid .select-all-cells { border: 0; border-radius: 0; background: transparent; box-shadow: none; color: var(--muted); padding: 0; min-height: 32px; }
+/* A single expanded worksheet fills the same workspace as the compact grid. */
+.expanded-single { display: flex; flex-direction: column; overflow: hidden; }
+.expanded-single > .expanded-section { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.expanded-single .expanded-grid { flex: 1; min-height: 0; max-height: none; }
+.expanded-single .pagination { flex-shrink: 0; }

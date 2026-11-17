@@ -87,14 +87,12 @@ test("nested checkbox keeps content-sized widths and compact sizing survives tog
   });
   await expect(checkbox).not.toBeChecked();
   const compact = page.getByRole("grid", { name: "JSON data table" });
-  const heading = compact
-    .getByRole("columnheader")
-    .filter({
-      has: page.getByRole("button", {
-        name: "Select column order_id",
-        exact: true,
-      }),
-    });
+  const heading = compact.getByRole("columnheader").filter({
+    has: page.getByRole("button", {
+      name: "Select column order_id",
+      exact: true,
+    }),
+  });
   await expect
     .poll(async () => (await heading.boundingBox())!.width)
     .toBeGreaterThan(100);
@@ -134,4 +132,35 @@ test("nested checkbox keeps content-sized widths and compact sizing survives tog
   await checkbox.check();
   await expect(table).toBeVisible();
   await table.screenshot({ path: "output/orders-content-widths.png" });
+});
+test("expanded worksheet controls stay directly above the sheet tabs at different heights", async ({
+  page,
+}) => {
+  await sample(page, "books");
+  const section = page.getByRole("region", {
+    name: "books expanded table",
+    exact: true,
+  });
+  const toolbar = section.locator(".pagination");
+  const tabs = page.getByRole("navigation", { name: "Document sheets" });
+  for (const height of [1000, 720, 1100]) {
+    await page.setViewportSize({ width: 1440, height });
+    await expect
+      .poll(async () => {
+        const bar = (await toolbar.boundingBox())!,
+          nav = (await tabs.boundingBox())!;
+        return Math.abs(bar.y + bar.height - nav.y);
+      })
+      .toBeLessThanOrEqual(2);
+    const grid = section.locator(".expanded-grid");
+    await grid.evaluate((el) => {
+      el.scrollTop = el.scrollHeight;
+    });
+    await expect(
+      section.getByRole("button", { name: "Add column", exact: true }),
+    ).toBeVisible();
+    await expect(
+      section.getByRole("button", { name: "Wrap text", exact: true }),
+    ).toBeVisible();
+  }
 });

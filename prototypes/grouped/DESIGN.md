@@ -1,6 +1,6 @@
 # Editable expanded rows
 
-Development build: `1.1.0-dev.4`. This replaces the earlier standalone read-only preview. It is integrated into the normal app on the experimental branch and is not included in RC3.
+Development build: `1.1.0-dev.5`. This replaces the earlier standalone read-only preview. It is integrated into the normal app on the experimental branch and is not included in RC3.
 
 ## Workflow
 
@@ -27,3 +27,5 @@ Object-map expansion supports up to 500 terminal records and 200 total columns (
 Arrays of records containing nested objects (for example sample Orders shipping) use the same grouped-column renderer without adding a generated index. Header groups remain contiguous when a field is discovered in a later record. Group-header selection selects its leaf columns. Freeze offsets include every visible header row.
 
 Both compact and expanded modes use the same content-width measurement policy: bounded samples, enough room for leaf headers and values, capped widths for long contents, and manual overrides retained. Expanded mode does not distribute spare viewport space equally. Resize observation reattaches whenever the compact grid remounts after a nested-view toggle and ignores zero-sized detached grids. The select-all corner uses the same plain control styling as the compact sheet.
+
+A single expanded worksheet fills the available document area. Its grid scrolls independently while the action bar stays immediately above the sheet tabs, including at short and tall window sizes.

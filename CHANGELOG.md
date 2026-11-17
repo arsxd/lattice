@@ -1,7 +1,8 @@
 # Changelog
 
-## 1.1.0-dev.4 — development only
+## 1.1.0-dev.5 — development only
 
+- Keep a single expanded worksheet’s controls anchored above the sheet tabs, matching compact view at different window heights.
 - Use a **Show nested data** checkbox, shared content-based column sizing and a plain select-all corner. Fix compact widths after repeated view switches; increase mapping capacity to 200 total columns within the 10,000-cell bound.
 - Show nested properties under merged group headers and editable leaf subheaders; support sample Orders shipping objects as well as Books details.
 - Fix expansion of nested object mappings at the root and inside named sheets. Render mappings as one worksheet with shared group cells and editable leaf values/row keys.

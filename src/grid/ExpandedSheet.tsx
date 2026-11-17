@@ -113,7 +113,9 @@ export function ExpandedSheet(props: Props) {
     props.revision,
   ]);
   return (
-    <div className="expanded-sheets">
+    <div
+      className={`expanded-sheets ${data?.sections.length === 1 ? "expanded-single" : ""}`}
+    >
       {error && <p role="alert">{error}</p>}
       {!data && !error && (
         <span
