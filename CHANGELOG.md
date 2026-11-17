@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0-dev.12 — experimental prerelease
+
+- Keep sibling dictionaries in one sheet as separate row blocks under their shared parent; remove the old duplicated section layout and avoid implying relationships between unrelated entries. Retain independent dictionary sorting/filtering and exact edit paths.
+- Show selected key addresses and key text in the value bar; simplify repeated dictionary path headers and retain regular-grid geometry for empty containers.
+- Check source drafts only on Apply, clear stale errors when editing resumes, and simplify error details.
+- The rejected side-by-side prototype is not included. This remains an experimental build.
+
 ## 1.1.0-dev.11 — experimental prerelease
 
 - Generated-structure testing found sparse layouts for partially shared and deeper dictionary keys. Use paired Key/Value rows for entirely disjoint keys, or dictionaries with at least eight potential columns and more than half the slots absent. Deeper dictionary entries retain their exact edit paths.
