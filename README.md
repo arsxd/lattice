@@ -39,7 +39,7 @@ The bundled sample is a fictional bookshop with a keyed catalogue, orders, readi
 
 ## Editable expanded rows (development)
 
-The `experiment/grouped-sheets` branch adds **Expand nested rows** beside Table/Source. Shared parent cells span their children and can be edited directly. This development feature is not in the RC3 download or hosted app. Build it with `npm run grouped:build`, then open `output/Lattice-Expanded-Preview.html`. Expansion currently requires a source up to 2 MiB; see the [design and bounds](prototypes/grouped/DESIGN.md).
+The `experiment/grouped-sheets` branch adds **Expand nested rows** beside Table/Source. Shared parent cells span their children and can be edited directly. This development feature is not in the RC3 download or hosted app. Build it with `npm run grouped:build`, then open `output/Lattice-Expanded-Preview.html`. Expansion currently supports a selected table up to 2 MiB; see the [design and bounds](prototypes/grouped/DESIGN.md).
 
 ## Develop
 

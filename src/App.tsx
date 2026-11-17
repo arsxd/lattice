@@ -2477,13 +2477,11 @@ export default function App() {
                 )}
                 <div className="segmented">
                   {(expanded ||
-                    (view?.recordsAvailable &&
-                      query.records &&
-                      view?.rows.some((row) =>
-                        row.cells.some(
-                          (cell) => cell.type === "array" && cell.container,
-                        ),
-                      ))) && (
+                    (view &&
+                      (view.recordsAvailable ||
+                        view.rows.some((row) =>
+                          row.cells.some((cell) => cell.container),
+                        )))) && (
                     <>
                       <button
                         aria-pressed={expanded}

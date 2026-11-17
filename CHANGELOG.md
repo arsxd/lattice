@@ -1,7 +1,9 @@
 # Changelog
 
-## 1.1.0-dev.1 — development only
+## 1.1.0-dev.2 — development only
 
+- Fix expansion of nested object mappings at the root and inside named sheets. Render mappings as one worksheet with shared group cells and editable leaf values/row keys.
+- Apply the size bound to the selected table rather than rejecting small nested tables in a larger file.
 - Replace the read-only grouped preview with **Expand nested rows** in the normal app. Child arrays are discovered automatically; parent cells span their children and edit directly.
 - Keep edits, range paste and insertions tied to exact JSON paths and the existing undo history. Reject conflicting values for one merged parent atomically.
 - Support section sort/filter, row/column insertion, range copy/paste, column resize and whole-group freezing within documented bounds. Retain expanded state across Source navigation.

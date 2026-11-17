@@ -300,7 +300,7 @@ export class DocumentEngine {
       this.revision,
       (node, at) => this.cell(node, at),
     );
-    if (query) {
+    if (query && !result.sections.some((section) => section.mapping)) {
       const paths = this.project({ ...query, path, page: 0 }).rows.map((row) =>
         JSON.stringify(row.path),
       );

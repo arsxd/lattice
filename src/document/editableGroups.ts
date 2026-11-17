@@ -1,3 +1,4 @@
+import { expandMappings } from "./expandMappings";
 import type { Node } from "jsonc-parser";
 import type { Cell, Path, AtomicMutation } from "./engine";
 export type ExpandedCell = { cell: Cell; value: string; identifier?: string };
@@ -8,6 +9,8 @@ export type ExpandedGroup = {
   children: ExpandedCell[][];
 };
 export type ExpandedSection = {
+  mapping?: boolean;
+  recordPaths?: Path[];
   key: string;
   parentHeaders: string[];
   childHeaders: string[];
@@ -34,10 +37,27 @@ export function expandRecords(
   cell: (node: Node, path: Path) => Cell,
 ): ExpandedDocument {
   const encoder = new TextEncoder();
-  if (encoder.encode(text).length > 2 * 1024 * 1024)
+  if (
+    encoder.encode(text.slice(node.offset, node.offset + node.length)).length >
+    2 * 1024 * 1024
+  )
     throw new Error(
-      "Expanded rows support files up to 2 MiB. Use the compact sheet for this file.",
+      "This selected table is too large to expand at once. Open a smaller nested table; expansion supports 2 MiB per table.",
     );
+  if (node.type === "object") {
+    const immediate = entries(node);
+    const hasRecordArrays = immediate.some(
+      ([, n]) =>
+        n.type === "object" &&
+        entries(n).some(
+          ([, v]) =>
+            v.type === "array" &&
+            (v.children ?? []).every((c) => c.type === "object"),
+        ),
+    );
+    if (!hasRecordArrays)
+      return expandMappings(text, node, path, revision, cell);
+  }
   const parents = entries(node);
   if (!parents.length || parents.some(([, n]) => n.type !== "object"))
     throw new Error("Expand a collection of records containing child tables.");
@@ -257,7 +277,7 @@ export function expandedRows(
     const children = group.children.length
       ? group.children
       : [
-          section.childHeaders.map((_, i) => ({
+          section.childHeaders.map((_, i): ExpandedCell => ({
             cell: {
               path: [...group.path, section.key, 0, section.childHeaders[i]],
               type: "missing" as const,

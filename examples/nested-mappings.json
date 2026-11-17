@@ -1,0 +1,9 @@
+{
+  "key1": {
+    "key11": { "val1": 1, "val2": 2, "val3": "First record" },
+    "key12": { "val1": 3, "val2": 4, "val3": "Second record" }
+  },
+  "key2": {
+    "key21": { "val1": 5, "val2": 6, "val3": "Third record" }
+  }
+}

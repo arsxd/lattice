@@ -318,7 +318,13 @@ function ExpandedTable({
   }
   async function begin(r: number, c: number, initial?: string) {
     const item = rows[r]?.cells[c];
-    if (!item || busy || draft || item.cell.writable === false) return;
+    if (
+      !item ||
+      busy ||
+      draft ||
+      (item.cell.writable === false && item.identifier === undefined)
+    )
+      return;
     if (item.cell.container) {
       props.onNavigate(item.cell.path);
       return;
@@ -337,12 +343,15 @@ function ExpandedTable({
     }
     await act(async () => {
       const raw =
-        item.cell.type === "missing" || item.cell.type === "null"
-          ? ""
-          : await props.client.call<string>("raw", { path: item.cell.path });
+        item.identifier !== undefined
+          ? JSON.stringify(item.identifier)
+          : item.cell.type === "missing" || item.cell.type === "null"
+            ? ""
+            : await props.client.call<string>("raw", { path: item.cell.path });
       if (raw.length > 8192)
         throw new Error("Use Source to edit this long value.");
-      const kind = cellInputKind(item.cell);
+      const kind =
+        item.identifier !== undefined ? "string" : cellInputKind(item.cell);
       setDraft({
         item,
         selectAll: initial === undefined,
@@ -366,13 +375,18 @@ function ExpandedTable({
     committing.current = true;
     setWorking(true);
     try {
-      const kind = cellInputKind(edit.item.cell),
+      const kind =
+          edit.item.identifier !== undefined
+            ? "string"
+            : cellInputKind(edit.item.cell),
         raw =
           edit.value === "" && kind !== "string"
             ? "null"
             : scalarText(kind, edit.value);
       await props.onMutate(
-        uniqueGroupEdits([{ cell: edit.item.cell, raw }]),
+        edit.item.identifier !== undefined
+          ? [{ action: "rename", path: edit.item.cell.path, key: edit.value }]
+          : uniqueGroupEdits([{ cell: edit.item.cell, raw }]),
         edit.revision,
       );
       current.current = null;
@@ -425,6 +439,7 @@ function ExpandedTable({
   useEffect(() => {
     let live = true;
     copied.current = null;
+    if (props.busy) return;
     const values = rangeItems();
     if (values.length)
       props.client
@@ -441,7 +456,8 @@ function ExpandedTable({
     return () => {
       live = false;
     };
-  }, [selection, rows, props.revision]);
+  }, [selection, rows, props.revision, props.busy]);
+  useEffect(() => setMessage(""), [props.revision]);
   async function paste(text: string) {
     const values = parseTSV(text);
     if (!selected) throw new Error("Select a destination cell.");
@@ -479,7 +495,7 @@ function ExpandedTable({
       colFrozen = c < freeze.columns;
     return {
       position: rowFrozen || colFrozen ? "sticky" : undefined,
-      top: rowFrozen ? 68 + r * rowHeight : undefined,
+      top: rowFrozen ? (section.mapping ? 34 : 68) + r * rowHeight : undefined,
       left: colFrozen
         ? 40 +
           Array.from({ length: c }, (_, i) => width(i)).reduce(
@@ -498,12 +514,27 @@ function ExpandedTable({
     setSelection(null);
     props.onSelect(null);
   }
+  const corner = (
+    <th rowSpan={section.mapping ? 1 : 2}>
+      <button
+        aria-label={`Select all ${section.key}`}
+        onClick={() => {
+          setSelection(selectWholeTable(rows.length, headers.length));
+          props.onSelect(null);
+        }}
+      >
+        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+          <path d="M2 10 10 2v8Z" fill="currentColor" />
+        </svg>
+      </button>
+    </th>
+  );
   return (
     <section
       className="expanded-section"
       aria-label={`${section.key} expanded table`}
     >
-      <h3>{section.key}</h3>
+      {!section.mapping && <h3>{section.key}</h3>}
       {menu && (
         <ColumnMenu
           key={menu.column}
@@ -633,35 +664,21 @@ function ExpandedTable({
             ))}
           </colgroup>
           <thead>
-            <tr>
-              <th rowSpan={2}>
-                <button
-                  aria-label={`Select all ${section.key}`}
-                  onClick={() => {
-                    setSelection(selectWholeTable(rows.length, headers.length));
-                    props.onSelect(null);
-                  }}
-                >
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 12 12"
-                    aria-hidden="true"
-                  >
-                    <path d="M2 10 10 2v8Z" fill="currentColor" />
-                  </svg>
-                </button>
-              </th>
-              {parents > 0 && (
-                <th colSpan={parents} scope="colgroup">
-                  Parent
+            {!section.mapping && (
+              <tr>
+                {corner}
+                {parents > 0 && (
+                  <th colSpan={parents} scope="colgroup">
+                    Parent
+                  </th>
+                )}
+                <th colSpan={section.childHeaders.length} scope="colgroup">
+                  {section.key}
                 </th>
-              )}
-              <th colSpan={section.childHeaders.length} scope="colgroup">
-                {section.key}
-              </th>
-            </tr>
+              </tr>
+            )}
             <tr>
+              {section.mapping && corner}
               {headers.map((header, c) => (
                 <th
                   key={c}
@@ -951,6 +968,17 @@ function ExpandedTable({
           disabled={busy || !!draft || !selected}
           onClick={() => {
             const row = selected && rows[selected.r];
+            if (section.mapping) {
+              const record = row?.cells[parents]?.cell.path;
+              if (record?.length)
+                void act(() =>
+                  props.onMutate(
+                    [{ action: "add-row", path: record.slice(0, -1) }],
+                    props.revision,
+                  ),
+                );
+              return;
+            }
             const group =
               row &&
               section.groups.find(
@@ -1007,6 +1035,19 @@ function ExpandedTable({
                 return;
               }
               void act(async () => {
+                if (section.mapping) {
+                  await props.onMutate(
+                    (section.recordPaths ?? []).map((path) => ({
+                      action: "insert",
+                      path,
+                      key: columnName,
+                      raw: "null",
+                    })),
+                    props.revision,
+                  );
+                  setColumnName(null);
+                  return;
+                }
                 const commands: AtomicMutation[] = section.groups
                   .filter((group) => group.arrayPresent)
                   .map((group) => ({
