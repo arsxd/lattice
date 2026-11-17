@@ -137,6 +137,10 @@ test("bounded nested sheets explain fallback in a nonoverlapping alert", async (
   await page.clock.fastForward(5100);
   await expect(page.locator(".nested-warning")).toHaveCount(0);
   await expect(icon).toBeVisible();
+  const iconBox = await icon.boundingBox();
+  const tableBox = await page.getByRole("button", { name: "Table", exact: true }).boundingBox();
+  expect(Math.abs(iconBox!.height - tableBox!.height)).toBeLessThanOrEqual(1);
+  await expect(icon).toHaveCSS("border-top-width", "1px");
   await icon.click();
   await expect(page.locator(".nested-warning")).toBeVisible();
   await page.keyboard.press("Escape");
