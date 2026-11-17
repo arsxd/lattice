@@ -58,6 +58,7 @@ export function HomeScreen({
         </section>
       )}
       <footer className="home-screen-footer">
+        <span aria-label="Lattice version">v{__APP_VERSION__}</span>
         <span>UTF-8 · up to 64 MiB · 256 nesting levels</span>
         <a
           href="https://github.com/arsxd/lattice"

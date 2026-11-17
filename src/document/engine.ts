@@ -36,6 +36,7 @@ export type OutlineEntry = {
 export type OutlineResult = { children: OutlineEntry[]; truncated: boolean };
 export type Row = { id: string; label: string; path: Path; cells: Cell[] };
 export type Query = {
+  showIndex?: boolean;
   path: Path;
   records: boolean;
   search: string;
@@ -817,6 +818,24 @@ export class DocumentEngine {
           : n.type === "array"
             ? ["Index", "Value"]
             : ["Value"];
+    const hideIndex = n.type === "array" && query.showIndex === false;
+    let columnKinds: ColumnKind[] = records
+      ? [
+          n.type === "array" ? "index" : "key",
+          ...keys.map(() => "field" as const),
+          ...(mixed ? ["mixed" as const] : []),
+        ]
+      : n.type === "object"
+        ? ["key", "value"]
+        : n.type === "array"
+          ? ["index", "value"]
+          : ["value"];
+    if (hideIndex) {
+      headers = headers.slice(1);
+      columnKinds = columnKinds.slice(1);
+    }
+    const metadataColumn = (index: number) =>
+      columnKinds[index] === "key" || columnKinds[index] === "index";
     // Keep only node references for the complete collection; construct cells for one page.
     const all = items.length
       ? items
@@ -830,6 +849,7 @@ export class DocumentEngine {
         p = pathOf(key),
         c = this.cell(value, p);
       if (records) {
+        column += hideIndex ? 1 : 0;
         if (column === 0) return { ...c, display: String(key) };
         if (column > keys.length)
           return value.type !== "object"
@@ -861,7 +881,7 @@ export class DocumentEngine {
     const total = all.length;
     const valueKey = (item: [string | number, Node], index: number) => {
       const c = getCell(item, index);
-      const metadata = records ? index === 0 : index < headers.length - 1;
+      const metadata = metadataColumn(index);
       const full = metadata
         ? c.display
         : c.type === "missing"
@@ -949,8 +969,7 @@ export class DocumentEngine {
       const { column, direction } = query.sort,
         sign = direction === "ASC" ? 1 : -1;
       // Cache sort values once; never compare truncated display text for numeric cells.
-      const valueColumn =
-        (records && column > 0) || (!records && column === headers.length - 1);
+      const valueColumn = !metadataColumn(column);
       const indexed = filtered.map((item) => {
         const c = getCell(item, column);
         const node = c.type === "missing" ? undefined : this.node(c.path);
@@ -964,7 +983,9 @@ export class DocumentEngine {
       });
       indexed.sort((a, b) => {
         let cmp = 0;
-        if (valueColumn && a.cell.type !== b.cell.type)
+        if (columnKinds[column] === "index")
+          cmp = Number(a.cell.display) - Number(b.cell.display);
+        else if (valueColumn && a.cell.type !== b.cell.type)
           cmp =
             TYPE_ORDER.indexOf(a.cell.type) - TYPE_ORDER.indexOf(b.cell.type);
         else if (valueColumn && a.cell.type === "number")
@@ -1017,7 +1038,7 @@ export class DocumentEngine {
         ? indices("rows", filtered.length).map((r) =>
             columns.map((c) => ({
               cell: getCell(filtered[r], c),
-              ...(c === 0 && headers.length > 1
+              ...(metadataColumn(c)
                 ? { identifier: String(filtered[r][0]) }
                 : {}),
             })),
@@ -1044,17 +1065,7 @@ export class DocumentEngine {
     return {
       ...common,
       headers,
-      columnKinds: records
-        ? [
-            n.type === "array" ? "index" : "key",
-            ...keys.map(() => "field" as const),
-            ...(mixed ? ["mixed" as const] : []),
-          ]
-        : n.type === "object"
-          ? ["key", "value"]
-          : n.type === "array"
-            ? ["index", "value"]
-            : ["value"],
+      columnKinds,
       selectedCells,
       locatedRow,
       filterOptions,

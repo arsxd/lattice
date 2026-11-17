@@ -5,7 +5,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { Projection, AtomicMutation } from "../document/engine";
+import type { Projection, AtomicMutation, Path } from "../document/engine";
 import {
   axisSelected,
   selectCell,
@@ -29,7 +29,13 @@ export function SheetRange({
   onAddRow,
   onAddColumn,
   isValueColumn,
+  showIndex,
+  onToggleIndex,
+  onOpenRow,
 }: {
+  showIndex?: boolean;
+  onToggleIndex?: () => void;
+  onOpenRow?: (path: Path) => void;
   view: Projection;
   children: ReactNode;
   selection: SheetSelection | null;
@@ -483,6 +489,30 @@ export function SheetRange({
               </button>
               <hr />
             </>
+          )}
+          {view.kind === "array" && onToggleIndex && (
+            <button
+              role="menuitem"
+              tabIndex={-1}
+              onClick={() => {
+                onToggleIndex();
+                closeMenu();
+              }}
+            >
+              {showIndex ? "Hide original index" : "Show original index"}
+            </button>
+          )}
+          {menu.r >= 0 && view.recordsAvailable && onOpenRow && (
+            <button
+              role="menuitem"
+              tabIndex={-1}
+              onClick={() => {
+                onOpenRow(view.rows[menu.r].path);
+                closeMenu();
+              }}
+            >
+              Open row
+            </button>
           )}
           <button
             role="menuitem"

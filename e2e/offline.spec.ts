@@ -14,6 +14,7 @@ test("standalone HTML edits, undoes, exports and reopens exact JSON without netw
     if (/^https?:/.test(request.url())) requests.push(request.url());
   });
   await page.addInitScript(() => {
+    localStorage.setItem("lattice-show-index", "true");
     Object.defineProperty(window, "showOpenFilePicker", {
       value: undefined,
       configurable: true,

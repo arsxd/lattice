@@ -9,6 +9,9 @@ test.beforeEach(async ({ page }) => {
       configurable: true,
     }),
   );
+  await page.addInitScript(() =>
+    localStorage.setItem("lattice-show-index", "true"),
+  );
   await page.goto("/");
 });
 async function open(page: Page, text: string, name = "smoke.json") {

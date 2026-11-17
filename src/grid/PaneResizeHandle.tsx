@@ -1,12 +1,14 @@
-import { useLayoutEffect, useRef, useState } from "react";
-export const clampPaneWidth = (width: number) =>
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+export const clampPaneWidth = (width: number, details = false) =>
   Math.round(
     Math.max(
       180,
       Math.min(
-        520,
+        details ? Infinity : 520,
         width,
-        typeof window === "undefined" ? 520 : window.innerWidth * 0.42,
+        typeof window === "undefined"
+          ? 520
+          : window.innerWidth * (details ? 0.5 : 0.42),
       ),
     ),
   );
@@ -15,15 +17,24 @@ export function usePaneWidth(name: string, initial: number) {
   const [width, setWidth] = useState(() => {
     try {
       const stored = Number(localStorage.getItem(key));
-      return clampPaneWidth(stored >= 180 ? stored : initial);
+      return clampPaneWidth(
+        stored >= 180 ? stored : initial,
+        name === "details",
+      );
     } catch {
       return initial;
     }
   });
+  useEffect(() => {
+    const resize = () =>
+      setWidth((value) => clampPaneWidth(value, name === "details"));
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, [name]);
   return [
     width,
     (next: number) => {
-      const value = clampPaneWidth(next);
+      const value = clampPaneWidth(next, name === "details");
       setWidth(value);
       try {
         localStorage.setItem(key, String(value));
@@ -69,7 +80,7 @@ export function PaneResizeHandle({
       aria-orientation="vertical"
       aria-valuenow={actualWidth}
       aria-valuemin={180}
-      aria-valuemax={520}
+      aria-valuemax={clampPaneWidth(Infinity, reverse)}
       tabIndex={0}
       title="Drag to resize. Arrow keys adjust width; double-click or Home resets."
       onDoubleClick={onReset}
@@ -85,6 +96,7 @@ export function PaneResizeHandle({
             clampPaneWidth(
               start.current.width +
                 (e.clientX - start.current.x) * (reverse ? -1 : 1),
+              reverse,
             ),
           );
       }}
@@ -107,7 +119,9 @@ export function PaneResizeHandle({
           e.preventDefault();
           onChange(
             clampPaneWidth(
-              actualWidth + (e.key === "ArrowLeft" ? -12 : 12) * (reverse ? -1 : 1),
+              actualWidth +
+                (e.key === "ArrowLeft" ? -12 : 12) * (reverse ? -1 : 1),
+              reverse,
             ),
           );
         }
