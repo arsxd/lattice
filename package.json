@@ -16,7 +16,9 @@
     "test:browser": "playwright test",
     "bench:browser": "node scripts/benchmark-browser.mjs",
     "notices": "node scripts/build-notices.mjs",
-    "release:checksums": "node scripts/build-checksums.mjs"
+    "release:checksums": "node scripts/build-checksums.mjs",
+    "grouped:build": "tsc -p prototypes/grouped/tsconfig.json && node scripts/build-grouped-preview.mjs",
+    "grouped:verify": "npm run grouped:build && node scripts/verify-grouped-preview.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "6.11.1",

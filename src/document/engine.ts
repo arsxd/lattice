@@ -1,3 +1,4 @@
+import { groupedProjection } from "./groupedProjection";
 import { compactJson } from "./compactJson";
 import { selectedCellCount, type SheetSelection } from "./sheetSelection";
 import {
@@ -264,6 +265,11 @@ export class DocumentEngine {
     if (!n)
       throw new Error("This value no longer exists. Refresh the selection.");
     return n;
+  }
+  grouped(path: Path, childKey: string) {
+    if (this.diagnostics.length)
+      throw new Error("Open valid JSON before using the grouped preview.");
+    return groupedProjection(this.text, this.node(path), path, childKey);
   }
   outline(path: Path): OutlineResult {
     const node = this.node(path);
