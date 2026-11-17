@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0-dev.1 — development only
+
+- Replace the read-only grouped preview with **Expand nested rows** in the normal app. Child arrays are discovered automatically; parent cells span their children and edit directly.
+- Keep edits, range paste and insertions tied to exact JSON paths and the existing undo history. Reject conflicting values for one merged parent atomically.
+- Support section sort/filter, row/column insertion, range copy/paste, column resize and whole-group freezing within documented bounds. Retain expanded state across Source navigation.
+- This feature remains on the experimental branch, excluded from RC3 and the hosted app. Real-file, platform and accessibility validation are release gates.
+
 ## 1.0.0-rc.3 — 2026-11-17
 
 - Show the app version on the welcome screen and status bar.

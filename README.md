@@ -37,6 +37,10 @@ Input limits are UTF-8, 64 MiB and 256 nesting levels. Tables use 500-row pages 
 
 The bundled sample is a fictional bookshop with a keyed catalogue, orders, reading lists, nested details and precision-sensitive numbers. [Additional examples](examples/README.md) include store orders, application settings, JSON value shapes and a before/after review pair.
 
+## Editable expanded rows (development)
+
+The `experiment/grouped-sheets` branch adds **Expand nested rows** beside Table/Source. Shared parent cells span their children and can be edited directly. This development feature is not in the RC3 download or hosted app. Build it with `npm run grouped:build`, then open `output/Lattice-Expanded-Preview.html`. Expansion currently requires a source up to 2 MiB; see the [design and bounds](prototypes/grouped/DESIGN.md).
+
 ## Develop
 
 Node 24+ is the documented development requirement.

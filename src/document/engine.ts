@@ -1,4 +1,4 @@
-import { groupedProjection } from "./groupedProjection";
+import { expandRecords } from "./editableGroups";
 import { compactJson } from "./compactJson";
 import { selectedCellCount, type SheetSelection } from "./sheetSelection";
 import {
@@ -266,10 +266,55 @@ export class DocumentEngine {
       throw new Error("This value no longer exists. Refresh the selection.");
     return n;
   }
-  grouped(path: Path, childKey: string) {
+  expandedValues(
+    cells: { cell: Cell; identifier?: string }[][],
+    revision: number,
+  ) {
+    this.guard(revision);
+    if (cells.reduce((sum, row) => sum + row.length, 0) > 10000)
+      throw new Error("Copy up to 10,000 cells.");
+    let length = 0;
+    const encoder = new TextEncoder();
+    return cells.map((row) =>
+      row.map(({ cell, identifier }) => {
+        const raw =
+          identifier ?? (cell.type === "missing" ? "" : this.raw(cell.path));
+        const value =
+          cell.type === "string" && identifier === undefined && raw
+            ? String(JSON.parse(raw))
+            : raw;
+        length += encoder.encode(value).length;
+        if (length > 16 * 1024 * 1024)
+          throw new Error("Copy a smaller selection.");
+        return value;
+      }),
+    );
+  }
+  expanded(path: Path, query?: Query) {
     if (this.diagnostics.length)
-      throw new Error("Open valid JSON before using the grouped preview.");
-    return groupedProjection(this.text, this.node(path), path, childKey);
+      throw new Error("Repair Source before expanding rows.");
+    const result = expandRecords(
+      this.text,
+      this.node(path),
+      path,
+      this.revision,
+      (node, at) => this.cell(node, at),
+    );
+    if (query) {
+      const paths = this.project({ ...query, path, page: 0 }).rows.map((row) =>
+        JSON.stringify(row.path),
+      );
+      for (const section of result.sections) {
+        const byPath = new Map(
+          section.groups.map((group) => [JSON.stringify(group.path), group]),
+        );
+        section.groups = paths.flatMap((path) => {
+          const group = byPath.get(path);
+          return group ? [group] : [];
+        });
+      }
+    }
+    return result;
   }
   outline(path: Path): OutlineResult {
     const node = this.node(path);

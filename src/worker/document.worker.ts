@@ -41,6 +41,12 @@ self.onmessage = (event: MessageEvent) => {
         case "fill":
           fillSelection(engine, args.query, args.selection, args.revision);
           break;
+        case "expanded-values":
+          value = engine.expandedValues(args.cells, args.revision);
+          break;
+        case "expanded":
+          value = engine.expanded(args.path, args.query);
+          break;
         case "project":
           value = engine.project(args as Query);
           break;
