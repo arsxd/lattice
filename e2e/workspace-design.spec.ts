@@ -20,6 +20,15 @@ test("redesigned workspace keeps the value bar visibly editable in both themes",
     .locator("svg");
   await expect(detailsIcon).toHaveAttribute("viewBox", "0 0 24 24");
   await expect(detailsIcon.locator("rect")).toHaveAttribute("rx", "2");
+  const browseIcon = page
+    .getByRole("button", { name: "Browse", exact: true })
+    .locator("svg");
+  await expect(browseIcon).toHaveAttribute("viewBox", "0 0 24 24");
+  await expect(browseIcon).toHaveAttribute("stroke-width", "1.6");
+  expect(await browseIcon.locator("rect").evaluate((el) => el.outerHTML)).toBe(
+    await detailsIcon.locator("rect").evaluate((el) => el.outerHTML),
+  );
+  await expect(browseIcon.locator("path")).toHaveAttribute("d", "M9 4v16");
   await expect(bar).toHaveCSS("border-top-width", "1px");
   await expect(page.getByRole("group", { name: "View mode" })).toBeVisible();
   await page.getByRole("button", { name: "Toggle value inspector" }).click();
