@@ -351,3 +351,76 @@ test("deep dictionary shared ancestry appears once in grouped headers", async ({
   await expect(page.locator(".status")).not.toContainText("Working…");
   await page.screenshot({ path: "output/random-10-refined.png" });
 });
+
+test("a report record stays vertical when nested mode cannot expand any fields", async ({
+  page,
+}) => {
+  await open(
+    page,
+    JSON.stringify({
+      seed: 539365656,
+      version: "test",
+      scope: "Synthetic report",
+      editUndoRedoChecks: 73,
+      results: [{ name: "one", passed: true }],
+    }),
+    "report.json",
+  );
+  const grid = page.getByRole("grid", { name: "JSON data table" });
+  await expect(grid.getByRole("columnheader", { name: /Value/ })).toBeVisible();
+  await page.getByRole("checkbox", { name: "Show nested data" }).check();
+  await expect(grid).toBeVisible();
+  await expect(grid.getByRole("columnheader", { name: /Value/ })).toBeVisible();
+  await expect(page.locator(".expanded-sheets")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Why nested data is unavailable" }),
+  ).toHaveCount(0);
+  await expect(page.locator(".value-bar-address-idle")).toHaveCSS(
+    "visibility",
+    "hidden",
+  );
+});
+test("wide nested sheets scroll all the way to the last column inside the workspace", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1000, height: 750 });
+  const fields = Object.fromEntries(
+    Array.from({ length: 24 }, (_, i) => ["field_" + i, "value " + i]),
+  );
+  await open(
+    page,
+    JSON.stringify([
+      { name: "first", nested: fields },
+      { name: "second", nested: fields },
+    ]),
+    "wide-nested.json",
+  );
+  await page.getByRole("checkbox", { name: "Show nested data" }).check();
+  const scroller = page.locator(".expanded-grid");
+  await expect(scroller).toBeVisible();
+  const dimensions = await scroller.evaluate((e) => ({
+    client: e.clientWidth,
+    scroll: e.scrollWidth,
+    viewport: innerWidth,
+  }));
+  expect(dimensions.client).toBeLessThanOrEqual(dimensions.viewport);
+  expect(dimensions.scroll).toBeGreaterThan(dimensions.client);
+  await scroller.evaluate((e) => (e.scrollLeft = e.scrollWidth));
+  await expect
+    .poll(() => scroller.evaluate((e) => e.scrollLeft))
+    .toBeGreaterThan(0);
+  const bounds = await scroller.boundingBox();
+  const last = await scroller
+    .locator('thead th[scope="col"]')
+    .last()
+    .boundingBox();
+  expect(last!.x + last!.width).toBeLessThanOrEqual(
+    bounds!.x + bounds!.width + 2,
+  );
+  expect(last!.x).toBeGreaterThanOrEqual(bounds!.x);
+  await expect(page.locator(".value-bar-address-idle")).toHaveCSS(
+    "visibility",
+    "hidden",
+  );
+  await page.screenshot({ path: "output/wide-nested-scroll-end.png" });
+});

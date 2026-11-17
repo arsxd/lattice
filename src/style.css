@@ -1266,3 +1266,8 @@ select optgroup {
 .file-drop-root:has(.home-screen) > .file-drop-overlay { background: var(--surface); }
 .file-drop-hint > svg { color: var(--muted); margin-bottom: 4px; }
 .file-drop-hint strong { font-weight: 550; }
+
+/* The nested table scrolls inside the workspace, rather than widening its flex parent. */
+.expanded-sheets, .expanded-sections, .expanded-section, .expanded-grid { min-width: 0; }
+.expanded-single > .expanded-sections > .expanded-section { width: 100%; }
+.expanded-grid { max-width: 100%; }

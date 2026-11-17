@@ -96,3 +96,5 @@
 }
 
 .value-bar-address-idle { border-color: transparent; background: transparent; }
+
+.value-bar-empty .value-bar-address-idle { visibility: hidden; }

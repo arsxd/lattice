@@ -107,7 +107,17 @@ export function ExpandedSheet(props: Props) {
         query: props.query,
       })
       .then((value) => {
-        if (live) setData(value);
+        if (!live) return;
+        const section =
+          value.sections.length === 1 ? value.sections[0] : undefined;
+        const onlyRotatesRecord =
+          section?.mapping &&
+          section.recordPaths?.length === 1 &&
+          JSON.stringify(section.recordPaths[0]) ===
+            JSON.stringify(props.path) &&
+          !section.columnPaths?.some((path) => path.length > 1);
+        if (onlyRotatesRecord) props.onUnavailable("");
+        else setData(value);
       })
       .catch((e) => {
         if (live) {

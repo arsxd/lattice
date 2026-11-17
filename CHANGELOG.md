@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0-dev.13 — experimental prerelease
+
+- Preserve the regular key/value view when nested mode would only rotate a record into columns without expanding any fields.
+- Constrain expanded worksheets to the viewport so horizontal scrolling reaches every column.
+- Hide the unused address placeholder while preserving value-bar alignment; selected cell addresses remain visible.
+
 ## 1.1.0-dev.12 — experimental prerelease
 
 - Keep sibling dictionaries in one sheet as separate row blocks under their shared parent; remove the old duplicated section layout and avoid implying relationships between unrelated entries. Retain independent dictionary sorting/filtering and exact edit paths.

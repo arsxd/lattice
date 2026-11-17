@@ -2529,7 +2529,8 @@ export default function App() {
                     nestedPreferred &&
                     view &&
                     unavailableNested[expandedKey]?.revision ===
-                      view.revision && (
+                      view.revision &&
+                    !!unavailableNested[expandedKey]?.reason && (
                       <NestedViewNotice
                         key={`${expandedKey}:${view.revision}`}
                         reason={unavailableNested[expandedKey].reason}

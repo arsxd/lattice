@@ -150,3 +150,5 @@ The app version appears in the welcome screen footer and document status bar. Us
 Sibling sparse dictionaries appear in separate vertical blocks within their shared parent. Entries in different dictionaries do not share a display row. Shaded layout areas are not JSON values and cannot be edited. Parent sorting moves whole blocks; dictionary sorting only reorders that dictionary's entries. Filters on different dictionaries require matching entries within the same parent, without pairing those entries.
 
 Selecting an expanded key shows its cell address and key text in the value bar. Double-click the key in the table to rename it. Independent dictionaries retain the separate-row layout; the side-by-side prototype was not adopted.
+
+Show nested data keeps the regular view when expansion would only rotate a record without exposing nested fields. Wide expanded worksheets scroll horizontally within the workspace to their final column.
