@@ -9,7 +9,7 @@ async function sample(page: Page, name: string) {
     .getByRole("button", { name, exact: true })
     .click();
   await page
-    .getByRole("button", { name: "Expand nested data", exact: true })
+    .getByRole("checkbox", { name: "Show nested data", exact: true })
     .click();
 }
 test("Books uses a merged details header and editable leaf subheaders", async ({
@@ -69,4 +69,69 @@ test("Orders expands shipping fields rather than rejecting its array records", a
   await input.fill("Pickup");
   await input.press("Enter");
   await expect(table.locator('[data-r="0"][data-c="5"]')).toHaveText("Pickup");
+});
+test("nested checkbox keeps content-sized widths and compact sizing survives toggling", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Explore sample workspace", exact: true })
+    .click();
+  await page
+    .getByRole("navigation", { name: "Document sheets" })
+    .getByRole("button", { name: "orders", exact: true })
+    .click();
+  const checkbox = page.getByRole("checkbox", {
+    name: "Show nested data",
+    exact: true,
+  });
+  await expect(checkbox).not.toBeChecked();
+  const compact = page.getByRole("grid", { name: "JSON data table" });
+  const heading = compact
+    .getByRole("columnheader")
+    .filter({
+      has: page.getByRole("button", {
+        name: "Select column order_id",
+        exact: true,
+      }),
+    });
+  await expect
+    .poll(async () => (await heading.boundingBox())!.width)
+    .toBeGreaterThan(100);
+  const initial = (await heading.boundingBox())!.width;
+  await checkbox.check();
+  const table = page.getByRole("table", { name: "orders data", exact: true });
+  const quantity = table.locator('[data-r="0"][data-c="2"]'),
+    note = table.locator('[data-r="0"][data-c="7"]');
+  await expect(table).toBeVisible();
+  expect((await quantity.boundingBox())!.width).toBeLessThan(150);
+  expect((await note.boundingBox())!.width).toBeGreaterThan(
+    (await quantity.boundingBox())!.width,
+  );
+  const corner = table.getByRole("button", {
+    name: "Select all orders",
+    exact: true,
+  });
+  await expect(corner).toHaveCSS("border-top-width", "0px");
+  await expect(corner).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(corner).toHaveCSS("box-shadow", "none");
+  for (let i = 0; i < 3; i++) {
+    await checkbox.uncheck();
+    await expect(compact).toBeVisible();
+    await expect
+      .poll(async () =>
+        Math.abs((await heading.boundingBox())!.width - initial),
+      )
+      .toBeLessThanOrEqual(1);
+    await checkbox.check();
+    await expect(table).toBeVisible();
+  }
+  await checkbox.uncheck();
+  await page.setViewportSize({ width: 1100, height: 900 });
+  await expect
+    .poll(async () => (await heading.boundingBox())!.width)
+    .toBeGreaterThan(100);
+  await checkbox.check();
+  await expect(table).toBeVisible();
+  await table.screenshot({ path: "output/orders-content-widths.png" });
 });

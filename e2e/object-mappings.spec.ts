@@ -26,7 +26,7 @@ test("expands the user-described object mapping into one editable worksheet", as
 }) => {
   await open(page);
   await page
-    .getByRole("button", { name: "Expand nested data", exact: true })
+    .getByRole("checkbox", { name: "Show nested data", exact: true })
     .click();
   const table = page.getByRole("table", { name: "Data data", exact: true });
   await expect(table).toBeVisible();
@@ -59,7 +59,7 @@ test("shows expansion inside key1 sheet and supports direct row-key renaming", a
     .getByRole("button", { name: "key1", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "Expand nested data", exact: true })
+    .getByRole("checkbox", { name: "Show nested data", exact: true })
     .click();
   const table = page.getByRole("table", { name: "key1 data", exact: true });
   await expect(table).toBeVisible();

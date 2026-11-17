@@ -3,7 +3,7 @@ import { FileDropZone, type DroppedFile } from "./workspace/FileDropZone";
 import { droppedJsonFile } from "./platform/files";
 import { JsonProblem } from "./editor/JsonProblem";
 import { HomeScreen } from "./HomeScreen";
-import { contentColumnWidths } from "./grid/columnSizing";
+import { contentColumnWidths, createTextMeasurer } from "./grid/columnSizing";
 import { compactJson } from "./document/compactJson";
 import {
   applyScopedDraft,
@@ -209,20 +209,7 @@ export default function App() {
   const [gridSize, setGridSize] = useState({ width: 900, height: 400 });
   const [wrapText, setWrapText] = useState(false);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
-  const textMeasure = useMemo(() => {
-    const context = document.createElement("canvas").getContext("2d");
-    if (context)
-      context.font =
-        '13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-    const widths = new Map<string, number>();
-    return (text: string) => {
-      const cached = widths.get(text);
-      if (cached !== undefined) return cached;
-      const width = context?.measureText(text).width ?? text.length * 7;
-      if (text.length === 1) widths.set(text, width);
-      return width;
-    };
-  }, []);
+  const textMeasure = useMemo(createTextMeasurer, []);
   const [rowHeights, setRowHeights] = useState<Record<string, number>>({});
   const sessions = useRef(new Map<string, Session>());
   const navigationHistory = useRef(new Map<string, NavigationHistory>());
@@ -400,12 +387,18 @@ export default function App() {
   useEffect(() => {
     const element = grid.current?.element;
     if (!element) return;
-    const observer = new ResizeObserver(() =>
-      setGridSize({ width: element.clientWidth, height: element.clientHeight }),
-    );
+    const measure = () => {
+      if (element.clientWidth > 0 && element.clientHeight > 0)
+        setGridSize({
+          width: element.clientWidth,
+          height: element.clientHeight,
+        });
+    };
+    const observer = new ResizeObserver(measure);
+    measure();
     observer.observe(element);
     return () => observer.disconnect();
-  }, [mode, tableHeightKey, !!view]);
+  }, [mode, tableHeightKey, !!view, expanded]);
   const [theme, setTheme] = useState(
     localStorage.getItem("json-workbench-theme") ?? "system",
   );
@@ -2486,22 +2479,22 @@ export default function App() {
                               cell.container,
                           ),
                         )))) && (
-                    <>
-                      <button
-                        aria-pressed={expanded}
+                    <label className="nested-data-toggle">
+                      <input
+                        type="checkbox"
+                        checked={expanded}
                         disabled={busy}
-                        onClick={() => {
+                        onChange={(event) => {
                           setExpandedTables((previous) => ({
                             ...previous,
-                            [expandedKey]: !expanded,
+                            [expandedKey]: event.target.checked,
                           }));
                           setSelection(null);
                           setSheetSelection(null);
                         }}
-                      >
-                        Expand nested data
-                      </button>
-                    </>
+                      />
+                      Show nested data
+                    </label>
                   )}
                   <button
                     aria-pressed={mode === "table"}

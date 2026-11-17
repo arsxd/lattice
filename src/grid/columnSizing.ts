@@ -1,8 +1,10 @@
-import type { Projection } from "../document/engine";
+import type { Projection, Row } from "../document/engine";
 
 /** Automatic defaults only; callers retain explicit user width overrides. */
 export function contentColumnWidths(
-  projection: Pick<Projection, "headers" | "columnKinds" | "rows">,
+  projection: Pick<Projection, "headers" | "columnKinds"> & {
+    rows: Pick<Row, "cells">[];
+  },
   viewportWidth: number,
   measureText: (text: string) => number,
 ): number[] {
@@ -26,4 +28,12 @@ export function contentColumnWidths(
     return Math.ceil(Math.min(cap, width));
   });
   return widths;
+}
+
+export function createTextMeasurer() {
+  const context = document.createElement("canvas").getContext("2d");
+  if (context)
+    context.font =
+      '13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  return (text: string) => context?.measureText(text).width ?? text.length * 7;
 }

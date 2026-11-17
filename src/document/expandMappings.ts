@@ -52,6 +52,11 @@ export function expandMappings(
     if (records.length > 500)
       throw new Error("Expanded tables support up to 500 records.");
   } else walk(node, path, []);
+  const metadataColumns = array
+    ? 0
+    : records.some((record) => record.labels.length > 1)
+      ? 2
+      : 1;
   const fields = new Map<string, string[]>();
   const values = records.map((record) => {
     const found = new Map<string, { node: Node; path: Path }>();
@@ -66,9 +71,9 @@ export function expandMappings(
           const id = JSON.stringify(relative);
           fields.set(id, relative);
           found.set(id, { node: value, path: [...record.path, ...relative] });
-          if (fields.size > 18)
+          if (fields.size + metadataColumns > 200)
             throw new Error(
-              "Expanded mappings support up to 18 value columns. Open a smaller table.",
+              "This view supports up to 200 columns, including row labels. Open a smaller nested table.",
             );
         }
       }

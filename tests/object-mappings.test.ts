@@ -50,3 +50,29 @@ it("adds mapping rows and retains numeric input types in blank cells", () => {
   expect(row[1].cell.type).toBe("null");
   expect(row[1].cell.inputKind).toBe("number");
 });
+it("supports wider mappings than the old 18-column cap while retaining total-cell bounds", () => {
+  const record = Object.fromEntries(
+    Array.from({ length: 32 }, (_, i) => ["field_" + i, i]),
+  );
+  const section = new DocumentEngine(
+    JSON.stringify({ rows: { first: record, second: record } }),
+  ).expanded([]).sections[0];
+  expect(section.childHeaders).toHaveLength(33);
+  expect(section.groups[0].children[1][32].cell.path).toEqual([
+    "rows",
+    "second",
+    "field_31",
+  ]);
+  const tooWide = Object.fromEntries(
+    Array.from({ length: 200 }, (_, i) => ["f" + i, i]),
+  );
+  expect(() =>
+    new DocumentEngine(JSON.stringify({ record: tooWide })).expanded([]),
+  ).toThrow(/200 columns/);
+  const tooMany = Object.fromEntries(
+    Array.from({ length: 400 }, (_, i) => ["r" + i, record]),
+  );
+  expect(() =>
+    new DocumentEngine(JSON.stringify(tooMany)).expanded([]),
+  ).toThrow(/10,000 cells/);
+});

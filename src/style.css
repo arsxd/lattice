@@ -1234,3 +1234,6 @@ select optgroup {
 .expanded-context-menu kbd { color: var(--muted); font: inherit; margin-left: 24px; }
 
 .expanded-group-label { border: 0; background: transparent; color: inherit; font: inherit; padding: 0; width: 100%; text-align: left; }
+.nested-data-toggle { display: inline-flex; align-items: center; gap: 6px; margin-right: 10px; font-size: 13px; white-space: nowrap; color: var(--text); cursor: pointer; }
+.nested-data-toggle input { margin: 0; accent-color: var(--accent); }
+.expanded-grid .select-all-cells { border: 0; border-radius: 0; background: transparent; box-shadow: none; color: var(--muted); padding: 0; min-height: 32px; }

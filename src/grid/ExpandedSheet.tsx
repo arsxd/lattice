@@ -1,3 +1,4 @@
+import { contentColumnWidths, createTextMeasurer } from "./columnSizing";
 import { groupedHeaderRows } from "./groupedHeaders";
 import {
   useEffect,
@@ -181,7 +182,7 @@ function ExpandedTable({
   const [widths, setWidths] = useState<Record<number, number>>(
     saved?.widths ?? {},
   );
-  const width = (c: number) => widths[c] ?? 180;
+  const width = (c: number) => widths[c] ?? automaticWidths[c] ?? 100;
   const resize = useRef<{ column: number; x: number; width: number } | null>(
     null,
   );
@@ -211,6 +212,41 @@ function ExpandedTable({
     ...(section.columnPaths ?? section.childHeaders.map((name) => [name])),
   ]);
   const headerHeight = (section.mapping ? mappingHeaders.length : 2) * 34;
+  const [viewportWidth, setViewportWidth] = useState(900);
+  const measureText = useMemo(createTextMeasurer, []);
+  useEffect(() => {
+    const element = root.current;
+    if (!element) return;
+    const measure = () => {
+      if (element.clientWidth > 0) setViewportWidth(element.clientWidth);
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    measure();
+    return () => observer.disconnect();
+  }, []);
+  const automaticWidths = useMemo(() => {
+    const samples: { cells: Cell[] }[] = [];
+    for (const group of section.groups) {
+      for (const child of group.children.length ? group.children : [[]]) {
+        samples.push({
+          cells: [...group.parent, ...child].map((item) => item.cell),
+        });
+        if (samples.length === 50) break;
+      }
+      if (samples.length === 50) break;
+    }
+    const names = [
+      ...section.parentHeaders,
+      ...(section.columnPaths?.map((path) => path.at(-1) ?? "Value") ??
+        section.childHeaders),
+    ];
+    return contentColumnWidths(
+      { headers: names, columnKinds: names.map(() => "field"), rows: samples },
+      viewportWidth,
+      measureText,
+    );
+  }, [section, viewportWidth, measureText]);
   const busy = props.busy || working;
   const selected = selection?.anchor;
   const [contextMenu, setContextMenu] = useState<{
@@ -615,6 +651,7 @@ function ExpandedTable({
   const corner = (
     <th rowSpan={section.mapping ? mappingHeaders.length : 2}>
       <button
+        className="select-all-cells"
         aria-label={`Select all ${section.key}`}
         onClick={() => {
           setSelection(selectWholeTable(rows.length, headers.length));
