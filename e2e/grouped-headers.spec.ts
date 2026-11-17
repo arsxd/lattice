@@ -37,7 +37,7 @@ test("Books uses a merged details header and editable leaf subheaders", async ({
   const pages = table.locator('[data-r="0"][data-c="8"]');
   await expect(pages).toHaveText("160");
   await pages.click();
-  await expect(page.getByLabel("Cell address", { exact: true })).toHaveText("");
+  await expect(page.getByLabel("Cell address", { exact: true })).toHaveText("I1");
   await pages.dblclick();
   const input = page.getByRole("textbox", {
     name: "Edit books details / pages",

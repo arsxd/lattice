@@ -1,3 +1,4 @@
+import { columnLetter } from "./grid/columnAddress";
 import { ColumnMenuChevron } from "./grid/SheetIcons";
 import { NestedViewNotice } from "./grid/NestedViewNotice";
 import { ExpandedSheet } from "./grid/ExpandedSheet";
@@ -87,6 +88,8 @@ import {
 import { sample } from "./sample";
 import "react-data-grid/lib/styles.css";
 import "./style.css";
+import "./workspace.css";
+import "./editor/valueBar.css";
 function originalIndexPreference() {
   try {
     return localStorage.getItem("lattice-show-index") === "true";
@@ -140,12 +143,6 @@ type InlineEdit = {
   column: number;
   error: string;
 };
-function columnLetter(index: number): string {
-  let label = "";
-  for (let n = index + 1; n > 0; n = Math.floor((n - 1) / 26))
-    label = String.fromCharCode(65 + ((n - 1) % 26)) + label;
-  return label;
-}
 export default function App() {
   const { installPrompt, updateStatus } = useOfflineApp();
   const [discardPrompt, setDiscardPrompt] = useState(false);
@@ -204,6 +201,11 @@ export default function App() {
   const [unavailableNested, setUnavailableNested] = useState<
     Record<string, { revision: number; reason: string }>
   >({});
+  const [expandedAddress, setExpandedAddress] = useState<{
+    key: string;
+    path: string;
+    address: string;
+  } | null>(null);
   const groupedCommit = useRef<null | (() => Promise<boolean>)>(null);
   const busy = operationBusy;
   const committingCell = useRef(false);
@@ -228,8 +230,8 @@ export default function App() {
     nestedPreferred &&
     !!view &&
     view.rows.some((row) =>
-      row.cells.some((cell, index) =>
-        view.columnKinds[index] !== "index" && cell.container,
+      row.cells.some(
+        (cell, index) => view.columnKinds[index] !== "index" && cell.container,
       ),
     ) &&
     unavailableNested[expandedKey]?.revision !== view.revision;
@@ -1360,9 +1362,7 @@ export default function App() {
                       ),
                     )
                   }
-                >
-
-                </button>
+                ></button>
               ),
               renderCell: ({ rowIdx, row }) => (
                 <div className="row-number-content">
@@ -2280,7 +2280,7 @@ export default function App() {
                 aria-pressed={outlineVisible}
                 onClick={() => setOutlineVisible(!outlineVisible)}
               >
-                Browse
+                <NavigationIcon name="browse" /> Browse
               </button>
             </div>
             <div
@@ -2357,7 +2357,7 @@ export default function App() {
                 aria-pressed={inspector}
                 onClick={() => setInspector(!inspector)}
               >
-                Details
+                <NavigationIcon name="details" /> Details
               </button>
             )}
           </div>
@@ -2367,7 +2367,7 @@ export default function App() {
               hidden={!outlineVisible}
               style={browsePaneStyle}
             >
-              <div className="pane-label">Document</div>
+              <div className="pane-label">Browse</div>
               <DocumentOutline
                 key={activeId}
                 current={query.path}
@@ -2501,44 +2501,58 @@ export default function App() {
                       Show nested data
                     </label>
                   )}
-                  {mode === "table" && nestedPreferred && view &&
-                    unavailableNested[expandedKey]?.revision === view.revision && (
-                      <NestedViewNotice key={`${expandedKey}:${view.revision}`} reason={unavailableNested[expandedKey].reason} />
+                  {mode === "table" &&
+                    nestedPreferred &&
+                    view &&
+                    unavailableNested[expandedKey]?.revision ===
+                      view.revision && (
+                      <NestedViewNotice
+                        key={`${expandedKey}:${view.revision}`}
+                        reason={unavailableNested[expandedKey].reason}
+                      />
                     )}
-                  <button
-                    aria-pressed={mode === "table"}
-                    disabled={busy || sourceDirty || !!view?.diagnostics.length}
-                    onClick={() => {
-                      const previous = activeCell;
-                      setMode("table");
-                      if (
-                        previous &&
-                        view?.rows[previous.row]?.cells[previous.column]
-                      )
-                        focusCell(previous.row, previous.column);
-                    }}
+                  <div
+                    className="view-mode"
+                    role="group"
+                    aria-label="View mode"
                   >
-                    Table
-                  </button>
-                  <button
-                    title={
-                      currentCell
-                        ? "Open source at selected cell"
-                        : "Open JSON source"
-                    }
-                    aria-pressed={mode === "source"}
-                    disabled={busy || mode === "source" || sourceDirty}
-                    onClick={() => {
-                      if (currentCell && currentCell.type !== "missing")
-                        void showInSource(currentCell.path);
-                      else {
-                        setSourceTarget(null);
-                        void run(() => showSource().then(() => {}));
+                    <button
+                      aria-pressed={mode === "table"}
+                      disabled={
+                        busy || sourceDirty || !!view?.diagnostics.length
                       }
-                    }}
-                  >
-                    Source
-                  </button>
+                      onClick={() => {
+                        const previous = activeCell;
+                        setMode("table");
+                        if (
+                          previous &&
+                          view?.rows[previous.row]?.cells[previous.column]
+                        )
+                          focusCell(previous.row, previous.column);
+                      }}
+                    >
+                      Table
+                    </button>
+                    <button
+                      title={
+                        currentCell
+                          ? "Open source at selected cell"
+                          : "Open JSON source"
+                      }
+                      aria-pressed={mode === "source"}
+                      disabled={busy || mode === "source" || sourceDirty}
+                      onClick={() => {
+                        if (currentCell && currentCell.type !== "missing")
+                          void showInSource(currentCell.path);
+                        else {
+                          setSourceTarget(null);
+                          void run(() => showSource().then(() => {}));
+                        }
+                      }}
+                    >
+                      Source
+                    </button>
+                  </div>
                 </div>
               </div>
               {!!view?.diagnostics.length && (
@@ -2556,11 +2570,17 @@ export default function App() {
                       <ValueBar
                         key={`${activeId}:${pointer(selection.cell.path)}`}
                         address={
-                          activeCell &&
-                          activeCell.row >= 0 &&
-                          activeCell.column >= 0
-                            ? `${columnLetter(activeCell.column)}${view.page * 500 + activeCell.row + 1}`
-                            : ""
+                          expanded
+                            ? expandedAddress?.key === expandedKey &&
+                              expandedAddress.path ===
+                                JSON.stringify(selection.cell.path)
+                              ? expandedAddress.address
+                              : ""
+                            : activeCell &&
+                                activeCell.row >= 0 &&
+                                activeCell.column >= 0
+                              ? `${columnLetter(activeCell.column)}${view.page * 500 + activeCell.row + 1}`
+                              : ""
                         }
                         value={selectedPresentation?.text ?? ""}
                         previewOnly={selectedPresentation?.previewOnly}
@@ -2616,7 +2636,16 @@ export default function App() {
                         groupedCommit.current = commit;
                       }}
                       onSave={() => void save(false)}
-                      onSelect={(cell) => {
+                      onSelect={(cell, position) => {
+                        setExpandedAddress(
+                          cell && position
+                            ? {
+                                key: expandedKey,
+                                path: JSON.stringify(cell.path),
+                                address: `${columnLetter(position.column)}${position.row + 1}`,
+                              }
+                            : null,
+                        );
                         setSheetSelection(null);
                         if (cell) void select(cell);
                         else setSelection(null);
@@ -3206,7 +3235,7 @@ export default function App() {
                   onReset={() => setRightWidth(360)}
                 />
                 <div className="pane-heading">
-                  <h2>Selected value</h2>
+                  <h2>Details</h2>
                   <button
                     className="inspector-close"
                     aria-label="Close inspector"

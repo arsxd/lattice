@@ -1,6 +1,6 @@
 # Editable expanded rows
 
-Development build: `1.1.0-dev.8`. This replaces the earlier standalone read-only preview. It is integrated into the normal app on the experimental branch and is not included in RC3.
+Development build: `1.1.0-dev.9`. This replaces the earlier standalone read-only preview. It is integrated into the normal app on the experimental branch and is not included in RC3.
 
 ## Workflow
 
@@ -39,3 +39,5 @@ Fallback feedback follows the quiet contextual-help pattern: https://spectrum.ad
 Regular and expanded sheets share the same SVG column-menu chevron. Their select-all corner remains clickable and accessible by name, with no visible triangle. The value bar leaves unavailable cell addresses blank rather than displaying a dash.
 
 Object collections enter child-array expansion only when every immediate member is an object. A single record mixing scalar fields and nested objects uses the mapping projection instead, preserving nested array cells and exact edit paths. This prevents the false fallback observed for GitHub event index 10.
+
+The approved workspace design is applied through src/workspace.css; real controls and data operations remain in place. The value bar is an explicit editable field (Edit value) or read-only Preview, without formula syntax. Expanded selections report their visible row/column to the App, and headers use the same letter helper as the compact grid. Expanded freezing measures actual header height instead of assuming fixed 34px rows.

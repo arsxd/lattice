@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0-dev.9 — development only
+
+- Apply the workspace redesign to the real editor: quiet commands, joined view switch, consistent pane controls, headers, tabs, and both themes.
+- Make the value bar visibly editable with an address box, Edit value label, bordered field, and distinct read-only Preview state. Preserve Enter, Escape, multiline input, and undo.
+- Supply spreadsheet addresses and matching column letters for nested selections; measure actual nested-header height for frozen rows.
+
 ## 1.1.0-dev.8 — development only
 
 - Fixed single records containing nested record arrays being mistaken for parent collections; nested object fields now expand without the false unsupported-layout warning.

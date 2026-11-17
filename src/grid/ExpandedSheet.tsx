@@ -1,3 +1,4 @@
+import { columnLetter } from "./columnAddress";
 import { ColumnMenuChevron } from "./SheetIcons";
 import { contentColumnWidths, createTextMeasurer } from "./columnSizing";
 import { groupedHeaderRows } from "./groupedHeaders";
@@ -46,7 +47,10 @@ type Props = {
   revision: number;
   busy: boolean;
   onMutate: (commands: AtomicMutation[], revision: number) => Promise<void>;
-  onSelect: (cell: Cell | null) => void;
+  onSelect: (
+    cell: Cell | null,
+    position?: { row: number; column: number },
+  ) => void;
   onEditing: (editing: boolean) => void;
   onNavigate: (path: Path) => void;
   onCommitReady: (commit: (() => Promise<boolean>) | null) => void;
@@ -131,10 +135,10 @@ export function ExpandedSheet(props: Props) {
           saved={memory.tables.get(section.key)}
           onRemember={(value) => memory.tables.set(section.key, value)}
           active={selectedSection === section.key}
-          onSelect={(cell) => {
+          onSelect={(cell, position) => {
             memory.active = section.key;
             setSelectedSection(section.key);
-            props.onSelect(cell);
+            props.onSelect(cell, position);
           }}
           busy={
             props.busy ||
@@ -212,7 +216,9 @@ function ExpandedTable({
     ...section.parentHeaders.map((name) => [name]),
     ...(section.columnPaths ?? section.childHeaders.map((name) => [name])),
   ]);
-  const headerHeight = (section.mapping ? mappingHeaders.length : 2) * 34;
+  const [headerHeight, setHeaderHeight] = useState(
+    (section.mapping ? mappingHeaders.length : 2) * 34,
+  );
   const [viewportWidth, setViewportWidth] = useState(900);
   const measureText = useMemo(createTextMeasurer, []);
   useEffect(() => {
@@ -220,9 +226,15 @@ function ExpandedTable({
     if (!element) return;
     const measure = () => {
       if (element.clientWidth > 0) setViewportWidth(element.clientWidth);
+      const height = element
+        .querySelector("thead")
+        ?.getBoundingClientRect().height;
+      if (height) setHeaderHeight(height);
     };
     const observer = new ResizeObserver(measure);
     observer.observe(element);
+    const head = element.querySelector("thead");
+    if (head) observer.observe(head);
     measure();
     return () => observer.disconnect();
   }, []);
@@ -324,7 +336,10 @@ function ExpandedTable({
           setSelection(
             selectCell(null, { r: c < parents ? rows[r].first : r, c }),
           );
-          props.onSelect(rows[r].cells[c].cell);
+          props.onSelect(rows[r].cells[c].cell, {
+            row: c < parents ? rows[r].first : r,
+            column: c,
+          });
           return;
         }
     selectedPath.current = null;
@@ -337,7 +352,7 @@ function ExpandedTable({
       : JSON.stringify(rows[r]?.cells[c]?.cell.path);
     setSelection((previous) => selectCell(previous, { r, c }, extend));
     setMessage("");
-    props.onSelect(rows[r]?.cells[c]?.cell ?? null);
+    props.onSelect(rows[r]?.cells[c]?.cell ?? null, { row: r, column: c });
   };
   const focus = (r: number, c: number) =>
     requestAnimationFrame(() =>
@@ -588,8 +603,11 @@ function ExpandedTable({
             props.onSelect(null);
           }}
         >
-          {label}
-          {sort?.column === c ? (sort.direction === "ASC" ? " ↑" : " ↓") : ""}
+          <small aria-hidden="true">{columnLetter(c)}</small>
+          <span>
+            {label}
+            {sort?.column === c ? (sort.direction === "ASC" ? " ↑" : " ↓") : ""}
+          </span>
         </button>
         <button
           className="header-filter"
@@ -597,7 +615,8 @@ function ExpandedTable({
           aria-label={`Sort and filter ${section.key} ${header}`}
           onClick={(e) => setMenu({ column: c, anchor: e.currentTarget })}
         >
-          <ColumnMenuChevron />{filters[String(c)] && <span className="filter-dot" />}
+          <ColumnMenuChevron />
+          {filters[String(c)] && <span className="filter-dot" />}
         </button>
       </div>
       <span
@@ -658,9 +677,7 @@ function ExpandedTable({
           setSelection(selectWholeTable(rows.length, headers.length));
           props.onSelect(null);
         }}
-      >
-
-      </button>
+      ></button>
     </th>
   );
   return (
@@ -920,7 +937,7 @@ function ExpandedTable({
                       data-c={c}
                       tabIndex={0}
                       rowSpan={c < parents ? row.count : 1}
-                      className={`${highlighted ? "expanded-selected" : ""} ${item.cell.container ? "container-value" : ""}`}
+                      className={`${highlighted ? "expanded-selected" : ""} ${selection?.mode === "cells" && selection.anchor.r === r && selection.anchor.c === c && selection.end.r === r && selection.end.c === c ? "expanded-active-cell" : ""} ${item.cell.container ? "container-value" : ""}`}
                       style={sticky(r, c)}
                       title={JSON.stringify(item.cell.path)}
                       onClick={(e) => {
