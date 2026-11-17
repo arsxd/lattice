@@ -2,9 +2,9 @@
 
 Edit JSON like a spreadsheet. Work with cells, rows, and columns. Explore nested data and review your changes—without wrestling with JSON syntax.
 
-**Current development build: v1.1.0-dev.10** — redesigned workspace and editable nested sheets.
+**Current development build: v1.1.0-dev.11** — redesigned workspace and editable nested sheets.
 
-[Download current HTML (dev.10)](https://github.com/arsxd/lattice/releases/download/v1.1.0-dev.10/Lattice-Offline.html) · [Open the local preview](output/Lattice-Expanded-Preview.html)
+[Download current HTML (dev.11)](https://github.com/arsxd/lattice/releases/download/v1.1.0-dev.11/Lattice-Offline.html) · [Open the local preview](output/Lattice-Expanded-Preview.html)
 
 Download `Lattice-Offline.html` and open it directly in your browser. This is a development prerelease. The local-preview link is for a checkout built with `npm ci` followed by `npm run grouped:build`; generated HTML is not stored in the repository.
 
@@ -38,6 +38,10 @@ The hosted app can also be installed through a supported browser. Load it online
 Documents are processed locally; no document-upload endpoint or analytics integration is implemented. Browser Save requires API support and permission; Download is the fallback. Local recovery is off by default and, when enabled, stores unsaved drafts in this browser. It does not replace saving. External-file conflict detection and close/reload warnings have limits; keep a separate copy of important files.
 
 Input limits are UTF-8, 64 MiB and 256 nesting levels. Tables use 500-row pages and support up to 200 record fields, 10,000-cell bulk operations and 2,000 distinct checklist values. Paste cannot grow a table. There is no formula evaluation or schema validation. See the [measured performance and limitations](docs/PERFORMANCE.md) and [user guide](docs/USER-GUIDE.md) for details and [browser checks](docs/WINDOWS.md) for verification steps.
+
+## Nesting validation
+
+The experimental build has been checked with a reproducible synthetic nesting corpus. See [results and limits](docs/NESTING-VALIDATION.md), or [download the JSON fixtures](https://github.com/arsxd/lattice/releases/download/v1.1.0-dev.11/Lattice-Nesting-Fixtures.zip) to try them yourself. These checks do not establish an optimal view for every possible JSON shape.
 
 ## Examples
 

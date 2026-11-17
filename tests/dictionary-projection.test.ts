@@ -100,3 +100,36 @@ it("keeps empty dictionaries and shared parent numeric input guidance", () => {
   expect(section.groups[1].parent[1].cell.inputKind).toBe("number");
   expect(section.groups[2].children).toHaveLength(0);
 });
+it("uses paired columns when a few shared keys still leave a mostly empty wide dictionary", () => {
+  const row = (prefix: string) => ({
+    name: prefix,
+    attributes: {
+      shared: true,
+      ...Object.fromEntries(
+        Array.from({ length: 12 }, (_, i) => [prefix + i, i]),
+      ),
+    },
+  });
+  const section = new DocumentEngine(
+    JSON.stringify({ a: row("a"), b: row("b"), c: row("c") }),
+  ).expanded([]).sections[0];
+  expect(section.columnPaths).toEqual([
+    ["attributes", "Key"],
+    ["attributes", "Value"],
+  ]);
+  expect(section.groups[0].children).toHaveLength(13);
+});
+it("keeps deeper dictionary paths as key/value rows instead of sparse path columns", () => {
+  const engine = new DocumentEngine(
+    '{"a":{"name":"A","metadata":{"settings":{"a1":1,"a2":2}}},"b":{"name":"B","metadata":{"other":{"b1":3}}}}',
+  );
+  const section = engine.expanded([]).sections[0];
+  expect(section.childHeaders).toHaveLength(2);
+  expect(section.groups[0].children[0][0].value).toBe("settings / a1");
+  expect(section.groups[0].children[0][1].cell.path).toEqual([
+    "a",
+    "metadata",
+    "settings",
+    "a1",
+  ]);
+});

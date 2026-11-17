@@ -201,6 +201,11 @@ export default function App() {
   const [unavailableNested, setUnavailableNested] = useState<
     Record<string, { revision: number; reason: string }>
   >({});
+  const [expandedStats, setExpandedStats] = useState<{
+    key: string;
+    rows: number;
+    columns: number;
+  } | null>(null);
   const [expandedAddress, setExpandedAddress] = useState<{
     key: string;
     path: string;
@@ -2633,6 +2638,15 @@ export default function App() {
                       query={query}
                       revision={view.revision}
                       busy={operationBusy}
+                      onStats={(stats) =>
+                        setExpandedStats((previous) =>
+                          previous?.key === expandedKey &&
+                          previous.rows === stats.rows &&
+                          previous.columns === stats.columns
+                            ? previous
+                            : { key: expandedKey, ...stats },
+                        )
+                      }
                       onEditing={setGroupedEditing}
                       onCommitReady={(commit) => {
                         groupedCommit.current = commit;
@@ -3432,7 +3446,14 @@ export default function App() {
             <span>{dirty ? "Unsaved changes" : "Unmodified"}</span>
             {view && mode === "table" && (
               <span className="selection-status">
-                {view.matched.toLocaleString()} rows · {view.headers.length}{" "}
+                {(expanded && expandedStats?.key === expandedKey
+                  ? expandedStats.rows
+                  : view.matched
+                ).toLocaleString()}{" "}
+                rows ·{" "}
+                {expanded && expandedStats?.key === expandedKey
+                  ? expandedStats.columns
+                  : view.headers.length}{" "}
                 columns
                 {sheetSelection &&
                   ` · ${selectedCellCount(sheetSelection, view.matched, view.headers.length).toLocaleString()} ${selectedCellCount(sheetSelection, view.matched, view.headers.length) === 1 ? "cell" : "cells"} selected`}

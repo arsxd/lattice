@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0-dev.11 — experimental prerelease
+
+- Generated-structure testing found sparse layouts for partially shared and deeper dictionary keys. Use paired Key/Value rows for entirely disjoint keys, or dictionaries with at least eight potential columns and more than half the slots absent. Deeper dictionary entries retain their exact edit paths.
+- Add reproducible generated-fixture engine/browser audits and a downloadable nesting corpus.
+- Report the active nested table’s actual row and column counts in the status bar.
+
 ## 1.1.0-dev.10 — experimental prerelease
 
 - Render keyed dictionaries with distinct, non-overlapping keys as paired Key/Value subcolumns instead of sparse union columns. Preserve shared parent cells, exact value paths, edits, key renaming, sorting/filtering, and bounded rendering.

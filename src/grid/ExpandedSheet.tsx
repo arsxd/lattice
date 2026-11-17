@@ -52,6 +52,7 @@ type Props = {
     cell: Cell | null,
     position?: { row: number; column: number },
   ) => void;
+  onStats: (stats: { rows: number; columns: number }) => void;
   onEditing: (editing: boolean) => void;
   onNavigate: (path: Path) => void;
   onCommitReady: (commit: (() => Promise<boolean>) | null) => void;
@@ -228,6 +229,9 @@ function ExpandedTable({
   );
   const headers = [...section.parentHeaders, ...section.childHeaders],
     parents = section.parentHeaders.length;
+  useEffect(() => {
+    if (active) props.onStats({ rows: rows.length, columns: headers.length });
+  }, [active, rows.length, headers.length]);
   const mappingHeaders = groupedHeaderRows([
     ...section.parentHeaders.map((name) => [name]),
     ...(section.columnPaths ?? section.childHeaders.map((name) => [name])),

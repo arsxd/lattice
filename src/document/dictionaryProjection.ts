@@ -7,19 +7,53 @@ const entries = (node: Node): [string, Node][] =>
     String(p.children![0].value),
     p.children![1],
   ]);
-/** Only infer dictionaries when at least two nonempty key sets are entirely disjoint. */
-function disjoint(nodes: (Node | undefined)[]) {
+type DictionaryEntry = { relative: string[]; node: Node };
+const leafCache = new WeakMap<Node, DictionaryEntry[]>();
+function dictionaryLeaves(node: Node): DictionaryEntry[] {
+  const cached = leafCache.get(node);
+  if (cached) return cached;
+  const result: DictionaryEntry[] = [];
+  let visited = 0;
+  const visit = (object: Node, prefix: string[]) => {
+    for (const [key, child] of entries(object)) {
+      if (++visited > 20000)
+        throw new Error(
+          "This dictionary has too many nested values. Open a smaller table.",
+        );
+      const relative = [...prefix, key];
+      if (child.type === "object" && child.children?.length)
+        visit(child, relative);
+      else result.push({ relative, node: child });
+    }
+  };
+  visit(node, []);
+  leafCache.set(node, result);
+  return result;
+}
+/** Keep dense/shared schemas; pair disjoint keys or wide dictionaries with mostly absent fields. */
+function preferPairs(nodes: (Node | undefined)[], flatten = false) {
   const nonempty = nodes.filter(
     (n): n is Node => n?.type === "object" && !!n.children?.length,
   );
   if (nonempty.length < 2) return false;
   const keys = new Set<string>();
-  for (const node of nonempty)
-    for (const [key] of entries(node)) {
-      if (keys.has(key)) return false;
+  let filled = 0,
+    overlapping = false;
+  for (const node of nonempty) {
+    const paths = flatten
+      ? dictionaryLeaves(node).map((entry) => entry.relative)
+      : entries(node).map(([key]) => [key]);
+    for (const path of paths) {
+      const key = JSON.stringify(path);
+      if (keys.has(key)) overlapping = true;
       keys.add(key);
+      filled++;
     }
-  return true;
+  }
+  return (
+    !overlapping ||
+    (keys.size >= 8 && filled < nonempty.length * keys.size * 0.5)
+  );
 }
 /** Sparse object dictionaries become key/value rows, not a union of mostly empty columns. */
 export function dictionaryProjection(
@@ -31,7 +65,7 @@ export function dictionaryProjection(
 ): ExpandedDocument | undefined {
   if (records.length < 2) return;
   const fields = records.map((r) => new Map(entries(r.node)));
-  const whole = disjoint(records.map((r) => r.node));
+  const whole = preferPairs(records.map((r) => r.node));
   const keys = [...new Set(fields.flatMap((f) => [...f.keys()]))];
   const candidates: (string | null)[] = whole
     ? [null]
@@ -39,7 +73,7 @@ export function dictionaryProjection(
         const nodes = fields.map((f) => f.get(key));
         return (
           nodes.every((n) => !n || n.type === "object" || n.type === "null") &&
-          disjoint(nodes)
+          preferPairs(nodes, true)
         );
       });
   if (!candidates.length) return;
@@ -118,7 +152,12 @@ export function dictionaryProjection(
       const groups = records.map((record, index) => {
         const node =
           dictionary === null ? record.node : fields[index].get(dictionary);
-        const pairs = node?.type === "object" ? entries(node) : [];
+        const pairs =
+          node?.type === "object"
+            ? dictionary === null
+              ? entries(node).map(([key, node]) => ({ relative: [key], node }))
+              : dictionaryLeaves(node)
+            : [];
         rows += Math.max(1, pairs.length);
         if (rows > 500)
           throw new Error(
@@ -150,12 +189,15 @@ export function dictionaryProjection(
           path: record.path,
           arrayPresent: false,
           parent,
-          children: pairs.map(([key, node]) => {
+          children: pairs.map(({ relative, node }) => {
             const at = [
               ...record.path,
               ...(dictionary === null ? [] : [dictionary]),
-              key,
+              ...relative,
             ];
+            const key = relative
+              .map((part) => part.replaceAll("~", "~0").replaceAll("/", "~1"))
+              .join(" / ");
             return [label(key, at), value(node, at)];
           }),
         };

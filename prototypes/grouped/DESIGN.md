@@ -1,6 +1,6 @@
 # Editable expanded rows
 
-Development build: `1.1.0-dev.10`. This replaces the earlier standalone read-only preview. It is integrated into the normal app on the experimental branch and is not included in RC3.
+Development build: `1.1.0-dev.11`. This replaces the earlier standalone read-only preview. It is integrated into the normal app on the experimental branch and is not included in RC3.
 
 ## Workflow
 
@@ -61,6 +61,8 @@ File-drop feedback uses a contained target below the toolbar, without a page-wid
 
 Multiple child-array sections share one fixed action footer below their scrollable content. Only the active section portals its actions into this footer; the section name identifies the target. Clicking cells or headers changes the active section. Search/sort/filter/wrap/freeze state remains local to each section, while no later table can render below another table’s action bar. A single section uses the same footer host and still fills the workspace.
 
-Sparse dictionary projection: when at least two nonempty keyed objects have entirely disjoint keys, display entries through paired Key/Value columns and merged record-parent cells. Recognize both wholly disjoint object-map records and immediate dictionary-valued properties inside keyed records. Do not infer this layout from a single dictionary or overlapping key sets; arrays of heterogeneous records retain the existing union-of-fields representation. Sibling dictionaries remain separate sections using the shared action footer. Exact paths, raw numeric spelling, key renaming, local sorting/filtering, and revision-guarded edits are retained. Bounds: 8 sections, 500 projected rows per section, 200 total columns, 10,000 rendered cells, and 2 MiB transferred display text. See examples/06-dictionaries.json.
+Sparse dictionary projection: when at least two nonempty keyed objects have entirely disjoint keys, or a dictionary has at least eight potential columns and fewer than half of its slots contain values, display entries through paired Key/Value columns and merged record-parent cells. Recognize both wholly disjoint object-map records and immediate dictionary-valued properties inside keyed records. Do not infer this layout from a single dictionary or a dense shared schema; arrays of heterogeneous records retain the existing union-of-fields representation. Sibling dictionaries remain separate sections using the shared action footer. Exact paths, raw numeric spelling, key renaming, local sorting/filtering, and revision-guarded edits are retained. Bounds: 8 sections, 500 projected rows per section, 200 total columns, 10,000 rendered cells, and 2 MiB transferred display text. See examples/06-dictionaries.json.
 
 Key and value cells can share a source JSON path; remembered selection identity includes whether the cell represents the identifier. Keep an empty value-bar surface in place when there is no selected value, so choosing a key cannot shift rows between double-clicks.
+
+Generated testing extends paired dictionaries to deeper relative leaf paths and sparse partial overlaps. Relative paths are displayed in Key; the exact source path is retained separately, and key renaming edits only the final property name. Arrays remain cell values rather than being flattened into fabricated Cartesian products. The sparsity rule is a documented display heuristic, not a guarantee of universally optimal presentation.
