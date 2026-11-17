@@ -36,4 +36,4 @@ The 100-parent cap is a conservative implementation guard, not a benchmark-estab
 
 Fallback feedback follows the quiet contextual-help pattern: https://spectrum.adobe.com/page/contextual-help/. It supplements the usable compact view and is not styled as a primary action or blocking error.
 
-Regular and expanded sheets share the same SVG column-menu chevron and select-all corner component, preventing renderer-specific icon drift.
+Regular and expanded sheets share the same SVG column-menu chevron. Their select-all corner remains clickable and accessible by name, with no visible triangle. The value bar leaves unavailable cell addresses blank rather than displaying a dash.

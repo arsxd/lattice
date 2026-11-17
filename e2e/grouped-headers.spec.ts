@@ -36,6 +36,8 @@ test("Books uses a merged details header and editable leaf subheaders", async ({
   ).toHaveCount(0);
   const pages = table.locator('[data-r="0"][data-c="8"]');
   await expect(pages).toHaveText("160");
+  await pages.click();
+  await expect(page.getByLabel("Cell address", { exact: true })).toHaveText("");
   await pages.dblclick();
   const input = page.getByRole("textbox", {
     name: "Edit books details / pages",
@@ -104,7 +106,7 @@ test("nested checkbox keeps content-sized widths and compact sizing survives tog
     note = table.locator('[data-r="0"][data-c="7"]');
   await expect(table).toBeVisible();
   expect(await table.locator(".header-filter svg path").first().getAttribute("d")).toBe(compactChevron);
-  await expect(table.locator(".select-all-corner")).toHaveCount(1);
+  await expect(table.locator(".select-all-corner")).toHaveCount(0);
   expect((await quantity.boundingBox())!.width).toBeLessThan(150);
   expect((await note.boundingBox())!.width).toBeGreaterThan(
     (await quantity.boundingBox())!.width,

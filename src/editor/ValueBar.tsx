@@ -78,7 +78,7 @@ function ValueBarEditor({
   }
   return (
     <div className="value-bar">
-      <output aria-label="Cell address">{address || "—"}</output>
+      <output aria-label="Cell address">{address}</output>
       <label htmlFor="cell-value">Value</label>
       <textarea
         ref={textarea}

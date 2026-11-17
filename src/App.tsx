@@ -1,4 +1,4 @@
-import { ColumnMenuChevron, SelectAllCorner } from "./grid/SheetIcons";
+import { ColumnMenuChevron } from "./grid/SheetIcons";
 import { NestedViewNotice } from "./grid/NestedViewNotice";
 import { ExpandedSheet } from "./grid/ExpandedSheet";
 import { FileDropZone, type DroppedFile } from "./workspace/FileDropZone";
@@ -1361,7 +1361,7 @@ export default function App() {
                     )
                   }
                 >
-                  <SelectAllCorner />
+
                 </button>
               ),
               renderCell: ({ rowIdx, row }) => (

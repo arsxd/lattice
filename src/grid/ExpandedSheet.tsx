@@ -1,4 +1,4 @@
-import { ColumnMenuChevron, SelectAllCorner } from "./SheetIcons";
+import { ColumnMenuChevron } from "./SheetIcons";
 import { contentColumnWidths, createTextMeasurer } from "./columnSizing";
 import { groupedHeaderRows } from "./groupedHeaders";
 import {
@@ -659,7 +659,7 @@ function ExpandedTable({
           props.onSelect(null);
         }}
       >
-        <SelectAllCorner />
+
       </button>
     </th>
   );
