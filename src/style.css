@@ -1202,7 +1202,11 @@ select optgroup {
 .inspector { max-width: 50vw; }
 .status .selection-status { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 1000px) { .status-bytes { display: none; } }
-.expanded-sheets { flex: 1; min-height: 0; overflow: auto; }
+.expanded-sheets { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+.expanded-sections { flex: 1; min-height: 0; overflow: auto; }
+.expanded-toolbar-host { flex-shrink: 0; }
+.expanded-active-name { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); padding-right: 8px; margin-right: 4px; border-right: 1px solid var(--line); font-size: 12px; }
+.expanded-section[data-active="true"] > h3 { color: var(--accent); }
 .expanded-section { margin: 0; border-bottom: 1px solid var(--line); }
 .expanded-section h3 { margin: 0; padding: 8px 12px; font-size: 13px; font-weight: 600; background: var(--chrome); }
 .expanded-grid { overflow: auto; max-height: 60vh; min-height: 120px; }
@@ -1237,7 +1241,8 @@ select optgroup {
 .expanded-grid .select-all-cells { border: 0; border-radius: 0; background: transparent; box-shadow: none; color: var(--muted); padding: 0; min-height: 32px; }
 /* A single expanded worksheet fills the same workspace as the compact grid. */
 .expanded-single { display: flex; flex-direction: column; overflow: hidden; }
-.expanded-single > .expanded-section { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.expanded-single > .expanded-sections { display: flex; overflow: hidden; }
+.expanded-single > .expanded-sections > .expanded-section { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .expanded-single .expanded-grid { flex: 1; min-height: 0; max-height: none; }
 .expanded-single .pagination { flex-shrink: 0; }
 

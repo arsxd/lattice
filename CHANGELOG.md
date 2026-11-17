@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — experimental branch
+
+- Keep all nested tables above one fixed action footer in All data. The footer targets the selected table and shows its name; single-table layout and section-specific editing/filtering/freezing are preserved.
+
 ## 1.1.0-dev.9 — development only
 
 - Replace the page-wide drag frame and overlapping hint with a contained drop target below the toolbar. Clear abandoned file-drag feedback after drag events stop and on normal pointer interaction.

@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { columnLetter } from "./columnAddress";
 import { ColumnMenuChevron } from "./SheetIcons";
 import { contentColumnWidths, createTextMeasurer } from "./columnSizing";
@@ -91,6 +92,12 @@ export function ExpandedSheet(props: Props) {
     memory.active,
   );
   const [editingSection, setEditingSection] = useState<string | null>(null);
+  const [toolbarHost, setToolbarHost] = useState<HTMLDivElement | null>(null);
+  const activeSection = data?.sections.some(
+    (section) => section.key === selectedSection,
+  )
+    ? selectedSection
+    : (data?.sections[0]?.key ?? null);
   useEffect(() => {
     let live = true;
     props.client
@@ -127,31 +134,36 @@ export function ExpandedSheet(props: Props) {
           aria-label="Loading expanded rows"
         />
       )}
-      {data?.sections.map((section) => (
-        <ExpandedTable
-          key={section.key}
-          {...props}
-          section={section}
-          saved={memory.tables.get(section.key)}
-          onRemember={(value) => memory.tables.set(section.key, value)}
-          active={selectedSection === section.key}
-          onSelect={(cell, position) => {
-            memory.active = section.key;
-            setSelectedSection(section.key);
-            props.onSelect(cell, position);
-          }}
-          busy={
-            props.busy ||
-            data.revision !== props.revision ||
-            (editingSection !== null && editingSection !== section.key)
-          }
-          onEditing={(editing) => {
-            setEditingSection(editing ? section.key : null);
-            props.onEditing(editing);
-          }}
-          revision={data.revision}
-        />
-      ))}
+      <div className="expanded-sections">
+        {data?.sections.map((section) => (
+          <ExpandedTable
+            key={section.key}
+            {...props}
+            section={section}
+            saved={memory.tables.get(section.key)}
+            onRemember={(value) => memory.tables.set(section.key, value)}
+            active={activeSection === section.key}
+            toolbarHost={toolbarHost}
+            showTableName={(data?.sections.length ?? 0) > 1}
+            onSelect={(cell, position) => {
+              memory.active = section.key;
+              setSelectedSection(section.key);
+              props.onSelect(cell, position);
+            }}
+            busy={
+              props.busy ||
+              data.revision !== props.revision ||
+              (editingSection !== null && editingSection !== section.key)
+            }
+            onEditing={(editing) => {
+              setEditingSection(editing ? section.key : null);
+              props.onEditing(editing);
+            }}
+            revision={data.revision}
+          />
+        ))}
+      </div>
+      <div className="expanded-toolbar-host" ref={setToolbarHost} />
     </div>
   );
 }
@@ -160,10 +172,14 @@ function ExpandedTable({
   active,
   saved,
   onRemember,
+  toolbarHost,
+  showTableName,
   ...props
 }: Props & {
   section: ExpandedSection;
   active: boolean;
+  toolbarHost: HTMLDivElement | null;
+  showTableName: boolean;
   saved?: SavedTable;
   onRemember: (value: SavedTable) => void;
 }) {
@@ -683,6 +699,7 @@ function ExpandedTable({
   return (
     <section
       className="expanded-section"
+      data-active={active}
       aria-label={`${section.key} expanded table`}
     >
       {!section.mapping && <h3>{section.key}</h3>}
@@ -1076,186 +1093,208 @@ function ExpandedTable({
           {draft?.error || message}
         </p>
       )}
-      <div className="pagination">
-        <button
-          disabled={busy || !!draft || !selected}
-          onClick={() => {
-            const row = selected && rows[selected.r];
-            if (section.mapping) {
-              const candidate = row?.cells[parents]?.cell.path;
-              const record = section.recordPaths?.find(
-                (path) =>
-                  candidate &&
-                  path.every((part, index) => part === candidate[index]),
-              );
-              if (record?.length)
-                void act(() =>
-                  props.onMutate(
-                    [{ action: "add-row", path: record.slice(0, -1) }],
-                    props.revision,
-                  ),
-                );
-              return;
-            }
-            const group =
-              row &&
-              section.groups.find(
-                (group) =>
-                  JSON.stringify(group.path) === JSON.stringify(row.groupPath),
-              );
-            if (group)
-              void act(() =>
-                props.onMutate(
-                  group.arrayPresent
-                    ? [
-                        {
-                          action: "insert",
-                          path: [...group.path, section.key],
-                          raw: JSON.stringify(
-                            Object.fromEntries(
-                              section.childHeaders.map((key) => [key, null]),
-                            ),
-                          ),
-                        },
-                      ]
-                    : [
-                        {
-                          action: "insert",
-                          path: group.path,
-                          key: section.key,
-                          raw: JSON.stringify([
-                            Object.fromEntries(
-                              section.childHeaders.map((key) => [key, null]),
-                            ),
-                          ]),
-                        },
-                      ],
-                  props.revision,
-                ),
-              );
-          }}
-        >
-          Add row
-        </button>
-        <button
-          disabled={busy || !!draft || columnName !== null}
-          onClick={() => setColumnName("")}
-        >
-          Add column
-        </button>
-        {columnName !== null && (
-          <form
-            className="expanded-column-form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!columnName) {
-                setMessage("Enter a column name.");
-                return;
-              }
-              void act(async () => {
+      {toolbarHost &&
+        active &&
+        createPortal(
+          <div
+            className="pagination"
+            role="group"
+            aria-label={`${section.key} table actions`}
+          >
+            {showTableName && (
+              <span className="expanded-active-name">{section.key}</span>
+            )}
+            <button
+              disabled={busy || !!draft || !selected}
+              onClick={() => {
+                const row = selected && rows[selected.r];
                 if (section.mapping) {
-                  await props.onMutate(
-                    (section.recordPaths ?? []).map((path) => ({
-                      action: "insert",
-                      path,
-                      key: columnName,
-                      raw: "null",
-                    })),
-                    props.revision,
+                  const candidate = row?.cells[parents]?.cell.path;
+                  const record = section.recordPaths?.find(
+                    (path) =>
+                      candidate &&
+                      path.every((part, index) => part === candidate[index]),
                   );
-                  setColumnName(null);
+                  if (record?.length)
+                    void act(() =>
+                      props.onMutate(
+                        [{ action: "add-row", path: record.slice(0, -1) }],
+                        props.revision,
+                      ),
+                    );
                   return;
                 }
-                const commands: AtomicMutation[] = section.groups
-                  .filter((group) => group.arrayPresent)
-                  .map((group) => ({
-                    action: "add-column",
-                    path: [...group.path, section.key],
-                    key: columnName,
-                  }));
-                await props.onMutate(commands, props.revision);
-                setColumnName(null);
-              });
-            }}
-          >
-            <input
-              aria-label={`New ${section.key} column`}
-              autoFocus
-              value={columnName}
-              onChange={(e) => setColumnName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") setColumnName(null);
+                const group =
+                  row &&
+                  section.groups.find(
+                    (group) =>
+                      JSON.stringify(group.path) ===
+                      JSON.stringify(row.groupPath),
+                  );
+                if (group)
+                  void act(() =>
+                    props.onMutate(
+                      group.arrayPresent
+                        ? [
+                            {
+                              action: "insert",
+                              path: [...group.path, section.key],
+                              raw: JSON.stringify(
+                                Object.fromEntries(
+                                  section.childHeaders.map((key) => [
+                                    key,
+                                    null,
+                                  ]),
+                                ),
+                              ),
+                            },
+                          ]
+                        : [
+                            {
+                              action: "insert",
+                              path: group.path,
+                              key: section.key,
+                              raw: JSON.stringify([
+                                Object.fromEntries(
+                                  section.childHeaders.map((key) => [
+                                    key,
+                                    null,
+                                  ]),
+                                ),
+                              ]),
+                            },
+                          ],
+                      props.revision,
+                    ),
+                  );
+              }}
+            >
+              Add row
+            </button>
+            <button
+              disabled={busy || !!draft || columnName !== null}
+              onClick={() => setColumnName("")}
+            >
+              Add column
+            </button>
+            {columnName !== null && (
+              <form
+                className="expanded-column-form"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!columnName) {
+                    setMessage("Enter a column name.");
+                    return;
+                  }
+                  void act(async () => {
+                    if (section.mapping) {
+                      await props.onMutate(
+                        (section.recordPaths ?? []).map((path) => ({
+                          action: "insert",
+                          path,
+                          key: columnName,
+                          raw: "null",
+                        })),
+                        props.revision,
+                      );
+                      setColumnName(null);
+                      return;
+                    }
+                    const commands: AtomicMutation[] = section.groups
+                      .filter((group) => group.arrayPresent)
+                      .map((group) => ({
+                        action: "add-column",
+                        path: [...group.path, section.key],
+                        key: columnName,
+                      }));
+                    await props.onMutate(commands, props.revision);
+                    setColumnName(null);
+                  });
+                }}
+              >
+                <input
+                  aria-label={`New ${section.key} column`}
+                  autoFocus
+                  value={columnName}
+                  onChange={(e) => setColumnName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") setColumnName(null);
+                  }}
+                />
+                <button type="submit" disabled={busy}>
+                  Add
+                </button>
+                <button type="button" onClick={() => setColumnName(null)}>
+                  Cancel
+                </button>
+              </form>
+            )}
+            <button
+              aria-pressed={wrap}
+              disabled={busy || !!draft}
+              onClick={() => setWrap(!wrap)}
+            >
+              Wrap text
+            </button>
+            <FreezeMenu
+              rows={frozenRows}
+              columns={freeze.columns}
+              selection={
+                selected ? { row: selected.r, column: selected.c } : null
+              }
+              rangeSelection={selection}
+              pageRowCount={rows.length}
+              disabled={busy || !!draft}
+              paused={
+                frozenRows && !frozenAllowed
+                  ? "Merged parent groups must fit within 40% of the table height."
+                  : undefined
+              }
+              onChange={(value) => {
+                if (
+                  Array.from({ length: value.columns }, (_, i) =>
+                    width(i),
+                  ).reduce((a, b) => a + b, 0) >
+                  (root.current?.clientWidth ?? 800) * 0.6
+                ) {
+                  setMessage(
+                    "Freeze fewer columns to leave room for scrolling.",
+                  );
+                  return;
+                }
+                const count =
+                  value.rows && rows[Math.min(value.rows, rows.length) - 1]
+                    ? rows[Math.min(value.rows, rows.length) - 1].end
+                    : 0;
+                setFreeze({ ...value, rows: count });
+                setMessage("");
               }}
             />
-            <button type="submit" disabled={busy}>
-              Add
-            </button>
-            <button type="button" onClick={() => setColumnName(null)}>
-              Cancel
-            </button>
-          </form>
+            {(sort || Object.keys(filters).length > 0) && (
+              <button
+                disabled={busy || !!draft}
+                onClick={() =>
+                  changeView(() => {
+                    setSort(undefined);
+                    setFilters({});
+                  })
+                }
+              >
+                Clear sort and filters
+              </button>
+            )}
+            <div className="spacer" />
+            <input
+              aria-label={`Find in ${section.key}`}
+              type="search"
+              placeholder="Find in this table…"
+              disabled={!!draft}
+              value={search}
+              onChange={(e) => changeView(() => setSearch(e.target.value))}
+            />
+          </div>,
+          toolbarHost,
         )}
-        <button
-          aria-pressed={wrap}
-          disabled={busy || !!draft}
-          onClick={() => setWrap(!wrap)}
-        >
-          Wrap text
-        </button>
-        <FreezeMenu
-          rows={frozenRows}
-          columns={freeze.columns}
-          selection={selected ? { row: selected.r, column: selected.c } : null}
-          rangeSelection={selection}
-          pageRowCount={rows.length}
-          disabled={busy || !!draft}
-          paused={
-            frozenRows && !frozenAllowed
-              ? "Merged parent groups must fit within 40% of the table height."
-              : undefined
-          }
-          onChange={(value) => {
-            if (
-              Array.from({ length: value.columns }, (_, i) => width(i)).reduce(
-                (a, b) => a + b,
-                0,
-              ) >
-              (root.current?.clientWidth ?? 800) * 0.6
-            ) {
-              setMessage("Freeze fewer columns to leave room for scrolling.");
-              return;
-            }
-            const count =
-              value.rows && rows[Math.min(value.rows, rows.length) - 1]
-                ? rows[Math.min(value.rows, rows.length) - 1].end
-                : 0;
-            setFreeze({ ...value, rows: count });
-            setMessage("");
-          }}
-        />
-        {(sort || Object.keys(filters).length > 0) && (
-          <button
-            disabled={busy || !!draft}
-            onClick={() =>
-              changeView(() => {
-                setSort(undefined);
-                setFilters({});
-              })
-            }
-          >
-            Clear sort and filters
-          </button>
-        )}
-        <div className="spacer" />
-        <input
-          aria-label={`Find in ${section.key}`}
-          type="search"
-          placeholder="Find in this table…"
-          disabled={!!draft}
-          value={search}
-          onChange={(e) => changeView(() => setSearch(e.target.value))}
-        />
-      </div>
     </section>
   );
 }

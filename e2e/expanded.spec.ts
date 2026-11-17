@@ -126,8 +126,8 @@ test("adds child rows and columns, infers null-cell types and copies/pastes a ra
   page,
 }) => {
   await open(page);
-  const section = page.getByRole("region", {
-    name: "items expanded table",
+  const section = page.getByRole("group", {
+    name: "items table actions",
     exact: true,
   });
   await cell(page, 0, 0).click();
@@ -184,8 +184,8 @@ test("freezes complete merged groups and supports column resizing", async ({
   page,
 }) => {
   await open(page);
-  const section = page.getByRole("region", {
-    name: "items expanded table",
+  const section = page.getByRole("group", {
+    name: "items table actions",
     exact: true,
   });
   await section.locator(".freeze-menu summary").click();
@@ -250,8 +250,8 @@ test("keeps an entire merged parent group fixed during scrolling", async ({
     qty: i,
   }));
   await open(page, JSON.stringify(data));
-  const section = page.getByRole("region", {
-    name: "items expanded table",
+  const section = page.getByRole("group", {
+    name: "items table actions",
     exact: true,
   });
   await section.locator(".freeze-menu summary").click();
@@ -259,9 +259,12 @@ test("keeps an entire merged parent group fixed during scrolling", async ({
     .getByRole("button", { name: "Freeze first row", exact: true })
     .click();
   const before = await cell(page, 0, 0).boundingBox();
-  await section.locator(".expanded-grid").evaluate((el) => {
-    el.scrollTop = 200;
-  });
+  await page
+    .getByRole("region", { name: "items expanded table", exact: true })
+    .locator(".expanded-grid")
+    .evaluate((el) => {
+      el.scrollTop = 200;
+    });
   await expect
     .poll(async () => Math.round((await cell(page, 0, 0).boundingBox())!.y))
     .toBe(Math.round(before!.y));

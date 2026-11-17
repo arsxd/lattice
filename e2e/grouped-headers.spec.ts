@@ -37,7 +37,9 @@ test("Books uses a merged details header and editable leaf subheaders", async ({
   const pages = table.locator('[data-r="0"][data-c="8"]');
   await expect(pages).toHaveText("160");
   await pages.click();
-  await expect(page.getByLabel("Cell address", { exact: true })).toHaveText("I1");
+  await expect(page.getByLabel("Cell address", { exact: true })).toHaveText(
+    "I1",
+  );
   await pages.dblclick();
   const input = page.getByRole("textbox", {
     name: "Edit books details / pages",
@@ -99,13 +101,17 @@ test("nested checkbox keeps content-sized widths and compact sizing survives tog
     .poll(async () => (await heading.boundingBox())!.width)
     .toBeGreaterThan(100);
   const initial = (await heading.boundingBox())!.width;
-  const compactChevron = await heading.locator(".header-filter svg path").getAttribute("d");
+  const compactChevron = await heading
+    .locator(".header-filter svg path")
+    .getAttribute("d");
   await checkbox.check();
   const table = page.getByRole("table", { name: "orders data", exact: true });
   const quantity = table.locator('[data-r="0"][data-c="2"]'),
     note = table.locator('[data-r="0"][data-c="7"]');
   await expect(table).toBeVisible();
-  expect(await table.locator(".header-filter svg path").first().getAttribute("d")).toBe(compactChevron);
+  expect(
+    await table.locator(".header-filter svg path").first().getAttribute("d"),
+  ).toBe(compactChevron);
   await expect(table.locator(".select-all-corner")).toHaveCount(0);
   expect((await quantity.boundingBox())!.width).toBeLessThan(150);
   expect((await note.boundingBox())!.width).toBeGreaterThan(
@@ -146,7 +152,10 @@ test("expanded worksheet controls stay directly above the sheet tabs at differen
     name: "books expanded table",
     exact: true,
   });
-  const toolbar = section.locator(".pagination");
+  const toolbar = page.getByRole("group", {
+    name: "books table actions",
+    exact: true,
+  });
   const tabs = page.getByRole("navigation", { name: "Document sheets" });
   for (const height of [1000, 720, 1100]) {
     await page.setViewportSize({ width: 1440, height });
@@ -162,10 +171,10 @@ test("expanded worksheet controls stay directly above the sheet tabs at differen
       el.scrollTop = el.scrollHeight;
     });
     await expect(
-      section.getByRole("button", { name: "Add column", exact: true }),
+      toolbar.getByRole("button", { name: "Add column", exact: true }),
     ).toBeVisible();
     await expect(
-      section.getByRole("button", { name: "Wrap text", exact: true }),
+      toolbar.getByRole("button", { name: "Wrap text", exact: true }),
     ).toBeVisible();
   }
 });
