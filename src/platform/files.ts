@@ -34,13 +34,35 @@ export type Opened = {
   handle?: BrowserHandle;
   diskText?: string;
 };
-async function readBrowserFile(handle: BrowserHandle) {
-  const file = await handle.getFile();
+export async function readJsonFile(file: File): Promise<string> {
   if (file.size > 64 * 1024 * 1024)
-    throw new Error("This build supports files up to 64 MiB.");
-  return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(
-    await file.arrayBuffer(),
-  );
+    throw new Error(
+      `"${file.name}" is too large. Lattice opens files up to 64 MiB.`,
+    );
+  const bytes = await file.arrayBuffer();
+  try {
+    return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(
+      bytes,
+    );
+  } catch {
+    throw new Error(
+      `"${file.name}" could not be read as UTF-8 text. Export it as UTF-8 JSON and try again.`,
+    );
+  }
+}
+async function readBrowserFile(handle: BrowserHandle) {
+  return readJsonFile(await handle.getFile());
+}
+export async function droppedJsonFile(
+  file: File,
+  handle?: BrowserHandle,
+): Promise<Opened> {
+  const text = await readJsonFile(file);
+  return {
+    name: file.name,
+    text,
+    ...(handle ? { handle, diskText: text } : {}),
+  };
 }
 export async function prepareBrowserSave(
   doc: Opened,
@@ -96,13 +118,7 @@ export async function openFile(): Promise<Opened | null> {
       const f = input.files?.[0];
       if (!f) return resolve(null);
       try {
-        if (f.size > 64 * 1024 * 1024)
-          throw new Error("This build supports files up to 64 MiB.");
-        const bytes = await f.arrayBuffer();
-        const text = new TextDecoder("utf-8", {
-          fatal: true,
-          ignoreBOM: true,
-        }).decode(bytes);
+        const text = await readJsonFile(f);
         resolve({ name: f.name, text });
       } catch (e) {
         reject(e);

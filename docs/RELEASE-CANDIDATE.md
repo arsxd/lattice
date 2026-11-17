@@ -1,8 +1,8 @@
-# v1.0.0-rc.2 validation
+# v1.0.0-rc.3 validation
 
-This is a release candidate, **not the stable release**. The editor feature set is frozen for this round; changes should address reproducible defects, tests, packaging or documentation.
+This is a release candidate, **not the stable release**. This round includes file-opening and usability improvements. Grouped child-row layouts remain experimental and are excluded from this candidate.
 
-Download `Lattice-Offline.html` and `SHA256SUMS.txt` from [v1.0.0-rc.2](https://github.com/arsxd/lattice/releases/tag/v1.0.0-rc.2). The HTML runs by itself. The checksum is optional for use and lets testers identify the exact artifact. The [hosted app](https://arsxd.github.io/lattice/) follows main; its contents may change after this candidate. Use the versioned HTML for a repeatable candidate test.
+Download `Lattice-Offline.html` and `SHA256SUMS.txt` from [v1.0.0-rc.3](https://github.com/arsxd/lattice/releases/tag/v1.0.0-rc.3). The HTML runs by itself. The checksum is optional for use and lets testers identify the exact artifact. The [hosted app](https://arsxd.github.io/lattice/) follows main; its contents may change after this candidate. Use the versioned HTML for a repeatable candidate test.
 
 ## Automated gates
 

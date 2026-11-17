@@ -6,6 +6,7 @@ const original =
 async function linkedFile(page: Page) {
   // Models the browser handle contract; it does not test native permission dialogs.
   await page.addInitScript((text) => {
+    localStorage.setItem("lattice-show-index", "true");
     const model = {
       disk: text,
       writes: 0,

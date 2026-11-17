@@ -10,9 +10,9 @@ Use a sample first to check your browser's Open, editing and Save/Download behav
 
 ## Documents, sheets and nested data
 
-Open creates a document tab. Each document has its own worker and undo history. Bottom sheet tabs expose top-level containers and groups beneath single-object wrappers. Nested objects/record arrays open as tables; breadcrumbs return to parents. Simple primitive arrays display inside the cell and can be edited as JSON, e.g. `[1, 2, 3]`.
+Open creates a document tab. You can also drop JSON files onto the app, up to eight files totalling 64 MiB per drop. Each opens in its own tab; finish an active cell edit before dropping files. Dropped files retain a writable handle only where the browser provides one; otherwise use Save as or Download. File-picker and dropped files share UTF-8 and size checks. Empty or invalid JSON opens in Source with an explanation and the original parser details available on demand. Each document has its own worker and undo history. Bottom sheet tabs expose top-level containers and groups beneath single-object wrappers. Nested objects/record arrays open as tables; breadcrumbs return to parents. Simple primitive arrays display inside the cell and can be edited as JSON, e.g. `[1, 2, 3]`.
 
-Property tables show Key/Value; arrays show Index/Value. Type metadata is available in Details. A real JSON field named `type` remains ordinary data. Object Key cells can be renamed directly; array indices are generated and read-only. Duplicate object keys are rejected.
+Property tables show Key/Value; primitive arrays show Value. Generated array indices are hidden by default; the left gutter shows the displayed row number. Right-click a table cell and choose **Show original index** to expose the original zero-based array positions, or inspect **Original index** in Details. The preference is stored locally. A real JSON field named `index` or `id` remains visible. **Open row** in the right-click menu opens an array record as a property table. Type metadata is available in Details. A real JSON field named `type` remains ordinary data. Object Key cells can be renamed directly; array indices are generated and read-only. Duplicate object keys are rejected.
 
 ## Enter and change data
 
@@ -119,7 +119,7 @@ A generated **Array value** column carries a **view** badge. It holds non-object
 
 Double-click or Enter on a nested collection name opens its table; F2 renames an object key. Scalar arrays remain editable inline in value cells. Array previews remove formatting whitespace outside strings and preserve number spelling and whitespace inside strings.
 
-**Browse** sits above the left pane; **Details** stays beside Review changes. Drag either pane boundary to resize it. Focus the boundary and use Left/Right for keyboard resizing, or Home/double-click to reset. Only pane widths are stored locally, never JSON content. The right pane overlays the workspace at narrower window sizes. Column titles wrap to two lines when needed, independently of data wrapping.
+**Browse** sits above the left pane; **Details** stays beside Review changes. Drag either pane boundary to resize it. Focus the boundary and use Left/Right for keyboard resizing, or Home/double-click to reset. Only pane widths are stored locally, never JSON content. Details can expand to half the window width and shrinks to that limit when the window is resized. The right pane overlays the workspace at narrower window sizes. Column titles wrap to two lines when needed, independently of data wrapping.
 
 Long-running actions show a small ring spinning in place after a brief delay. Reload confirmation uses a compact status toast without moving the grid. Busy actions remain disabled to prevent repeated requests.
 
@@ -142,3 +142,5 @@ Review uses unchanged lines as anchors, then compares characters within changed 
 Row/column headers and the top-left corner select ranges. Details shows the number of selected cells; select one cell to inspect its value. Header text and surrounding space select the column; its filter button opens the menu.
 
 Initial column widths sample up to 50 displayed rows and use bounded widths for wide tables. Small tables also use content-based widths; the last column does not stretch to fill unused workspace. Manual column resizing takes precedence. Primitive arrays remain compact while editing. The selected cell can show up to 1,024 characters; the value bar expands to at most three lines and 4,096 characters. Longer values use a read-only preview and remain available in Source. Enter commits value-bar input, Shift+Enter adds a line, and Escape cancels.
+
+The app version appears in the welcome screen footer and document status bar. Use it when reporting a problem.

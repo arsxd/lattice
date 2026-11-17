@@ -1192,3 +1192,15 @@ select optgroup {
   .toolbar { gap: 4px; }
   .toolbar strong { margin-right: 4px; }
 }
+
+.file-drop-root { display: contents; }
+.file-drop-overlay { position: fixed; inset: 8px; z-index: 100; display: grid; place-items: center; pointer-events: none; border: 2px solid var(--accent); border-radius: 6px; background: color-mix(in srgb, var(--surface) 93%, transparent); color: var(--text); font-size: 18px; }
+.status > span { white-space: nowrap; }
+.status .document-filename { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.app-version { flex-shrink: 0; }
+.diagnostics details { margin-top: 8px; font-size: 12px; }
+.diagnostics summary { cursor: pointer; }
+@media (max-width: 1000px) { .status { gap: 8px; padding-inline: 8px; } .status-encoding { display: none; } }
+.inspector { max-width: 50vw; }
+.status .selection-status { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 1000px) { .status-bytes { display: none; } }

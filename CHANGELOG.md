@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.0-rc.3 — 2026-11-17
+
+- Show the app version on the welcome screen and status bar.
+- Explain empty or invalid JSON in plain language, with parser details available on demand.
+- Open dropped JSON files in separate tabs, with bounded batch sizes and shared UTF-8 checks. Preserve source typing while files are prepared.
+- Allow Details to expand to half the window width.
+- Hide generated array indices by default while preserving real data fields; expose original positions in Details and through an optional context-menu column. Open records through **Open row**. Sorting, filtering and range edits retain original JSON paths.
+- This remains a release candidate. Grouped child-row layouts are excluded; manual stable-release gates remain pending.
+
 ## 1.0.0-rc.2 — 2026-11-16
 
 - Removed forced viewport filling for small tables. Property values, primitive-array values, single-field records and scalar tables now start with bounded content widths, keeping numeric values near their keys. Manual column resizing remains available.

@@ -1,3 +1,6 @@
+import { FileDropZone, type DroppedFile } from "./workspace/FileDropZone";
+import { droppedJsonFile } from "./platform/files";
+import { JsonProblem } from "./editor/JsonProblem";
 import { HomeScreen } from "./HomeScreen";
 import { contentColumnWidths } from "./grid/columnSizing";
 import { compactJson } from "./document/compactJson";
@@ -81,7 +84,20 @@ import {
 import { sample } from "./sample";
 import "react-data-grid/lib/styles.css";
 import "./style.css";
-const initialQuery: Query = { path: [], records: true, search: "", page: 0 };
+function originalIndexPreference() {
+  try {
+    return localStorage.getItem("lattice-show-index") === "true";
+  } catch {
+    return false;
+  }
+}
+const initialQuery: Query = {
+  path: [],
+  records: true,
+  search: "",
+  page: 0,
+  showIndex: originalIndexPreference(),
+};
 type Selection = { cell: Cell; revision: number; raw: string };
 type Editing = {
   action: "replace" | "insert" | "rename" | "remove";
@@ -205,7 +221,7 @@ export default function App() {
   const sessions = useRef(new Map<string, Session>());
   const navigationHistory = useRef(new Map<string, NavigationHistory>());
   const [activeId, setActiveId] = useState("");
-  const tableHeightKey = `${activeId}:${pointer(query.path)}`;
+  const tableHeightKey = `${activeId}:${pointer(query.path)}:${query.showIndex !== false}`;
   const heightKey = (row: Row) => `${tableHeightKey}:${row.id}`;
   const automaticWidths = useMemo(
     () => (view ? contentColumnWidths(view, gridSize.width, textMeasure) : []),
@@ -448,8 +464,11 @@ export default function App() {
       truncatedSheets,
     };
   }
+  // File preparation can outlast source typing; save the latest rendered draft.
+  const currentSnapshot = useRef<Session | null>(null);
+  currentSnapshot.current = snapshot();
   function remember() {
-    const current = snapshot();
+    const current = currentSnapshot.current;
     if (current) sessions.current.set(current.id, current);
   }
   function activate(s: Session) {
@@ -562,12 +581,13 @@ export default function App() {
     opened: Opened,
     path: Path = [],
     recovered = false,
+    showIndex = originalIndexPreference(),
   ): Promise<Session> {
     const next = new DocumentClient();
     try {
       await next.call("open", { text: opened.text });
       if (recovered) await next.call("saved", { text: "\u0000recovered" });
-      const q = { ...initialQuery, path };
+      const q = { ...initialQuery, path, showIndex };
       let p = await next.call<Projection>("project", q);
       if (!path.length && p.rootKind === "object" && !p.recordsAvailable) {
         q.records = false;
@@ -612,6 +632,28 @@ export default function App() {
       if (file) await load(file);
     });
   }
+  async function openDropped(files: DroppedFile[]) {
+    await run(async () => {
+      const failures: string[] = [];
+      const opened: Session[] = [];
+      for (const item of files) {
+        try {
+          opened.push(
+            await prepare(await droppedJsonFile(item.file, item.handle)),
+          );
+        } catch (error) {
+          failures.push(error instanceof Error ? error.message : String(error));
+        }
+      }
+      if (opened.length) {
+        remember();
+        for (const session of opened) sessions.current.set(session.id, session);
+        activate(opened[opened.length - 1]);
+        setTabVersion((value) => value + 1);
+      }
+      if (failures.length) setError(failures.slice(0, 3).join(" "));
+    });
+  }
   async function reloadSource() {
     if (!doc) return;
     await run(async () => {
@@ -643,7 +685,7 @@ export default function App() {
         : null;
       const opened = await reloadFile(doc);
       if (!opened) return;
-      const next = await prepare(opened);
+      const next = await prepare(opened, [], false, query.showIndex);
       const path = [...query.path];
       while (path.length) {
         try {
@@ -1006,12 +1048,58 @@ export default function App() {
     });
   }
   function valueColumn(index: number) {
-    return view?.recordsAvailable && query.records
-      ? index > 0
-      : index === (view?.headers.length ?? 0) - 1;
+    const role = view?.columnKinds[index];
+    return role === "field" || role === "value" || role === "mixed";
   }
   function keyEditable(column: number) {
-    return column === 0 && view?.kind === "object" && view.headers.length > 1;
+    return view?.columnKinds[column] === "key";
+  }
+  async function toggleIndex() {
+    if (!view || busyRef.current) return;
+    await run(async () => {
+      const showIndex = query.showIndex === false;
+      const indexColumn = view.columnKinds.indexOf("index");
+      if (
+        !showIndex &&
+        indexColumn >= 0 &&
+        (query.sort?.column === indexColumn ||
+          query.filters?.[String(indexColumn)] ||
+          query.valueFilters?.[String(indexColumn)] !== undefined)
+      ) {
+        setNotice(
+          "Clear the original index’s sort or filter before hiding it.",
+        );
+        return;
+      }
+      const next = { ...query, showIndex };
+      const shape = await client.current!.call<Projection>("project", {
+        ...next,
+        sort: undefined,
+        filters: undefined,
+        valueFilters: undefined,
+        optionsColumn: undefined,
+      });
+      const mapped = remapReloadQuery(next, view, shape);
+      const layoutKey = `${activeId}:${pointer(query.path)}:${showIndex}`;
+      setFreezeSettings((previous) => ({
+        ...previous,
+        [layoutKey]: {
+          rows: frozen.rows,
+          columns: frozen.columns
+            ? Math.max(0, frozen.columns + (showIndex ? 1 : -1))
+            : 0,
+        },
+      }));
+      setQuery(mapped);
+      setSelection(null);
+      setSheetSelection(null);
+      try {
+        localStorage.setItem("lattice-show-index", String(showIndex));
+      } catch {
+        /* The view still works when preference storage is unavailable. */
+      }
+      await refresh(mapped);
+    });
   }
   function startKey(cell: Cell, row: number, initial?: string) {
     if (!view || busy) return;
@@ -1486,11 +1574,16 @@ export default function App() {
                     />
                   );
                 const c = row.cells[i];
+                const originalIndex = view.columnKinds[i] === "index";
                 const blank = valueColumn(i) ? blankState(c) : null;
                 return (
                   <span
-                    className={`cell-value ${blank ? "empty-value" : ""} ${c.container ? "container-value" : ""} ${c.type === "array" ? "array-value" : ""} ${c.type === "number" ? "numeric" : ""}`}
-                    title={`${blank ?? c.type} — ${pointer(c.path) || "root"}`}
+                    className={`cell-value ${blank ? "empty-value" : ""} ${c.container && !originalIndex ? "container-value" : ""} ${c.type === "array" && !originalIndex ? "array-value" : ""} ${c.type === "number" ? "numeric" : ""}`}
+                    title={
+                      originalIndex
+                        ? "Original array position (starting at zero). Open row from the right-click menu."
+                        : `${blank ?? c.type} — ${pointer(c.path) || "root"}`
+                    }
                     aria-label={
                       blank
                         ? `${blank} — ${pointer(c.path) || "root"}`
@@ -1903,7 +1996,7 @@ export default function App() {
         ? `calc(100vw - ${rightWidth + 365}px)`
         : "calc(100vw - 365px)",
   };
-  return (
+  const workspaceView = (
     <div
       className="app-shell"
       onClickCapture={(e) => {
@@ -2386,22 +2479,11 @@ export default function App() {
                 </div>
               </div>
               {!!view?.diagnostics.length && (
-                <div className="diagnostics" role="alert">
-                  <strong>
-                    {view.diagnostics.length} JSON issue
-                    {view.diagnostics.length === 1 ? "" : "s"}
-                  </strong>
-                  <div>
-                    {view.diagnostics.slice(0, 5).map((d, i) => (
-                      <p key={i}>
-                        Line {d.line}, column {d.column}: {d.message}
-                      </p>
-                    ))}
-                  </div>
-                  <span>
-                    Repair in Source. Table editing and saving are paused.
-                  </span>
-                </div>
+                <JsonProblem
+                  text={sourceBase}
+                  diagnostics={view.diagnostics}
+                  onOpen={() => void open()}
+                />
               )}
               {mode === "table" && view && (
                 <>
@@ -2526,6 +2608,9 @@ export default function App() {
                   )}
                   <SheetRange
                     isValueColumn={valueColumn}
+                    showIndex={query.showIndex !== false}
+                    onToggleIndex={() => void toggleIndex()}
+                    onOpenRow={(path) => void navigate(path)}
                     view={view}
                     selection={sheetSelection}
                     onSelectionChange={setSheetSelection}
@@ -2589,7 +2674,12 @@ export default function App() {
                         });
                       }}
                       onCellDoubleClick={({ row, rowIdx, column }) => {
-                        if (busy || Number(column.key) < 0) return;
+                        if (
+                          busy ||
+                          Number(column.key) < 0 ||
+                          view.columnKinds[Number(column.key)] === "index"
+                        )
+                          return;
                         const cell = row.cells[Number(column.key)];
                         if (
                           cell.container ||
@@ -2606,7 +2696,11 @@ export default function App() {
                         if (busy) return;
                         if (args.mode !== "ACTIVE" || !args.row || !args.column)
                           return;
-                        if (Number(args.column.key) < 0) return;
+                        if (
+                          Number(args.column.key) < 0 ||
+                          view.columnKinds[Number(args.column.key)] === "index"
+                        )
+                          return;
                         const cell = args.row.cells[Number(args.column.key)];
                         if (
                           keyEditable(Number(args.column.key)) &&
@@ -3010,6 +3104,14 @@ export default function App() {
                 )}
                 {selection && singleCellSelected ? (
                   <>
+                    {view?.kind === "array" && activeCell && (
+                      <>
+                        <label>Original index</label>
+                        <code>
+                          {String(view.rows[activeCell.row].path.at(-1))}
+                        </code>
+                      </>
+                    )}
                     <label>Path</label>
                     <code className="path">
                       {pointer(selection.cell.path) || "(root)"}
@@ -3178,10 +3280,17 @@ export default function App() {
               </span>
             )}
             <div className="spacer" />
-            <span>
+            <span className="status-bytes">
               {view ? new Intl.NumberFormat().format(view.bytes) : 0} bytes
             </span>
-            <span>UTF-8</span>
+            <span className="status-encoding">UTF-8</span>
+            <span
+              className="app-version"
+              aria-label="Lattice version"
+              title="Lattice version"
+            >
+              v{__APP_VERSION__}
+            </span>
             <span
               className="document-filename"
               title={
@@ -3346,5 +3455,19 @@ export default function App() {
         </div>
       )}
     </div>
+  );
+  return (
+    <FileDropZone
+      blocked={busy || !!inline || !!editing || discardPrompt}
+      onBlocked={() =>
+        setNotice(
+          "Finish the current edit or operation before opening dropped files.",
+        )
+      }
+      onFiles={openDropped}
+      onError={setError}
+    >
+      {workspaceView}
+    </FileDropZone>
   );
 }
