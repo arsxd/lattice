@@ -96,7 +96,11 @@ test("file dragging uses a quiet outline and dismisses on Escape", async ({
   });
   const overlay = page.locator(".file-drop-overlay");
   await expect(overlay).toContainText("Drop 2 files to open");
-  await expect(overlay).toHaveCSS("border-top-style", "solid");
+  await expect(overlay).toHaveCSS("border-top-style", "none");
+  await expect(page.locator(".file-drop-hint")).toHaveCSS("border-top-style", "dashed");
+  const toolbar = await page.locator(".toolbar").boundingBox();
+  const target = await overlay.boundingBox();
+  expect(target!.y).toBeGreaterThanOrEqual(toolbar!.y + toolbar!.height);
   await expect(overlay).toHaveCSS("align-items", "center");
   await page.screenshot({ path: "output/file-drop-feedback.png" });
   await page.keyboard.press("Escape");
@@ -185,4 +189,23 @@ test("single events with commits expand and navigation controls share styling", 
   for (const property of ["width", "height", "border-radius", "padding", "color", "border-top-width"]) {
     expect(await home.evaluate((el, p) => getComputedStyle(el).getPropertyValue(p), property)).toBe(await back.evaluate((el, p) => getComputedStyle(el).getPropertyValue(p), property));
   }
+});
+
+test("abandoned external file drags clear their visual state", async ({ page }) => {
+  await page.clock.install();
+  const drag = async (type: string) => page.evaluate(type => {
+    const data = new DataTransfer(); data.items.add(new File(["{}"], "a.json"));
+    document.querySelector(".app-shell")!.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: data }));
+  }, type);
+  await drag("dragenter");
+  await expect(page.locator(".file-drop-overlay")).toBeVisible();
+  await page.clock.fastForward(1000);
+  await drag("dragover");
+  await page.clock.fastForward(1000);
+  await expect(page.locator(".file-drop-overlay")).toBeVisible();
+  await page.clock.fastForward(600);
+  await expect(page.locator(".file-drop-overlay")).toHaveCount(0);
+  await drag("dragenter");
+  await page.getByRole("button", { name: "New", exact: true }).click();
+  await expect(page.locator(".file-drop-overlay")).toHaveCount(0);
 });

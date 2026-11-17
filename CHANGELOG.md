@@ -2,6 +2,8 @@
 
 ## 1.1.0-dev.9 — development only
 
+- Replace the page-wide drag frame and overlapping hint with a contained drop target below the toolbar. Clear abandoned file-drag feedback after drag events stop and on normal pointer interaction.
+
 - Apply the workspace redesign to the real editor: quiet commands, joined view switch, consistent pane controls, headers, tabs, and both themes.
 - Make the value bar visibly editable with an address box, Edit value label, bordered field, and distinct read-only Preview state. Preserve Enter, Escape, multiline input, and undo.
 - Supply spreadsheet addresses and matching column letters for nested selections; measure actual nested-header height for frozen rows.

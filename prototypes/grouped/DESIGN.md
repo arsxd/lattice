@@ -56,3 +56,5 @@ Implementation priorities: (1) keep the current value bar unmistakably editable,
 No GridCraft source code or assets have been copied. Its repository offers MIT and Apache-2.0 licenses; the inspected MIT file requires retaining its copyright and permission notice if substantial code is reused. Lattice's existing 0BSD license does not remove third-party notice obligations.
 
 The value bar uses the neutral label Value, with its border/caret conveying editing; read-only values retain Preview. The Details toggle uses the rounded-pane SVG from the approved design mockup, including its 24-unit viewBox and 1.6-unit stroke.
+
+File-drop feedback uses a contained target below the toolbar, without a page-wide blue border or a hint over the home actions. Active drags refresh a short expiry; feedback clears after 1.5 seconds without drag events, on pointer interaction, Escape, window blur, dragend, and drop. This only manages visual feedback: file handling limits, draft guards, and actual drop acceptance are unchanged.
