@@ -38,6 +38,7 @@ import { ColumnMenu } from "./ColumnMenu";
 import { FreezeMenu } from "./FreezeMenu";
 import type { DocumentClient } from "../worker/client";
 type Props = {
+  onUnavailable: (reason: string) => void;
   client: DocumentClient;
   path: Path;
   query: Query;
@@ -85,10 +86,8 @@ export function ExpandedSheet(props: Props) {
     memory.active,
   );
   const [editingSection, setEditingSection] = useState<string | null>(null);
-  const [error, setError] = useState("");
   useEffect(() => {
     let live = true;
-    setError("");
     props.client
       .call<ExpandedDocument>("expanded", {
         path: props.path,
@@ -100,7 +99,7 @@ export function ExpandedSheet(props: Props) {
       .catch((e) => {
         if (live) {
           setData(undefined);
-          setError(e.message);
+          props.onUnavailable(e.message);
         }
       });
     return () => {
@@ -116,8 +115,7 @@ export function ExpandedSheet(props: Props) {
     <div
       className={`expanded-sheets ${data?.sections.length === 1 ? "expanded-single" : ""}`}
     >
-      {error && <p role="alert">{error}</p>}
-      {!data && !error && (
+      {!data && (
         <span
           className="activity"
           role="status"

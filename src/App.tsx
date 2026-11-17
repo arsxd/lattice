@@ -192,9 +192,16 @@ export default function App() {
   const [columnError, setColumnError] = useState("");
   const [inline, setInline] = useState<InlineEdit | null>(null);
   const [groupedEditing, setGroupedEditing] = useState(false);
-  const [expandedTables, setExpandedTables] = useState<Record<string, boolean>>(
-    {},
-  );
+  const [nestedPreferred, setNestedPreferred] = useState(() => {
+    try {
+      return localStorage.getItem("lattice-show-nested-data") === "true";
+    } catch {
+      return false;
+    }
+  });
+  const [unavailableNested, setUnavailableNested] = useState<
+    Record<string, number>
+  >({});
   const groupedCommit = useRef<null | (() => Promise<boolean>)>(null);
   const busy = operationBusy;
   const committingCell = useRef(false);
@@ -215,7 +222,10 @@ export default function App() {
   const navigationHistory = useRef(new Map<string, NavigationHistory>());
   const [activeId, setActiveId] = useState("");
   const expandedKey = `${activeId}:${JSON.stringify(query.path)}`;
-  const expanded = !!expandedTables[expandedKey];
+  const expanded =
+    nestedPreferred &&
+    !!view &&
+    unavailableNested[expandedKey] !== view.revision;
   const tableHeightKey = `${activeId}:${pointer(query.path)}:${query.showIndex !== false}`;
   const heightKey = (row: Row) => `${tableHeightKey}:${row.id}`;
   const automaticWidths = useMemo(
@@ -2469,7 +2479,7 @@ export default function App() {
                   </div>
                 )}
                 <div className="segmented">
-                  {(expanded ||
+                  {(nestedPreferred ||
                     (view &&
                       ((view.kind === "object" && view.recordsAvailable) ||
                         view.rows.some((row) =>
@@ -2482,13 +2492,20 @@ export default function App() {
                     <label className="nested-data-toggle">
                       <input
                         type="checkbox"
-                        checked={expanded}
+                        checked={nestedPreferred}
                         disabled={busy}
                         onChange={(event) => {
-                          setExpandedTables((previous) => ({
-                            ...previous,
-                            [expandedKey]: event.target.checked,
-                          }));
+                          const checked = event.target.checked;
+                          setNestedPreferred(checked);
+                          setUnavailableNested({});
+                          try {
+                            localStorage.setItem(
+                              "lattice-show-nested-data",
+                              String(checked),
+                            );
+                          } catch {
+                            /* Preference storage is optional. */
+                          }
                           setSelection(null);
                           setSheetSelection(null);
                         }}
@@ -2589,6 +2606,18 @@ export default function App() {
                     <ExpandedSheet
                       key={expandedKey}
                       client={client.current!}
+                      onUnavailable={(reason) => {
+                        setUnavailableNested((previous) => ({
+                          ...previous,
+                          [expandedKey]: view.revision,
+                        }));
+                        setSelection(null);
+                        setSheetSelection(null);
+                        setNotice(
+                          "Showing the regular table for this section; nested view is unavailable here.",
+                        );
+                        if (/worker|30 seconds/i.test(reason)) setError(reason);
+                      }}
                       path={query.path}
                       query={query}
                       revision={view.revision}

@@ -1,6 +1,6 @@
 # Editable expanded rows
 
-Development build: `1.1.0-dev.6`. This replaces the earlier standalone read-only preview. It is integrated into the normal app on the experimental branch and is not included in RC3.
+Development build: `1.1.0-dev.7`. This replaces the earlier standalone read-only preview. It is integrated into the normal app on the experimental branch and is not included in RC3.
 
 ## Workflow
 
@@ -29,3 +29,5 @@ Arrays of records containing nested objects (for example sample Orders shipping)
 Both compact and expanded modes use the same content-width measurement policy: bounded samples, enough room for leaf headers and values, capped widths for long contents, and manual overrides retained. Expanded mode does not distribute spare viewport space equally. Resize observation reattaches whenever the compact grid remounts after a nested-view toggle and ignores zero-sized detached grids. The select-all corner uses the same plain control styling as the compact sheet.
 
 A single expanded worksheet fills the available document area. Its grid scrolls independently while the action bar stays immediately above the sheet tabs, including at short and tall window sizes.
+
+Show nested data is a browser-local preference shared across sheets and files. Unsupported sections fall back to the regular grid without changing the preference; changed document revisions can try expansion again. Primitive arrays remain cells; empty arrays alone do not establish a child-record schema. Iteration uses focused checks; full CI remains a merge gate.

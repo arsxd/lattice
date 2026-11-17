@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 export type DroppedFile = { file: File; handle?: FileSystemFileHandle };
 export function FileDropZone({
   children,
@@ -17,12 +17,26 @@ export function FileDropZone({
   current.current = { blocked, onBlocked, onFiles };
   const depth = useRef(0);
   const [active, setActive] = useState(false);
+  const [count, setCount] = useState(1);
   const files = (event: React.DragEvent) =>
     event.dataTransfer.types.includes("Files");
   const reset = () => {
     depth.current = 0;
     setActive(false);
   };
+  useEffect(() => {
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") reset();
+    };
+    window.addEventListener("blur", reset);
+    window.addEventListener("dragend", reset);
+    window.addEventListener("keydown", escape);
+    return () => {
+      window.removeEventListener("blur", reset);
+      window.removeEventListener("dragend", reset);
+      window.removeEventListener("keydown", escape);
+    };
+  }, []);
   return (
     <div
       className="file-drop-root"
@@ -30,6 +44,14 @@ export function FileDropZone({
         if (!files(event)) return;
         event.preventDefault();
         depth.current++;
+        setCount(
+          Math.max(
+            1,
+            Array.from(event.dataTransfer.items).filter(
+              (item) => item.kind === "file",
+            ).length,
+          ),
+        );
         if (!blocked) setActive(true);
       }}
       onDragOver={(event) => {
@@ -115,7 +137,14 @@ export function FileDropZone({
       {children}
       {active && (
         <div className="file-drop-overlay" role="status">
-          Drop JSON files to open
+          <div className="file-drop-hint">
+            <strong>
+              {count > 1
+                ? `Drop ${count} files to open`
+                : "Drop a JSON file to open"}
+            </strong>
+            <span>Each file opens in its own tab</span>
+          </div>
         </div>
       )}
     </div>

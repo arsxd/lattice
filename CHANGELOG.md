@@ -1,7 +1,8 @@
 # Changelog
 
-## 1.1.0-dev.6 — development only
+## 1.1.0-dev.7 — development only
 
+- Keep primitive book ID arrays inline; remember the nested-view preference across sheets/files and browser reloads, with automatic regular-view fallback. Use a quiet file-drop outline and compact hint.
 - Add a curated-collections sample and standalone example showing merged parent rows and nested column headers together.
 - Keep a single expanded worksheet’s controls anchored above the sheet tabs, matching compact view at different window heights.
 - Use a **Show nested data** checkbox, shared content-based column sizing and a plain select-all corner. Fix compact widths after repeated view switches; increase mapping capacity to 200 total columns within the 10,000-cell bound.

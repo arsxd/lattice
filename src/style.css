@@ -1194,7 +1194,9 @@ select optgroup {
 }
 
 .file-drop-root { display: contents; }
-.file-drop-overlay { position: fixed; inset: 8px; z-index: 100; display: grid; place-items: center; pointer-events: none; border: 2px solid var(--accent); border-radius: 6px; background: color-mix(in srgb, var(--surface) 93%, transparent); color: var(--text); font-size: 18px; }
+.file-drop-overlay { position: fixed; inset: 8px; z-index: 100; display: flex; align-items: flex-end; justify-content: center; padding: 24px; pointer-events: none; border: 2px dashed var(--accent); border-radius: 6px; background: transparent; color: var(--text); }
+.file-drop-hint { display: grid; gap: 4px; padding: 12px 18px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); box-shadow: 0 2px 8px #0002; text-align: center; font-size: 13px; }
+.file-drop-hint span { color: var(--muted); font-size: 12px; }
 .status > span { white-space: nowrap; }
 .status .document-filename { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .app-version { flex-shrink: 0; }

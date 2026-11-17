@@ -53,6 +53,7 @@ export function expandRecords(
         entries(n).some(
           ([, v]) =>
             v.type === "array" &&
+            (v.children?.length ?? 0) > 0 &&
             (v.children ?? []).every((c) => c.type === "object"),
         ),
     );
@@ -69,6 +70,7 @@ export function expandRecords(
     for (const [key, n] of entries(parent))
       if (
         n.type === "array" &&
+        (n.children?.length ?? 0) > 0 &&
         (n.children ?? []).every((c) => c.type === "object")
       )
         arrays.add(String(key));

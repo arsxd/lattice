@@ -65,3 +65,16 @@ it("sample collections demonstrate merged rows and grouped columns together", ()
   expect(section.columnPaths).toContainEqual(["details", "pages"]);
   expect(section.columnPaths).toContainEqual(["details", "language"]);
 });
+
+it("reading lists retain primitive book arrays alongside empty lists", () => {
+  const section = new DocumentEngine(sample).expanded(["reading_lists"])
+    .sections[0];
+  expect(section.mapping).toBe(true);
+  const column = section.childHeaders.indexOf("book_ids");
+  const values = section.groups
+    .flatMap((group) => group.children)
+    .map((row) => row[column]);
+  expect(values[0].cell.container).toBe(false);
+  expect(values[0].value).toContain("BK-001");
+  expect(values.some((item) => item.value === "[]")).toBe(true);
+});
