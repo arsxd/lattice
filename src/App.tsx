@@ -225,6 +225,11 @@ export default function App() {
   const expanded =
     nestedPreferred &&
     !!view &&
+    view.rows.some((row) =>
+      row.cells.some((cell, index) =>
+        view.columnKinds[index] !== "index" && cell.container,
+      ),
+    ) &&
     unavailableNested[expandedKey] !== view.revision;
   const tableHeightKey = `${activeId}:${pointer(query.path)}:${query.showIndex !== false}`;
   const heightKey = (row: Row) => `${tableHeightKey}:${row.id}`;
@@ -2479,16 +2484,7 @@ export default function App() {
                   </div>
                 )}
                 <div className="segmented">
-                  {(nestedPreferred ||
-                    (view &&
-                      ((view.kind === "object" && view.recordsAvailable) ||
-                        view.rows.some((row) =>
-                          row.cells.some(
-                            (cell, index) =>
-                              view.columnKinds[index] !== "index" &&
-                              cell.container,
-                          ),
-                        )))) && (
+                  {view && (
                     <label className="nested-data-toggle">
                       <input
                         type="checkbox"
@@ -2613,9 +2609,6 @@ export default function App() {
                         }));
                         setSelection(null);
                         setSheetSelection(null);
-                        setNotice(
-                          "Showing the regular table for this section; nested view is unavailable here.",
-                        );
                         if (/worker|30 seconds/i.test(reason)) setError(reason);
                       }}
                       path={query.path}

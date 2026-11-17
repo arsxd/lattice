@@ -1,6 +1,10 @@
 # Changelog
 
-## 1.1.0-dev.7 — development only
+## 1.1.0-dev.8 — development only
+
+- Flat key/value sheets retain their vertical layout with nested data enabled; the preference checkbox remains available on every sheet. Unsupported sections fall back silently without covering sheet tabs.
+- File drops use a stronger inset outline, subtle tint, and centered hint.
+
 
 - Keep primitive book ID arrays inline; remember the nested-view preference across sheets/files and browser reloads, with automatic regular-view fallback. Use a quiet file-drop outline and compact hint.
 - Add a curated-collections sample and standalone example showing merged parent rows and nested column headers together.

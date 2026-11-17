@@ -96,9 +96,28 @@ test("file dragging uses a quiet outline and dismisses on Escape", async ({
   });
   const overlay = page.locator(".file-drop-overlay");
   await expect(overlay).toContainText("Drop 2 files to open");
-  await expect(overlay).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
-  await expect(overlay).toHaveCSS("border-top-style", "dashed");
+  await expect(overlay).toHaveCSS("border-top-style", "solid");
+  await expect(overlay).toHaveCSS("align-items", "center");
   await page.screenshot({ path: "output/file-drop-feedback.png" });
   await page.keyboard.press("Escape");
   await expect(overlay).toHaveCount(0);
+});
+
+test("flat name mappings stay vertical with nested preference enabled", async ({ page }) => {
+  await open(page, JSON.stringify({ areaNames: { "101": "Balcony", "102": "Stage" }, records: [{ name: "A", details: { count: 1 } }] }), "catalog.json");
+  const toggle = page.getByRole("checkbox", { name: "Show nested data" });
+  await toggle.check();
+  const tabs = page.getByRole("navigation", { name: "Document sheets" });
+  await tabs.getByRole("button", { name: "areaNames", exact: true }).click();
+  await expect(toggle).toBeChecked();
+  const grid = page.getByRole("grid", { name: "JSON data table" });
+  await expect(grid).toBeVisible();
+  await expect(grid.getByRole("columnheader", { name: /Value/ })).toBeVisible();
+  await expect(grid.getByRole("gridcell", { name: "Balcony", exact: true })).toBeVisible();
+  await toggle.uncheck();
+  await expect(toggle).toBeVisible();
+  await toggle.check();
+  await expect(grid).toBeVisible();
+  await tabs.getByRole("button", { name: "All data", exact: true }).click();
+  await expect(page.locator(".notice-toast")).toHaveCount(0);
 });

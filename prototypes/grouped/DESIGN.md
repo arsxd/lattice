@@ -1,6 +1,6 @@
 # Editable expanded rows
 
-Development build: `1.1.0-dev.7`. This replaces the earlier standalone read-only preview. It is integrated into the normal app on the experimental branch and is not included in RC3.
+Development build: `1.1.0-dev.8`. This replaces the earlier standalone read-only preview. It is integrated into the normal app on the experimental branch and is not included in RC3.
 
 ## Workflow
 
@@ -30,4 +30,4 @@ Both compact and expanded modes use the same content-width measurement policy: b
 
 A single expanded worksheet fills the available document area. Its grid scrolls independently while the action bar stays immediately above the sheet tabs, including at short and tall window sizes.
 
-Show nested data is a browser-local preference shared across sheets and files. Unsupported sections fall back to the regular grid without changing the preference; changed document revisions can try expansion again. Primitive arrays remain cells; empty arrays alone do not establish a child-record schema. Iteration uses focused checks; full CI remains a merge gate.
+Show nested data is a browser-local preference shared across sheets and files. The checkbox remains visible on all sheets. Flat sheets without container values keep their ordinary vertical layout. Unsupported sections fall back silently to the regular grid without changing the preference; changed document revisions can try expansion again. Primitive arrays remain cells; empty arrays alone do not establish a child-record schema. Iteration uses focused checks; full CI remains a merge gate.
