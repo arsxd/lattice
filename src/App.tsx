@@ -1,3 +1,4 @@
+import { NestedViewNotice } from "./grid/NestedViewNotice";
 import { ExpandedSheet } from "./grid/ExpandedSheet";
 import { FileDropZone, type DroppedFile } from "./workspace/FileDropZone";
 import { droppedJsonFile } from "./platform/files";
@@ -2509,6 +2510,10 @@ export default function App() {
                       Show nested data
                     </label>
                   )}
+                  {mode === "table" && nestedPreferred && view &&
+                    unavailableNested[expandedKey]?.revision === view.revision && (
+                      <NestedViewNotice key={`${expandedKey}:${view.revision}`} reason={unavailableNested[expandedKey].reason} />
+                    )}
                   <button
                     aria-pressed={mode === "table"}
                     disabled={busy || sourceDirty || !!view?.diagnostics.length}
@@ -2545,16 +2550,6 @@ export default function App() {
                   </button>
                 </div>
               </div>
-              {mode === "table" && nestedPreferred && view &&
-                unavailableNested[expandedKey]?.revision === view.revision && (
-                  <div className="message nested-warning" role="status">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-                      <path d="M12 3 2 21h20L12 3Z" strokeLinejoin="round" />
-                      <path d="M12 9v5m0 3v1" />
-                    </svg>
-                    <span><strong>Showing regular table.</strong> {unavailableNested[expandedKey].reason}</span>
-                  </div>
-                )}
               {!!view?.diagnostics.length && (
                 <JsonProblem
                   text={sourceBase}

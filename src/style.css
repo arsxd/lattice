@@ -1245,5 +1245,7 @@ select optgroup {
 .expanded-single .expanded-grid { flex: 1; min-height: 0; max-height: none; }
 .expanded-single .pagination { flex-shrink: 0; }
 
-.nested-warning { flex-shrink: 0; border-bottom: 1px solid var(--line); background: var(--surface); color: var(--text); font-size: 12px; line-height: 1.5; }
-.nested-warning svg { flex-shrink: 0; color: var(--muted); }
+.nested-view-notice { position: relative; display: inline-flex; align-items: center; margin-right: 8px; }
+.nested-notice-button { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; background: transparent; color: var(--muted); }
+.nested-notice-button:hover, .nested-notice-button[aria-expanded="true"] { background: var(--selection); color: var(--text); }
+.nested-warning { position: absolute; top: calc(100% + 8px); right: 0; z-index: 40; width: min(320px, 75vw); padding: 10px 12px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); color: var(--text); box-shadow: 0 2px 8px #0002; font-size: 12px; line-height: 1.5; }

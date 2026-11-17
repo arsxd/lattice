@@ -123,6 +123,7 @@ test("flat name mappings stay vertical with nested preference enabled", async ({
 });
 
 test("bounded nested sheets explain fallback in a nonoverlapping alert", async ({ page }) => {
+  await page.clock.install();
   await open(page, JSON.stringify({ performances: Array.from({ length: 243 }, (_, id) => ({ id, prices: [{ amount: 10 }], seatCategories: [{ name: "Standard" }] })) }), "catalog.json");
   await page.getByRole("navigation", { name: "Document sheets" }).getByRole("button", { name: "performances", exact: true }).click();
   await page.getByRole("checkbox", { name: "Show nested data" }).check();
@@ -131,6 +132,16 @@ test("bounded nested sheets explain fallback in a nonoverlapping alert", async (
   const warning = await page.locator(".nested-warning").boundingBox();
   const tabs = await page.getByRole("navigation", { name: "Document sheets" }).boundingBox();
   expect(warning!.y + warning!.height).toBeLessThan(tabs!.y);
+  const icon = page.getByRole("button", { name: "Why nested data is unavailable" });
+  await expect(icon).toHaveAttribute("aria-expanded", "true");
+  await page.clock.fastForward(5100);
+  await expect(page.locator(".nested-warning")).toHaveCount(0);
+  await expect(icon).toBeVisible();
+  await icon.click();
+  await expect(page.locator(".nested-warning")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".nested-warning")).toHaveCount(0);
+  await icon.click();
   await page.screenshot({ path: "output/nested-fallback-alert.png" });
   await expect(page.locator(".notice-toast")).toHaveCount(0);
   await page.getByRole("checkbox", { name: "Show nested data" }).uncheck();
