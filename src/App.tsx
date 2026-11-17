@@ -1,3 +1,6 @@
+import { ColumnMenuChevron } from "./grid/SheetIcons";
+import { validateSourceDraft } from "./editor/sourceValidation";
+import type { Diagnostic } from "./document/engine";
 import { FileDropZone, type DroppedFile } from "./workspace/FileDropZone";
 import { droppedJsonFile } from "./platform/files";
 import { JsonProblem } from "./editor/JsonProblem";
@@ -42,7 +45,7 @@ import { RowHeightHandle } from "./grid/RowHeightHandle";
 import { ValueDetails } from "./editor/ValueDetails";
 import { useOfflineApp } from "./useOfflineApp";
 import { ColumnMenu } from "./grid/ColumnMenu";
-import { ValueBar } from "./editor/ValueBar";
+import { ValueBar, ValueBarPlaceholder } from "./editor/ValueBar";
 import { SheetRange } from "./grid/SheetRange";
 import ReviewDiff from "./editor/ReviewDiff";
 import { invoke } from "@tauri-apps/api/core";
@@ -84,6 +87,8 @@ import {
 import { sample } from "./sample";
 import "react-data-grid/lib/styles.css";
 import "./style.css";
+import "./workspace.css";
+import "./editor/valueBar.css";
 function originalIndexPreference() {
   try {
     return localStorage.getItem("lattice-show-index") === "true";
@@ -435,6 +440,19 @@ export default function App() {
   ]);
   const sourceDirty =
     (mode === "source" || mode === "review") && source !== sourceBase;
+  const [sourceValidation, setSourceValidation] = useState<{
+    id: string;
+    text: string;
+    diagnostics: Diagnostic[];
+  } | null>(null);
+  const latestSourceDraft = useRef({ id: activeId, text: source });
+  latestSourceDraft.current = { id: activeId, text: source };
+  const displayedDiagnostics =
+    mode === "source" && sourceDirty
+      ? sourceValidation?.id === activeId && sourceValidation.text === source
+        ? sourceValidation.diagnostics
+        : []
+      : (view?.diagnostics ?? []);
   const dirty = !!view?.dirty || sourceDirty;
   const anyDirty =
     dirty ||
@@ -940,6 +958,8 @@ export default function App() {
   }
   async function select(cell: Cell) {
     if (cell.writable === false) {
+      ++selectionRequest.current;
+      pendingSelection.current = null;
       setSelection(null);
       return;
     }
@@ -1340,9 +1360,7 @@ export default function App() {
                       ),
                     )
                   }
-                >
-                  <span className="select-all-corner" aria-hidden="true" />
-                </button>
+                ></button>
               ),
               renderCell: ({ rowIdx, row }) => (
                 <div className="row-number-content">
@@ -1467,17 +1485,7 @@ export default function App() {
                       setHeaderMenu(headerMenu === i ? null : i);
                     }}
                   >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 16 16"
-                      aria-hidden="true"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                    >
-                      <path d="m4 6 4 4 4-4" />
-                    </svg>
+                    <ColumnMenuChevron />
                     {query.valueFilters?.[String(i)] !== undefined && (
                       <span className="filter-dot" />
                     )}
@@ -2096,7 +2104,7 @@ export default function App() {
               : "Choose the source file again to reload it"
           }
         >
-          Reload source…
+          {doc?.handle ? "Reload source" : "Reload source…"}
         </button>
         {!desktop && <span className="muted">Web client</span>}
         <label className="sr-only" htmlFor="theme">
@@ -2246,7 +2254,7 @@ export default function App() {
                 aria-pressed={outlineVisible}
                 onClick={() => setOutlineVisible(!outlineVisible)}
               >
-                Browse
+                <NavigationIcon name="browse" /> Browse
               </button>
             </div>
             <div
@@ -2323,7 +2331,7 @@ export default function App() {
                 aria-pressed={inspector}
                 onClick={() => setInspector(!inspector)}
               >
-                Details
+                <NavigationIcon name="details" /> Details
               </button>
             )}
           </div>
@@ -2333,7 +2341,7 @@ export default function App() {
               hidden={!outlineVisible}
               style={browsePaneStyle}
             >
-              <div className="pane-label">Document</div>
+              <div className="pane-label">Browse</div>
               <DocumentOutline
                 key={activeId}
                 current={query.path}
@@ -2441,7 +2449,11 @@ export default function App() {
                     </button>
                   </div>
                 )}
-                <div className="segmented">
+                <div
+                  className="segmented view-mode"
+                  role="group"
+                  aria-label="View mode"
+                >
                   <button
                     aria-pressed={mode === "table"}
                     disabled={busy || sourceDirty || !!view?.diagnostics.length}
@@ -2478,11 +2490,10 @@ export default function App() {
                   </button>
                 </div>
               </div>
-              {!!view?.diagnostics.length && (
+              {displayedDiagnostics.length > 0 && (
                 <JsonProblem
-                  text={sourceBase}
-                  diagnostics={view.diagnostics}
-                  onOpen={() => void open()}
+                  text={mode === "source" ? source : sourceBase}
+                  diagnostics={displayedDiagnostics}
                 />
               )}
               {mode === "table" && view && (
@@ -2528,7 +2539,7 @@ export default function App() {
                       }}
                     />
                   )}
-                  {selection && activeCell && singleCellSelected && (
+                  {selection && activeCell && singleCellSelected ? (
                     <ValueBar
                       key={`${activeId}:${pointer(selection.cell.path)}`}
                       address={
@@ -2569,7 +2580,10 @@ export default function App() {
                         );
                       }}
                     />
+                  ) : (
+                    <ValueBarPlaceholder />
                   )}
+
                   {columnName !== null && (
                     <form
                       className="column-form"
@@ -2966,11 +2980,7 @@ export default function App() {
                 <>
                   {sourceDirty && (
                     <div className="source-actions">
-                      <span>
-                        {sourceDirty
-                          ? "Source draft has unapplied changes"
-                          : "Source matches the document"}
-                      </span>
+                      <span>Source draft has unapplied changes</span>
                       <div className="spacer" />
                       <button
                         disabled={!sourceDirty || busy}
@@ -2987,6 +2997,19 @@ export default function App() {
                         disabled={!sourceDirty || busy}
                         onClick={() =>
                           void run(async () => {
+                            const diagnostics =
+                              await validateSourceDraft(source);
+                            if (
+                              latestSourceDraft.current.id !== activeId ||
+                              latestSourceDraft.current.text !== source
+                            )
+                              return;
+                            setSourceValidation({
+                              id: activeId,
+                              text: source,
+                              diagnostics,
+                            });
+                            if (diagnostics.length) return;
                             const scopePath = sourceScope?.path ?? [];
                             if (sourceScope)
                               await client.current!.call("mutate", {
@@ -3021,11 +3044,12 @@ export default function App() {
                   <SourceEditor
                     key={`${activeId}:${sourceScope ? JSON.stringify(sourceScope.path) : "whole"}`}
                     value={scopedSourceText(source, sourceBase, sourceScope)}
-                    onChange={(draft) =>
+                    onChange={(draft) => {
+                      setSourceValidation(null);
                       setSource(
                         applyScopedDraft(sourceBase, sourceScope, draft),
-                      )
-                    }
+                      );
+                    }}
                     target={sourceTarget}
                   />
                 </>

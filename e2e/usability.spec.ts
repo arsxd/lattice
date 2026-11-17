@@ -49,7 +49,7 @@ test("explains an empty file and a missing value in human terms", async ({
   );
   await expect(
     page.getByRole("button", { name: "Open another file…" }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await expect(
     page.getByRole("textbox", { name: "JSON source draft" }),
   ).toBeVisible();
@@ -265,4 +265,48 @@ test("does not intercept text dragging or discard an active inline edit on file 
   await expect(
     page.getByRole("status").filter({ hasText: "Finish the current edit" }),
   ).toBeVisible();
+});
+
+test("source typing stays quiet and validation runs only on Apply", async ({
+  page,
+}) => {
+  await open(page, '{"first":1 "second":2}', "broken.json");
+  const alert = page.getByRole("alert");
+  await expect(alert).toContainText("A comma is missing");
+  const disclosure = page.locator(".diagnostics summary");
+  await expect(disclosure).toHaveText("Error details");
+  await expect(disclosure.locator("svg")).toHaveCount(1);
+  await disclosure.click();
+  await expect(alert).toContainText("CommaExpected");
+  const editor = page.getByRole("textbox", { name: "JSON source draft" });
+  await editor.fill('{"first":1,"second":2}');
+  await expect(page.locator(".source-actions")).toContainText(
+    "Source draft has unapplied changes",
+  );
+  await expect(alert).toHaveCount(0);
+  await editor.fill('{"first":}');
+  // A normal pause between typing lines must not produce an error banner.
+  await page.waitForTimeout(650);
+  await expect(alert).toHaveCount(0);
+  await page.getByRole("button", { name: "Apply source", exact: true }).click();
+  await expect(alert).toContainText("A JSON value is missing");
+  await expect(
+    alert.getByRole("button", { name: "Open another file…" }),
+  ).toHaveCount(0);
+  await expect(alert).not.toContainText("choose another file");
+  await expect(alert).not.toContainText("A comma is missing");
+  await editor.fill('{"first":3}');
+  await expect(page.locator(".source-actions")).toContainText(
+    "Source draft has unapplied changes",
+  );
+  await expect(alert).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Discard draft", exact: true })
+    .click();
+  await expect(alert).toContainText("A comma is missing");
+  await editor.fill('{"first":1,"second":2}');
+  await expect(alert).toHaveCount(0);
+  await page.getByRole("button", { name: "Apply source", exact: true }).click();
+  await expect(page.locator(".source-actions")).toHaveCount(0);
+  await expect(alert).toHaveCount(0);
 });

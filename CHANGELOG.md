@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Refine the regular workspace with matching pane icons, shared header chevrons and a visibly editable value bar.
+- Contain file-drop feedback and clear abandoned drag state.
+- Validate source drafts on Apply instead of interrupting typing; simplify error details and remove the redundant file-opening action.
+- Distinguish direct linked-file Reload from reselecting a file.
+- Grouped and merged nested sheets remain experimental and are excluded from this change.
+
 ## 1.0.0-rc.3 — 2026-11-17
 
 - Show the app version on the welcome screen and status bar.
