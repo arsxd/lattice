@@ -419,6 +419,57 @@
       "note": null
     }
   ],
+  "collections": {
+    "staff_picks": {
+      "BK-001": {
+        "title": "The Lantern Atlas",
+        "details": {
+          "edition": 1,
+          "pages": 160,
+          "language": "en",
+          "note": null
+        }
+      },
+      "BK-004": {
+        "title": "A Quiet Kitchen",
+        "details": {
+          "edition": 1,
+          "pages": 196,
+          "language": "en",
+          "note": ""
+        }
+      },
+      "BK-008": {
+        "title": "Maps of Tomorrow",
+        "details": {
+          "edition": 2,
+          "pages": 244,
+          "language": "en",
+          "note": ""
+        }
+      }
+    },
+    "discovery": {
+      "BK-003": {
+        "title": "Paper Cities",
+        "details": {
+          "edition": 3,
+          "pages": 184,
+          "language": "en",
+          "note": ""
+        }
+      },
+      "BK-010": {
+        "title": "Everyday Sketching",
+        "details": {
+          "edition": 1,
+          "pages": 268,
+          "language": "en",
+          "note": ""
+        }
+      }
+    }
+  },
   "reading_lists": {
     "weekend": {
       "name": "Weekend reading",

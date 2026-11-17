@@ -164,3 +164,32 @@ test("expanded worksheet controls stay directly above the sheet tabs at differen
     ).toBeVisible();
   }
 });
+
+test("sample collections show merged rows and columns in the same worksheet", async ({
+  page,
+}) => {
+  await sample(page, "collections");
+  const table = page.getByRole("table", {
+    name: "collections data",
+    exact: true,
+  });
+  await expect(table.locator('[data-r="0"][data-c="0"]')).toHaveText(
+    "staff_picks",
+  );
+  await expect(table.locator('[data-r="0"][data-c="0"]')).toHaveAttribute(
+    "rowspan",
+    "3",
+  );
+  await expect(table.locator('[data-r="3"][data-c="0"]')).toHaveText(
+    "discovery",
+  );
+  await expect(table.locator('[data-r="3"][data-c="0"]')).toHaveAttribute(
+    "rowspan",
+    "2",
+  );
+  await expect(
+    table.locator('thead th[scope="colgroup"]').filter({ hasText: "details" }),
+  ).toHaveAttribute("colspan", "4");
+  await expect(table.locator("tbody tr")).toHaveCount(5);
+  await table.screenshot({ path: "output/collections-merged.png" });
+});

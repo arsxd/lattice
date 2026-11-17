@@ -44,6 +44,7 @@ it("all downloadable examples parse without diagnostics", async () => {
     "02-store-orders.json",
     "03-application-settings.json",
     "04-json-value-shapes.json",
+    "05-merged-worksheet.json",
     "review/before.json",
     "review/after.json",
   ]) {
@@ -52,4 +53,15 @@ it("all downloadable examples parse without diagnostics", async () => {
     );
     expect(d.diagnostics, name).toEqual([]);
   }
+});
+
+it("sample collections demonstrate merged rows and grouped columns together", () => {
+  const section = new DocumentEngine(sample).expanded(["collections"])
+    .sections[0];
+  expect(section.groups).toHaveLength(2);
+  expect(section.groups[0].parent[0].value).toBe("staff_picks");
+  expect(section.groups[0].children).toHaveLength(3);
+  expect(section.groups[1].children).toHaveLength(2);
+  expect(section.columnPaths).toContainEqual(["details", "pages"]);
+  expect(section.columnPaths).toContainEqual(["details", "language"]);
 });

@@ -1,7 +1,8 @@
 # Changelog
 
-## 1.1.0-dev.5 — development only
+## 1.1.0-dev.6 — development only
 
+- Add a curated-collections sample and standalone example showing merged parent rows and nested column headers together.
 - Keep a single expanded worksheet’s controls anchored above the sheet tabs, matching compact view at different window heights.
 - Use a **Show nested data** checkbox, shared content-based column sizing and a plain select-all corner. Fix compact widths after repeated view switches; increase mapping capacity to 200 total columns within the 10,000-cell bound.
 - Show nested properties under merged group headers and editable leaf subheaders; support sample Orders shipping objects as well as Books details.
