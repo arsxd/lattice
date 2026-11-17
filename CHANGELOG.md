@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — experimental branch
+## 1.1.0-dev.10 — experimental prerelease
 
 - Render keyed dictionaries with distinct, non-overlapping keys as paired Key/Value subcolumns instead of sparse union columns. Preserve shared parent cells, exact value paths, edits, key renaming, sorting/filtering, and bounded rendering.
 - Keep the value-bar area stable when selecting keys, preventing double-clicks from landing on a different row.
