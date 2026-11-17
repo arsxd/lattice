@@ -46,7 +46,7 @@ import { RowHeightHandle } from "./grid/RowHeightHandle";
 import { ValueDetails } from "./editor/ValueDetails";
 import { useOfflineApp } from "./useOfflineApp";
 import { ColumnMenu } from "./grid/ColumnMenu";
-import { ValueBar } from "./editor/ValueBar";
+import { ValueBar, ValueBarPlaceholder } from "./editor/ValueBar";
 import { SheetRange } from "./grid/SheetRange";
 import ReviewDiff from "./editor/ReviewDiff";
 import { invoke } from "@tauri-apps/api/core";
@@ -2565,55 +2565,57 @@ export default function App() {
               {mode === "table" && view && (
                 <>
                   {selection &&
-                    (expanded || activeCell) &&
-                    singleCellSelected && (
-                      <ValueBar
-                        key={`${activeId}:${pointer(selection.cell.path)}`}
-                        address={
-                          expanded
-                            ? expandedAddress?.key === expandedKey &&
-                              expandedAddress.path ===
-                                JSON.stringify(selection.cell.path)
-                              ? expandedAddress.address
-                              : ""
-                            : activeCell &&
-                                activeCell.row >= 0 &&
-                                activeCell.column >= 0
-                              ? `${columnLetter(activeCell.column)}${view.page * 500 + activeCell.row + 1}`
-                              : ""
-                        }
-                        value={selectedPresentation?.text ?? ""}
-                        previewOnly={selectedPresentation?.previewOnly}
-                        editable={
-                          !!selection &&
-                          (expanded ||
-                            (!!activeCell && valueColumn(activeCell.column))) &&
-                          !selection.cell.container &&
-                          !selectedPresentation?.previewOnly &&
-                          selection.cell.writable !== false
-                        }
-                        onCommit={async (value) => {
-                          if (!selection) return;
-                          const c = selection.cell;
-                          const kind = cellInputKind(c);
-                          const raw =
-                            value === "" && kind !== "string"
-                              ? "null"
-                              : scalarText(kind as Kind, value);
-                          await mutate(
-                            c.type === "missing"
-                              ? {
-                                  action: "insert",
-                                  path: c.path.slice(0, -1),
-                                  key: String(c.path.at(-1)),
-                                  raw,
-                                }
-                              : { action: "replace", path: c.path, raw },
-                            selection.revision,
-                          );
-                        }}
-                      />
-                    )}
+                  (expanded || activeCell) &&
+                  singleCellSelected ? (
+                    <ValueBar
+                      key={`${activeId}:${pointer(selection.cell.path)}`}
+                      address={
+                        expanded
+                          ? expandedAddress?.key === expandedKey &&
+                            expandedAddress.path ===
+                              JSON.stringify(selection.cell.path)
+                            ? expandedAddress.address
+                            : ""
+                          : activeCell &&
+                              activeCell.row >= 0 &&
+                              activeCell.column >= 0
+                            ? `${columnLetter(activeCell.column)}${view.page * 500 + activeCell.row + 1}`
+                            : ""
+                      }
+                      value={selectedPresentation?.text ?? ""}
+                      previewOnly={selectedPresentation?.previewOnly}
+                      editable={
+                        !!selection &&
+                        (expanded ||
+                          (!!activeCell && valueColumn(activeCell.column))) &&
+                        !selection.cell.container &&
+                        !selectedPresentation?.previewOnly &&
+                        selection.cell.writable !== false
+                      }
+                      onCommit={async (value) => {
+                        if (!selection) return;
+                        const c = selection.cell;
+                        const kind = cellInputKind(c);
+                        const raw =
+                          value === "" && kind !== "string"
+                            ? "null"
+                            : scalarText(kind as Kind, value);
+                        await mutate(
+                          c.type === "missing"
+                            ? {
+                                action: "insert",
+                                path: c.path.slice(0, -1),
+                                key: String(c.path.at(-1)),
+                                raw,
+                              }
+                            : { action: "replace", path: c.path, raw },
+                          selection.revision,
+                        );
+                      }}
+                    />
+                  ) : (
+                    <ValueBarPlaceholder />
+                  )}
                   {expanded ? (
                     <ExpandedSheet
                       key={expandedKey}

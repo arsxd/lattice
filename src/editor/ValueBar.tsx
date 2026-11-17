@@ -125,3 +125,14 @@ function ValueBarEditor({
     </div>
   );
 }
+
+/** Reserve the value-bar geometry so selecting a key does not move the sheet. */
+export function ValueBarPlaceholder() {
+  return (
+    <div className="value-bar value-bar-empty" aria-hidden="true">
+      <span className="value-bar-address" />
+      <span className="value-bar-caption">Value</span>
+      <span className="value-bar-empty-field">Select a cell</span>
+    </div>
+  );
+}

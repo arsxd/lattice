@@ -8,7 +8,8 @@
   background: var(--chrome);
   border-bottom: 1px solid var(--line);
 }
-.value-bar output {
+.value-bar output,
+.value-bar-address {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -23,7 +24,8 @@
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
-.value-bar label {
+.value-bar label,
+.value-bar-caption {
   display: flex;
   align-items: center;
   flex-shrink: 0;
@@ -78,4 +80,17 @@
   max-width: 260px;
   padding: 5px;
   font-size: 12px;
+}
+
+.value-bar-empty-field {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  line-height: 20px;
 }

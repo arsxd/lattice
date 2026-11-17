@@ -18,3 +18,7 @@ To see both kinds of merging together, open the sample workspace, choose **colle
 To try review, open `review/before.json`, replace the staged whole-document Source with `review/after.json`, apply it, then choose **Review changes**.
 
 The precision examples include `9007199254740993`, `1e400`, `-0`, a long decimal and text `00127`. Tools that parse and reserialize numbers may change these tokens.
+
+### Dictionaries with distinct keys
+
+Open [06-dictionaries.json](06-dictionaries.json) and enable **Show nested data**. The two wings have different room identifiers. Rooms use paired **Key / Value** subcolumns with each wing’s common cells merged vertically, instead of a mostly empty column for every room.

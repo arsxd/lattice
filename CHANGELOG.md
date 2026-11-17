@@ -2,6 +2,9 @@
 
 ## Unreleased — experimental branch
 
+- Render keyed dictionaries with distinct, non-overlapping keys as paired Key/Value subcolumns instead of sparse union columns. Preserve shared parent cells, exact value paths, edits, key renaming, sorting/filtering, and bounded rendering.
+- Keep the value-bar area stable when selecting keys, preventing double-clicks from landing on a different row.
+
 - Keep all nested tables above one fixed action footer in All data. The footer targets the selected table and shows its name; single-table layout and section-specific editing/filtering/freezing are preserved.
 
 ## 1.1.0-dev.9 — development only

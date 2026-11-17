@@ -323,6 +323,10 @@ function ExpandedTable({
         );
     }
   }, [!!draft]);
+  const cellIdentity = (item: ExpandedCell | undefined) =>
+    item
+      ? JSON.stringify([item.cell.path, item.identifier !== undefined])
+      : null;
   const selectedPath = useRef<string | null>(saved?.path ?? null);
   useEffect(() => {
     onRemember({
@@ -346,9 +350,7 @@ function ExpandedTable({
     if (!selectedPath.current) return;
     for (let r = 0; r < rows.length; r++)
       for (let c = 0; c < headers.length; c++)
-        if (
-          JSON.stringify(rows[r].cells[c].cell.path) === selectedPath.current
-        ) {
+        if (cellIdentity(rows[r].cells[c]) === selectedPath.current) {
           setSelection(
             selectCell(null, { r: c < parents ? rows[r].first : r, c }),
           );
@@ -363,9 +365,7 @@ function ExpandedTable({
     props.onSelect(null);
   }, [rows]);
   const choose = (r: number, c: number, extend = false) => {
-    selectedPath.current = extend
-      ? null
-      : JSON.stringify(rows[r]?.cells[c]?.cell.path);
+    selectedPath.current = extend ? null : cellIdentity(rows[r]?.cells[c]);
     setSelection((previous) => selectCell(previous, { r, c }, extend));
     setMessage("");
     props.onSelect(rows[r]?.cells[c]?.cell ?? null, { row: r, column: c });

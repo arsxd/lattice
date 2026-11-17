@@ -1,3 +1,4 @@
+import { dictionaryProjection } from "./dictionaryProjection";
 import { orderFieldPaths } from "./columnPaths";
 import type { Node } from "jsonc-parser";
 import type { Cell, Path, Kind } from "./engine";
@@ -52,6 +53,16 @@ export function expandMappings(
     if (records.length > 500)
       throw new Error("Expanded tables support up to 500 records.");
   } else walk(node, path, []);
+  if (!array) {
+    const dictionary = dictionaryProjection(
+      text,
+      records,
+      path,
+      revision,
+      cell,
+    );
+    if (dictionary) return dictionary;
+  }
   const metadataColumns = array
     ? 0
     : records.some((record) => record.labels.length > 1)
