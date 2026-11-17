@@ -4,11 +4,11 @@ Edit JSON like a spreadsheet. Work with cells, rows, and columns. Explore nested
 
 **Current development build: v1.1.0-dev.9** — redesigned workspace and editable nested sheets.
 
-[Open the current local HTML preview](output/Lattice-Expanded-Preview.html)
+[Download current HTML (dev.9)](https://github.com/arsxd/lattice/releases/download/v1.1.0-dev.9/Lattice-Offline.html) · [Open the local preview](output/Lattice-Expanded-Preview.html)
 
-This link opens the generated build in a local checkout. Build it with `npm ci` followed by `npm run grouped:build` if the file is missing. Generated HTML is not stored on GitHub; dev.9 has not been published as a release.
+Download `Lattice-Offline.html` and open it directly in your browser. This is a development prerelease. The local-preview link is for a checkout built with `npm ci` followed by `npm run grouped:build`; generated HTML is not stored in the repository.
 
-**Older published build (v1.0.0-rc.3):** [Open hosted RC3](https://arsxd.github.io/lattice/) · [Download RC3 offline HTML](https://github.com/arsxd/lattice/releases/download/v1.0.0-rc.3/Lattice-Offline.html) · [Releases](https://github.com/arsxd/lattice/releases)
+**Hosted app:** [Open Lattice](https://arsxd.github.io/lattice/) still runs the older v1.0.0-rc.3. [All releases](https://github.com/arsxd/lattice/releases).
 
 RC3 does not include the development changes above. See the [candidate checklist](docs/RELEASE-CANDIDATE.md).
 
