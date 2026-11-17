@@ -200,7 +200,7 @@ export default function App() {
     }
   });
   const [unavailableNested, setUnavailableNested] = useState<
-    Record<string, number>
+    Record<string, { revision: number; reason: string }>
   >({});
   const groupedCommit = useRef<null | (() => Promise<boolean>)>(null);
   const busy = operationBusy;
@@ -230,7 +230,7 @@ export default function App() {
         view.columnKinds[index] !== "index" && cell.container,
       ),
     ) &&
-    unavailableNested[expandedKey] !== view.revision;
+    unavailableNested[expandedKey]?.revision !== view.revision;
   const tableHeightKey = `${activeId}:${pointer(query.path)}:${query.showIndex !== false}`;
   const heightKey = (row: Row) => `${tableHeightKey}:${row.id}`;
   const automaticWidths = useMemo(
@@ -2509,6 +2509,13 @@ export default function App() {
                       Show nested data
                     </label>
                   )}
+                  {mode === "table" && nestedPreferred && view &&
+                    unavailableNested[expandedKey]?.revision === view.revision && (
+                      <details className="nested-view-info">
+                        <summary>Regular view</summary>
+                        <div role="status">{unavailableNested[expandedKey].reason}</div>
+                      </details>
+                    )}
                   <button
                     aria-pressed={mode === "table"}
                     disabled={busy || sourceDirty || !!view?.diagnostics.length}
@@ -2605,7 +2612,7 @@ export default function App() {
                       onUnavailable={(reason) => {
                         setUnavailableNested((previous) => ({
                           ...previous,
-                          [expandedKey]: view.revision,
+                          [expandedKey]: { revision: view.revision, reason },
                         }));
                         setSelection(null);
                         setSheetSelection(null);

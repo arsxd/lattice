@@ -121,3 +121,15 @@ test("flat name mappings stay vertical with nested preference enabled", async ({
   await tabs.getByRole("button", { name: "All data", exact: true }).click();
   await expect(page.locator(".notice-toast")).toHaveCount(0);
 });
+
+test("bounded nested sheets explain the regular view beside the toggle", async ({ page }) => {
+  await open(page, JSON.stringify({ performances: Array.from({ length: 243 }, (_, id) => ({ id, prices: [{ amount: 10 }], seatCategories: [{ name: "Standard" }] })) }), "catalog.json");
+  await page.getByRole("navigation", { name: "Document sheets" }).getByRole("button", { name: "performances", exact: true }).click();
+  await page.getByRole("checkbox", { name: "Show nested data" }).check();
+  await expect(page.getByRole("grid", { name: "JSON data table" })).toBeVisible();
+  await page.locator(".nested-view-info summary").click();
+  await expect(page.locator(".nested-view-info")).toContainText("100 parent records");
+  await expect(page.locator(".notice-toast")).toHaveCount(0);
+  await page.getByRole("checkbox", { name: "Show nested data" }).uncheck();
+  await expect(page.locator(".nested-view-info")).toHaveCount(0);
+});

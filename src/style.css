@@ -1244,3 +1244,7 @@ select optgroup {
 .expanded-single > .expanded-section { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .expanded-single .expanded-grid { flex: 1; min-height: 0; max-height: none; }
 .expanded-single .pagination { flex-shrink: 0; }
+
+.nested-view-info { position: relative; margin-right: 10px; color: var(--muted); font-size: 12px; }
+.nested-view-info summary { cursor: pointer; white-space: nowrap; }
+.nested-view-info > div { position: absolute; top: calc(100% + 10px); right: 0; z-index: 40; width: min(300px, 70vw); padding: 12px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); color: var(--text); box-shadow: 0 2px 8px #0002; line-height: 1.5; }
