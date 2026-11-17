@@ -2,6 +2,9 @@
 
 ## 1.1.0-dev.8 — development only
 
+- Fixed single records containing nested record arrays being mistaken for parent collections; nested object fields now expand without the false unsupported-layout warning.
+- Unified document-root navigation button styling with Back/Forward and simplified the home glyph.
+
 - Flat key/value sheets retain their vertical layout with nested data enabled; the preference checkbox remains available on every sheet. Unsupported sections fall back without covering sheet tabs; a compact status icon beside the checkbox explains the limit. Its right-aligned message opens only on hover, focus, or click, without reopening on sheet changes.
 - File drops use a stronger inset outline, subtle tint, and centered hint.
 

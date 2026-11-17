@@ -1,6 +1,6 @@
 type IconName = "home" | "chevron" | "back" | "forward";
 const paths: Record<IconName, string> = {
-  home: "m2.5 7 5.5-4.5L13.5 7M4 6v7h3V9h2v4h3V6",
+  home: "M2.5 7 8 2.5 13.5 7M4 6v7.5h8V6",
   chevron: "m6 4 4 4-4 4",
   back: "M12 8H4m4-4L4 8l4 4",
   forward: "M4 8h8M8 4l4 4-4 4",

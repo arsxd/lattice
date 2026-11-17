@@ -76,3 +76,18 @@ it("supports wider mappings than the old 18-column cap while retaining total-cel
     new DocumentEngine(JSON.stringify(tooMany)).expanded([]),
   ).toThrow(/10,000 cells/);
 });
+it("treats one event with nested record arrays as a record, not a collection of parents", () => {
+  const text = '{"id":"event-10","actor":{"login":"reader"},"payload":{"ref":"refs/heads/main","commits":[{"sha":"abc","message":"Update"}]},"public":true}';
+  const engine = new DocumentEngine(text);
+  const section = engine.expanded([]).sections[0];
+  expect(section.childHeaders).toContain("actor / login");
+  expect(section.childHeaders).toContain("payload / commits");
+  const cells = section.groups.flatMap(group => group.children.flat());
+  const login = cells.find(item => JSON.stringify(item.cell.path) === '["actor","login"]')!;
+  expect(login.value).toBe("reader");
+  expect(cells.find(item => JSON.stringify(item.cell.path) === '["payload","commits"]')!.cell.type).toBe("array");
+  engine.mutate({ action: "replace", path: login.cell.path, raw: '"updated"' }, 0);
+  expect(engine.raw(["actor", "login"])).toBe('"updated"');
+  engine.undo();
+  expect(engine.text).toBe(text);
+});

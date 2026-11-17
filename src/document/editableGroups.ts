@@ -47,7 +47,7 @@ export function expandRecords(
     );
   if (node.type === "object") {
     const immediate = entries(node);
-    const hasRecordArrays = immediate.some(
+    const hasRecordArrays = immediate.every(([, n]) => n.type === "object") && immediate.some(
       ([, n]) =>
         n.type === "object" &&
         entries(n).some(

@@ -171,3 +171,18 @@ test("unsupported shape explains the outcome and keeps focus within the icon", a
   await expect(icon).toHaveCSS("border-radius", "3px");
   await page.screenshot({ path: "output/nested-notice-focus.png" });
 });
+
+test("single events with commits expand and navigation controls share styling", async ({ page }) => {
+  await open(page, JSON.stringify([{ id: "event-10", actor: { login: "reader" }, payload: { ref: "main", commits: [{ sha: "abc" }] }, public: true }]), "events.json");
+  await page.getByRole("navigation", { name: "Document sheets" }).getByRole("button", { name: "0", exact: true }).click();
+  await page.getByRole("checkbox", { name: "Show nested data" }).check();
+  const table = page.getByRole("table", { name: "0 data", exact: true });
+  await expect(table).toBeVisible();
+  await expect(table).toContainText("reader");
+  await expect(page.getByRole("button", { name: "Why nested data is unavailable" })).toHaveCount(0);
+  const home = page.getByRole("button", { name: "root", exact: true });
+  const back = page.getByRole("button", { name: "Back", exact: true });
+  for (const property of ["width", "height", "border-radius", "padding", "color", "border-top-width"]) {
+    expect(await home.evaluate((el, p) => getComputedStyle(el).getPropertyValue(p), property)).toBe(await back.evaluate((el, p) => getComputedStyle(el).getPropertyValue(p), property));
+  }
+});
