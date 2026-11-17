@@ -38,6 +38,8 @@ The checklist contains at most 2,000 distinct values; a truncation notice appear
 
 ## Source and review
 
+Source editing stays quiet while you type. **Apply source** checks the draft before changing the document. If it fails, an error explains what to fix; resuming editing clears that draft error. **Error details** provides parser codes and line/column positions.
+
 Select a cell, then Source to locate its exact JSON token. Missing fields have no source token. There is no separate source-jump row.
 
 Source opens only the current table when navigating within a document. Use **Whole document** to inspect or edit the full JSON, or **This table** to return. Apply or discard the draft before changing scope. Applying a table draft replaces that table only; sibling values and their numeric spelling are retained. Recovery checkpoints retain the complete document, including an unfinished table draft.
