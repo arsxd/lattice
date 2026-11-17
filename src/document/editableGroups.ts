@@ -62,7 +62,7 @@ export function expandRecords(
   }
   const parents = entries(node);
   if (!parents.length || parents.some(([, n]) => n.type !== "object"))
-    throw new Error("Expand a collection of records containing child tables.");
+    throw new Error("Lattice cannot combine the values in this sheet into one nested table yet. You can still edit them here, or open a table inside this sheet to work with it separately.");
   if (parents.length > 100)
     throw new Error("Expanded rows support up to 100 parent records.");
   const arrays = new Set<string>();

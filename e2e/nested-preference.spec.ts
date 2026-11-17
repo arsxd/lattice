@@ -155,3 +155,19 @@ test("bounded nested sheets explain fallback in a nonoverlapping alert", async (
   await page.getByRole("checkbox", { name: "Show nested data" }).uncheck();
   await expect(page.locator(".nested-warning")).toHaveCount(0);
 });
+
+test("unsupported shape explains the outcome and keeps focus within the icon", async ({ page }) => {
+  await open(page, JSON.stringify([{ name: "One", children: [{ value: 1 }] }, "Catalog"]), "mixed.json");
+  await page.getByRole("checkbox", { name: "Show nested data" }).check();
+  const icon = page.getByRole("button", { name: "Why nested data is unavailable" });
+  await expect(icon).toBeVisible();
+  await icon.focus();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Tab");
+  await expect(page.locator(".nested-warning")).toContainText("Showing regular table");
+  await expect(page.locator(".nested-warning")).toContainText("You can still edit them here");
+  await expect(page.locator(".nested-warning")).not.toContainText("Expand a collection");
+  await expect(icon).toHaveCSS("outline-offset", "-2px");
+  await expect(icon).toHaveCSS("border-radius", "3px");
+  await page.screenshot({ path: "output/nested-notice-focus.png" });
+});

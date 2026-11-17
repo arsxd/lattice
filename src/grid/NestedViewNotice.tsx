@@ -28,13 +28,13 @@ export function NestedViewNotice({ reason }: { reason: string }) {
       onFocus={() => setOpen(true)}
       onBlur={(event) => { if (!pinned && !event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}
     >
-      <button type="button" className="nested-notice-button" aria-label="Why nested data is unavailable" aria-expanded={open} aria-controls={open ? id : undefined} onClick={() => { setPinned(!pinned); setOpen(!pinned); }}>
+      <button type="button" className="nested-notice-button" aria-label="Why nested data is unavailable" aria-expanded={open} aria-controls={open ? id : undefined} aria-describedby={open ? id : undefined} onClick={() => { setPinned(!pinned); setOpen(!pinned); }}>
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
           <circle cx="12" cy="12" r="9" />
           <path d="M12 10v7m0-10v1" />
         </svg>
       </button>
-      {open && <div id={id} className="nested-warning" role="status"><span className="nested-warning-title">Nested view unavailable</span><span>{reason}</span></div>}
+      {open && <div id={id} className="nested-warning" role="status"><span className="nested-warning-title">Showing regular table</span><span>{reason}</span></div>}
     </div>
   );
 }
