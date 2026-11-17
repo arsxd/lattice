@@ -2,7 +2,7 @@
 
 ## 1.1.0-dev.8 — development only
 
-- Flat key/value sheets retain their vertical layout with nested data enabled; the preference checkbox remains available on every sheet. Unsupported sections fall back without covering sheet tabs; a “Regular view” disclosure beside the checkbox explains the limit.
+- Flat key/value sheets retain their vertical layout with nested data enabled; the preference checkbox remains available on every sheet. Unsupported sections fall back without covering sheet tabs; an inline warning below navigation explains the limit.
 - File drops use a stronger inset outline, subtle tint, and centered hint.
 
 
