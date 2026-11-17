@@ -1,0 +1,16 @@
+{
+  "north": {
+    "name": "North wing",
+    "rooms": {
+      "N-101": "Available",
+      "N-102": "Maintenance"
+    }
+  },
+  "south": {
+    "name": "South wing",
+    "rooms": {
+      "S-201": "Occupied",
+      "S-203": "Available"
+    }
+  }
+}

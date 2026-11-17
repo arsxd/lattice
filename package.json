@@ -1,7 +1,7 @@
 {
   "name": "lattice-json-workbench",
   "private": true,
-  "version": "1.0.0-rc.3",
+  "version": "1.1.0-dev.11",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
@@ -16,7 +16,9 @@
     "test:browser": "playwright test",
     "bench:browser": "node scripts/benchmark-browser.mjs",
     "notices": "node scripts/build-notices.mjs",
-    "release:checksums": "node scripts/build-checksums.mjs"
+    "release:checksums": "node scripts/build-checksums.mjs",
+    "grouped:build": "npm run offline:build && node scripts/build-expanded-preview.mjs",
+    "grouped:verify": "playwright test expanded"
   },
   "dependencies": {
     "@codemirror/commands": "6.11.1",

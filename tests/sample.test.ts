@@ -44,6 +44,7 @@ it("all downloadable examples parse without diagnostics", async () => {
     "02-store-orders.json",
     "03-application-settings.json",
     "04-json-value-shapes.json",
+    "05-merged-worksheet.json",
     "review/before.json",
     "review/after.json",
   ]) {
@@ -52,4 +53,28 @@ it("all downloadable examples parse without diagnostics", async () => {
     );
     expect(d.diagnostics, name).toEqual([]);
   }
+});
+
+it("sample collections demonstrate merged rows and grouped columns together", () => {
+  const section = new DocumentEngine(sample).expanded(["collections"])
+    .sections[0];
+  expect(section.groups).toHaveLength(2);
+  expect(section.groups[0].parent[0].value).toBe("staff_picks");
+  expect(section.groups[0].children).toHaveLength(3);
+  expect(section.groups[1].children).toHaveLength(2);
+  expect(section.columnPaths).toContainEqual(["details", "pages"]);
+  expect(section.columnPaths).toContainEqual(["details", "language"]);
+});
+
+it("reading lists retain primitive book arrays alongside empty lists", () => {
+  const section = new DocumentEngine(sample).expanded(["reading_lists"])
+    .sections[0];
+  expect(section.mapping).toBe(true);
+  const column = section.childHeaders.indexOf("book_ids");
+  const values = section.groups
+    .flatMap((group) => group.children)
+    .map((row) => row[column]);
+  expect(values[0].cell.container).toBe(false);
+  expect(values[0].value).toContain("BK-001");
+  expect(values.some((item) => item.value === "[]")).toBe(true);
 });

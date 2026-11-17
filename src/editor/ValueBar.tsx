@@ -1,5 +1,4 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import "./valueBar.css";
 
 type Props = {
   address: string;
@@ -49,7 +48,7 @@ function ValueBarEditor({
     if (!node) return;
     const resize = () => {
       node.style.height = "0px";
-      node.style.height = `${Math.min(74, Math.max(34, node.scrollHeight + 2))}px`;
+      node.style.height = `${Math.min(74, Math.max(32, node.scrollHeight + 2))}px`;
     };
     resize();
     const observer = new ResizeObserver(resize);
@@ -77,9 +76,11 @@ function ValueBarEditor({
     }
   }
   return (
-    <div className="value-bar">
-      <output aria-label="Cell address">{address || "—"}</output>
-      <label htmlFor="cell-value">Value</label>
+    <div
+      className={`value-bar ${readOnly ? "value-bar-readonly" : "value-bar-editable"}`}
+    >
+      {address && <output aria-label="Cell address">{address}</output>}
+      <label htmlFor="cell-value">{readOnly ? "Preview" : "Value"}</label>
       <textarea
         ref={textarea}
         id="cell-value"
@@ -87,8 +88,12 @@ function ValueBarEditor({
         title={
           previewOnly
             ? "Preview only. Open the nested table or Source for the complete value."
-            : "Enter to save; Shift+Enter for a new line; Escape to cancel."
+            : readOnly
+              ? "Read-only value. Open its table or Source to edit."
+              : "Click here to edit. Enter to apply; Shift+Enter for a new line; Escape to cancel."
         }
+        placeholder={readOnly ? "Empty value" : "Type a value…"}
+        aria-describedby="value-bar-help"
         rows={1}
         value={draft}
         readOnly={readOnly}
@@ -111,7 +116,23 @@ function ValueBarEditor({
           }
         }}
       />
+      <span id="value-bar-help" className="sr-only">
+        {readOnly
+          ? "Read-only preview."
+          : "Edit the selected cell here. Enter applies the change; Escape cancels."}
+      </span>
       {error && <span role="alert">{error}</span>}
+    </div>
+  );
+}
+
+/** Reserve the value-bar geometry so selecting a key does not move the sheet. */
+export function ValueBarPlaceholder() {
+  return (
+    <div className="value-bar value-bar-empty" aria-hidden="true">
+      <span className="value-bar-address" />
+      <span className="value-bar-caption">Value</span>
+      <span className="value-bar-empty-field">Select a cell</span>
     </div>
   );
 }

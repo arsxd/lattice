@@ -1,8 +1,12 @@
+import { columnLetter } from "./grid/columnAddress";
+import { ColumnMenuChevron } from "./grid/SheetIcons";
+import { NestedViewNotice } from "./grid/NestedViewNotice";
+import { ExpandedSheet } from "./grid/ExpandedSheet";
 import { FileDropZone, type DroppedFile } from "./workspace/FileDropZone";
 import { droppedJsonFile } from "./platform/files";
 import { JsonProblem } from "./editor/JsonProblem";
 import { HomeScreen } from "./HomeScreen";
-import { contentColumnWidths } from "./grid/columnSizing";
+import { contentColumnWidths, createTextMeasurer } from "./grid/columnSizing";
 import { compactJson } from "./document/compactJson";
 import {
   applyScopedDraft,
@@ -42,7 +46,7 @@ import { RowHeightHandle } from "./grid/RowHeightHandle";
 import { ValueDetails } from "./editor/ValueDetails";
 import { useOfflineApp } from "./useOfflineApp";
 import { ColumnMenu } from "./grid/ColumnMenu";
-import { ValueBar } from "./editor/ValueBar";
+import { ValueBar, ValueBarPlaceholder } from "./editor/ValueBar";
 import { SheetRange } from "./grid/SheetRange";
 import ReviewDiff from "./editor/ReviewDiff";
 import { invoke } from "@tauri-apps/api/core";
@@ -84,6 +88,8 @@ import {
 import { sample } from "./sample";
 import "react-data-grid/lib/styles.css";
 import "./style.css";
+import "./workspace.css";
+import "./editor/valueBar.css";
 function originalIndexPreference() {
   try {
     return localStorage.getItem("lattice-show-index") === "true";
@@ -137,12 +143,6 @@ type InlineEdit = {
   column: number;
   error: string;
 };
-function columnLetter(index: number): string {
-  let label = "";
-  for (let n = index + 1; n > 0; n = Math.floor((n - 1) / 26))
-    label = String.fromCharCode(65 + ((n - 1) % 26)) + label;
-  return label;
-}
 export default function App() {
   const { installPrompt, updateStatus } = useOfflineApp();
   const [discardPrompt, setDiscardPrompt] = useState(false);
@@ -190,6 +190,28 @@ export default function App() {
   const [columnName, setColumnName] = useState<string | null>(null);
   const [columnError, setColumnError] = useState("");
   const [inline, setInline] = useState<InlineEdit | null>(null);
+  const [groupedEditing, setGroupedEditing] = useState(false);
+  const [nestedPreferred, setNestedPreferred] = useState(() => {
+    try {
+      return localStorage.getItem("lattice-show-nested-data") === "true";
+    } catch {
+      return false;
+    }
+  });
+  const [unavailableNested, setUnavailableNested] = useState<
+    Record<string, { revision: number; reason: string }>
+  >({});
+  const [expandedStats, setExpandedStats] = useState<{
+    key: string;
+    rows: number;
+    columns: number;
+  } | null>(null);
+  const [expandedAddress, setExpandedAddress] = useState<{
+    key: string;
+    path: string;
+    address: string;
+  } | null>(null);
+  const groupedCommit = useRef<null | (() => Promise<boolean>)>(null);
   const busy = operationBusy;
   const committingCell = useRef(false);
   const inlineInput = useRef<HTMLTextAreaElement>(null);
@@ -203,24 +225,21 @@ export default function App() {
   const [gridSize, setGridSize] = useState({ width: 900, height: 400 });
   const [wrapText, setWrapText] = useState(false);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
-  const textMeasure = useMemo(() => {
-    const context = document.createElement("canvas").getContext("2d");
-    if (context)
-      context.font =
-        '13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-    const widths = new Map<string, number>();
-    return (text: string) => {
-      const cached = widths.get(text);
-      if (cached !== undefined) return cached;
-      const width = context?.measureText(text).width ?? text.length * 7;
-      if (text.length === 1) widths.set(text, width);
-      return width;
-    };
-  }, []);
+  const textMeasure = useMemo(createTextMeasurer, []);
   const [rowHeights, setRowHeights] = useState<Record<string, number>>({});
   const sessions = useRef(new Map<string, Session>());
   const navigationHistory = useRef(new Map<string, NavigationHistory>());
   const [activeId, setActiveId] = useState("");
+  const expandedKey = `${activeId}:${JSON.stringify(query.path)}`;
+  const expanded =
+    nestedPreferred &&
+    !!view &&
+    view.rows.some((row) =>
+      row.cells.some(
+        (cell, index) => view.columnKinds[index] !== "index" && cell.container,
+      ),
+    ) &&
+    unavailableNested[expandedKey]?.revision !== view.revision;
   const tableHeightKey = `${activeId}:${pointer(query.path)}:${query.showIndex !== false}`;
   const heightKey = (row: Row) => `${tableHeightKey}:${row.id}`;
   const automaticWidths = useMemo(
@@ -351,9 +370,10 @@ export default function App() {
     null,
   );
   const singleCellSelected =
-    sheetSelection?.mode === "cells" &&
-    sheetSelection.anchor.r === sheetSelection.end.r &&
-    sheetSelection.anchor.c === sheetSelection.end.c;
+    expanded ||
+    (sheetSelection?.mode === "cells" &&
+      sheetSelection.anchor.r === sheetSelection.end.r &&
+      sheetSelection.anchor.c === sheetSelection.end.c);
   const selectedPoint = sheetSelection?.anchor;
   const activeCell =
     selectedPoint &&
@@ -391,12 +411,18 @@ export default function App() {
   useEffect(() => {
     const element = grid.current?.element;
     if (!element) return;
-    const observer = new ResizeObserver(() =>
-      setGridSize({ width: element.clientWidth, height: element.clientHeight }),
-    );
+    const measure = () => {
+      if (element.clientWidth > 0 && element.clientHeight > 0)
+        setGridSize({
+          width: element.clientWidth,
+          height: element.clientHeight,
+        });
+    };
+    const observer = new ResizeObserver(measure);
+    measure();
     observer.observe(element);
     return () => observer.disconnect();
-  }, [mode, tableHeightKey, !!view]);
+  }, [mode, tableHeightKey, !!view, expanded]);
   const [theme, setTheme] = useState(
     localStorage.getItem("json-workbench-theme") ?? "system",
   );
@@ -416,7 +442,7 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [findDraft, query, mode, busy]);
   useEffect(() => {
-    if (mode !== "table" || inline || busy) return;
+    if (mode !== "table" || inline || expanded || busy) return;
     if (!activeCell || !singleCellSelected) {
       ++selectionRequest.current;
       setSelection(null);
@@ -439,6 +465,7 @@ export default function App() {
   const anyDirty =
     dirty ||
     !!inline ||
+    groupedEditing ||
     [...sessions.current.values()].some(
       (s) => s.id !== activeId && sessionDirty(s),
     );
@@ -1340,9 +1367,7 @@ export default function App() {
                       ),
                     )
                   }
-                >
-                  <span className="select-all-corner" aria-hidden="true" />
-                </button>
+                ></button>
               ),
               renderCell: ({ rowIdx, row }) => (
                 <div className="row-number-content">
@@ -1467,17 +1492,7 @@ export default function App() {
                       setHeaderMenu(headerMenu === i ? null : i);
                     }}
                   >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 16 16"
-                      aria-hidden="true"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                    >
-                      <path d="m4 6 4 4 4-4" />
-                    </svg>
+                    <ColumnMenuChevron />
                     {query.valueFilters?.[String(i)] !== undefined && (
                       <span className="filter-dot" />
                     )}
@@ -1874,7 +1889,7 @@ export default function App() {
         if (e.key === "Escape") answerDiscard(false);
         return;
       }
-      if (inline) return;
+      if (inline || groupedEditing) return;
       if (editing) {
         if (e.key === "Escape" && !busy) setEditing(null);
         return;
@@ -1911,8 +1926,9 @@ export default function App() {
     () => (selection ? jsonSelectionPreview(selection.raw) : null),
     [selection],
   );
-  const currentCell =
-    singleCellSelected && activeCell && activeCell.column >= 0
+  const currentCell = expanded
+    ? selection?.cell
+    : singleCellSelected && activeCell && activeCell.column >= 0
       ? view?.rows[activeCell.row]?.cells[activeCell.column]
       : undefined;
   function changeQuery(next: Query) {
@@ -2011,6 +2027,29 @@ export default function App() {
       }}
       onPointerDownCapture={(e) => {
         if (
+          groupedEditing &&
+          groupedCommit.current &&
+          e.target instanceof HTMLElement &&
+          !e.target.closest(".expanded-grid")
+        ) {
+          const control = e.target.closest<HTMLElement>("button,input,select");
+          if (control) {
+            e.preventDefault();
+            e.stopPropagation();
+            suppressPointerClick.current = true;
+            void groupedCommit.current().then((ok) => {
+              if (ok)
+                requestAnimationFrame(() => {
+                  control.focus();
+                  replayingClick.current = true;
+                  control.click();
+                  replayingClick.current = false;
+                });
+            });
+            return;
+          }
+        }
+        if (
           !inline ||
           committingCell.current ||
           !(e.target instanceof HTMLElement) ||
@@ -2044,7 +2083,7 @@ export default function App() {
     >
       <header className="toolbar">
         <strong title="JSON Workbench">Lattice</strong>
-        {busy && (
+        {operationBusy && (
           <span className="activity" role="status" aria-label="Working" />
         )}
         <span className="divider" />
@@ -2246,7 +2285,7 @@ export default function App() {
                 aria-pressed={outlineVisible}
                 onClick={() => setOutlineVisible(!outlineVisible)}
               >
-                Browse
+                <NavigationIcon name="browse" /> Browse
               </button>
             </div>
             <div
@@ -2323,7 +2362,7 @@ export default function App() {
                 aria-pressed={inspector}
                 onClick={() => setInspector(!inspector)}
               >
-                Details
+                <NavigationIcon name="details" /> Details
               </button>
             )}
           </div>
@@ -2333,7 +2372,7 @@ export default function App() {
               hidden={!outlineVisible}
               style={browsePaneStyle}
             >
-              <div className="pane-label">Document</div>
+              <div className="pane-label">Browse</div>
               <DocumentOutline
                 key={activeId}
                 current={query.path}
@@ -2442,40 +2481,83 @@ export default function App() {
                   </div>
                 )}
                 <div className="segmented">
-                  <button
-                    aria-pressed={mode === "table"}
-                    disabled={busy || sourceDirty || !!view?.diagnostics.length}
-                    onClick={() => {
-                      const previous = activeCell;
-                      setMode("table");
-                      if (
-                        previous &&
-                        view?.rows[previous.row]?.cells[previous.column]
-                      )
-                        focusCell(previous.row, previous.column);
-                    }}
+                  {view && (
+                    <label className="nested-data-toggle">
+                      <input
+                        type="checkbox"
+                        checked={nestedPreferred}
+                        disabled={busy}
+                        onChange={(event) => {
+                          const checked = event.target.checked;
+                          setNestedPreferred(checked);
+                          setUnavailableNested({});
+                          try {
+                            localStorage.setItem(
+                              "lattice-show-nested-data",
+                              String(checked),
+                            );
+                          } catch {
+                            /* Preference storage is optional. */
+                          }
+                          setSelection(null);
+                          setSheetSelection(null);
+                        }}
+                      />
+                      Show nested data
+                    </label>
+                  )}
+                  {mode === "table" &&
+                    nestedPreferred &&
+                    view &&
+                    unavailableNested[expandedKey]?.revision ===
+                      view.revision && (
+                      <NestedViewNotice
+                        key={`${expandedKey}:${view.revision}`}
+                        reason={unavailableNested[expandedKey].reason}
+                      />
+                    )}
+                  <div
+                    className="view-mode"
+                    role="group"
+                    aria-label="View mode"
                   >
-                    Table
-                  </button>
-                  <button
-                    title={
-                      currentCell
-                        ? "Open source at selected cell"
-                        : "Open JSON source"
-                    }
-                    aria-pressed={mode === "source"}
-                    disabled={busy || mode === "source" || sourceDirty}
-                    onClick={() => {
-                      if (currentCell && currentCell.type !== "missing")
-                        void showInSource(currentCell.path);
-                      else {
-                        setSourceTarget(null);
-                        void run(() => showSource().then(() => {}));
+                    <button
+                      aria-pressed={mode === "table"}
+                      disabled={
+                        busy || sourceDirty || !!view?.diagnostics.length
                       }
-                    }}
-                  >
-                    Source
-                  </button>
+                      onClick={() => {
+                        const previous = activeCell;
+                        setMode("table");
+                        if (
+                          previous &&
+                          view?.rows[previous.row]?.cells[previous.column]
+                        )
+                          focusCell(previous.row, previous.column);
+                      }}
+                    >
+                      Table
+                    </button>
+                    <button
+                      title={
+                        currentCell
+                          ? "Open source at selected cell"
+                          : "Open JSON source"
+                      }
+                      aria-pressed={mode === "source"}
+                      disabled={busy || mode === "source" || sourceDirty}
+                      onClick={() => {
+                        if (currentCell && currentCell.type !== "missing")
+                          void showInSource(currentCell.path);
+                        else {
+                          setSourceTarget(null);
+                          void run(() => showSource().then(() => {}));
+                        }
+                      }}
+                    >
+                      Source
+                    </button>
+                  </div>
                 </div>
               </div>
               {!!view?.diagnostics.length && (
@@ -2487,63 +2569,30 @@ export default function App() {
               )}
               {mode === "table" && view && (
                 <>
-                  {headerMenu !== null && (
-                    <ColumnMenu
-                      key={`${pointer(query.path)}:${headerMenu}`}
-                      anchor={filterAnchor}
-                      name={columnLabel(view, headerMenu)}
-                      selected={query.valueFilters?.[String(headerMenu)]}
-                      load={async () => {
-                        const p = await client.current!.call<Projection>(
-                          "project",
-                          { ...query, optionsColumn: headerMenu },
-                        );
-                        return {
-                          options: p.filterOptions ?? [],
-                          truncated: !!p.filterOptionsTruncated,
-                        };
-                      }}
-                      onClose={() => setHeaderMenu(null)}
-                      onSort={(direction) => {
-                        changeQuery({
-                          ...query,
-                          page: 0,
-                          sort: direction
-                            ? { column: headerMenu, direction }
-                            : undefined,
-                        });
-                        setHeaderMenu(null);
-                      }}
-                      onApply={(keys) => {
-                        const filters = { ...query.valueFilters };
-                        if (keys === undefined)
-                          delete filters[String(headerMenu)];
-                        else filters[String(headerMenu)] = keys;
-                        changeQuery({
-                          ...query,
-                          page: 0,
-                          valueFilters: filters,
-                        });
-                        setHeaderMenu(null);
-                      }}
-                    />
-                  )}
-                  {selection && activeCell && singleCellSelected && (
+                  {selection &&
+                  (expanded || activeCell) &&
+                  singleCellSelected ? (
                     <ValueBar
                       key={`${activeId}:${pointer(selection.cell.path)}`}
                       address={
-                        activeCell &&
-                        activeCell.row >= 0 &&
-                        activeCell.column >= 0
-                          ? `${columnLetter(activeCell.column)}${view.page * 500 + activeCell.row + 1}`
-                          : ""
+                        expanded
+                          ? expandedAddress?.key === expandedKey &&
+                            expandedAddress.path ===
+                              JSON.stringify(selection.cell.path)
+                            ? expandedAddress.address
+                            : ""
+                          : activeCell &&
+                              activeCell.row >= 0 &&
+                              activeCell.column >= 0
+                            ? `${columnLetter(activeCell.column)}${view.page * 500 + activeCell.row + 1}`
+                            : ""
                       }
                       value={selectedPresentation?.text ?? ""}
                       previewOnly={selectedPresentation?.previewOnly}
                       editable={
                         !!selection &&
-                        !!activeCell &&
-                        valueColumn(activeCell.column) &&
+                        (expanded ||
+                          (!!activeCell && valueColumn(activeCell.column))) &&
                         !selection.cell.container &&
                         !selectedPresentation?.previewOnly &&
                         selection.cell.writable !== false
@@ -2569,397 +2618,521 @@ export default function App() {
                         );
                       }}
                     />
+                  ) : (
+                    <ValueBarPlaceholder />
                   )}
-                  {columnName !== null && (
-                    <form
-                      className="column-form"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        void addColumn();
+                  {expanded ? (
+                    <ExpandedSheet
+                      key={expandedKey}
+                      client={client.current!}
+                      onUnavailable={(reason) => {
+                        setUnavailableNested((previous) => ({
+                          ...previous,
+                          [expandedKey]: { revision: view.revision, reason },
+                        }));
+                        setSelection(null);
+                        setSheetSelection(null);
+                        if (/worker|30 seconds/i.test(reason)) setError(reason);
                       }}
-                    >
-                      <label>
-                        Column name{" "}
-                        <input
-                          autoFocus
-                          value={columnName}
-                          disabled={operationBusy}
-                          onChange={(e) => {
-                            setColumnName(e.target.value);
-                            setColumnError("");
+                      path={query.path}
+                      query={query}
+                      revision={view.revision}
+                      busy={operationBusy}
+                      onStats={(stats) =>
+                        setExpandedStats((previous) =>
+                          previous?.key === expandedKey &&
+                          previous.rows === stats.rows &&
+                          previous.columns === stats.columns
+                            ? previous
+                            : { key: expandedKey, ...stats },
+                        )
+                      }
+                      onEditing={setGroupedEditing}
+                      onCommitReady={(commit) => {
+                        groupedCommit.current = commit;
+                      }}
+                      onSave={() => void save(false)}
+                      onSelect={(cell, position) => {
+                        setExpandedAddress(
+                          cell && position
+                            ? {
+                                key: expandedKey,
+                                path: JSON.stringify(cell.path),
+                                address: `${columnLetter(position.column)}${position.row + 1}`,
+                              }
+                            : null,
+                        );
+                        setSheetSelection(null);
+                        if (cell) void select(cell);
+                        else setSelection(null);
+                      }}
+                      onNavigate={(path) => void navigate(path)}
+                      onMutate={async (commands, revision) => {
+                        progress(true);
+                        try {
+                          await mutate({ action: "batch", commands }, revision);
+                        } finally {
+                          progress(false);
+                        }
+                      }}
+                    />
+                  ) : (
+                    <>
+                      {headerMenu !== null && (
+                        <ColumnMenu
+                          key={`${pointer(query.path)}:${headerMenu}`}
+                          anchor={filterAnchor}
+                          name={columnLabel(view, headerMenu)}
+                          selected={query.valueFilters?.[String(headerMenu)]}
+                          load={async () => {
+                            const p = await client.current!.call<Projection>(
+                              "project",
+                              { ...query, optionsColumn: headerMenu },
+                            );
+                            return {
+                              options: p.filterOptions ?? [],
+                              truncated: !!p.filterOptionsTruncated,
+                            };
                           }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Escape") setColumnName(null);
+                          onClose={() => setHeaderMenu(null)}
+                          onSort={(direction) => {
+                            changeQuery({
+                              ...query,
+                              page: 0,
+                              sort: direction
+                                ? { column: headerMenu, direction }
+                                : undefined,
+                            });
+                            setHeaderMenu(null);
+                          }}
+                          onApply={(keys) => {
+                            const filters = { ...query.valueFilters };
+                            if (keys === undefined)
+                              delete filters[String(headerMenu)];
+                            else filters[String(headerMenu)] = keys;
+                            changeQuery({
+                              ...query,
+                              page: 0,
+                              valueFilters: filters,
+                            });
+                            setHeaderMenu(null);
                           }}
                         />
-                      </label>
-                      <button type="submit" disabled={operationBusy}>
-                        Add column
-                      </button>
-                      <button
-                        type="button"
-                        disabled={operationBusy}
-                        onClick={() => setColumnName(null)}
+                      )}
+                      {columnName !== null && (
+                        <form
+                          className="column-form"
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            void addColumn();
+                          }}
+                        >
+                          <label>
+                            Column name{" "}
+                            <input
+                              autoFocus
+                              value={columnName}
+                              disabled={operationBusy}
+                              onChange={(e) => {
+                                setColumnName(e.target.value);
+                                setColumnError("");
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Escape") setColumnName(null);
+                              }}
+                            />
+                          </label>
+                          <button type="submit" disabled={operationBusy}>
+                            Add column
+                          </button>
+                          <button
+                            type="button"
+                            disabled={operationBusy}
+                            onClick={() => setColumnName(null)}
+                          >
+                            Cancel
+                          </button>
+                          {columnError && (
+                            <span role="alert">{columnError}</span>
+                          )}
+                        </form>
+                      )}
+                      <SheetRange
+                        isValueColumn={valueColumn}
+                        showIndex={query.showIndex !== false}
+                        onToggleIndex={() => void toggleIndex()}
+                        onOpenRow={(path) => void navigate(path)}
+                        view={view}
+                        selection={sheetSelection}
+                        onSelectionChange={setSheetSelection}
+                        copy={(selected) =>
+                          client.current!.call<string>("copy", {
+                            query,
+                            selection: selected,
+                            revision: view.revision,
+                          })
+                        }
+                        paste={(selected, text) =>
+                          selectionMutation("paste", selected, text)
+                        }
+                        fill={(selected) => selectionMutation("fill", selected)}
+                        apply={async (ops) => {
+                          await mutate(
+                            { action: "batch", commands: ops },
+                            view.revision,
+                          );
+                        }}
+                        onAddRow={() => void addRow()}
+                        onAddColumn={() => {
+                          setColumnName("");
+                          setColumnError("");
+                        }}
                       >
-                        Cancel
-                      </button>
-                      {columnError && <span role="alert">{columnError}</span>}
-                    </form>
-                  )}
-                  <SheetRange
-                    isValueColumn={valueColumn}
-                    showIndex={query.showIndex !== false}
-                    onToggleIndex={() => void toggleIndex()}
-                    onOpenRow={(path) => void navigate(path)}
-                    view={view}
-                    selection={sheetSelection}
-                    onSelectionChange={setSheetSelection}
-                    copy={(selected) =>
-                      client.current!.call<string>("copy", {
-                        query,
-                        selection: selected,
-                        revision: view.revision,
-                      })
-                    }
-                    paste={(selected, text) =>
-                      selectionMutation("paste", selected, text)
-                    }
-                    fill={(selected) => selectionMutation("fill", selected)}
-                    apply={async (ops) => {
-                      await mutate(
-                        { action: "batch", commands: ops },
-                        view.revision,
-                      );
-                    }}
-                    onAddRow={() => void addRow()}
-                    onAddColumn={() => {
-                      setColumnName("");
-                      setColumnError("");
-                    }}
-                  >
-                    <DataGrid<Row>
-                      key={tableHeightKey}
-                      ref={grid}
-                      className={`data-grid ${wrapText ? "wrap-text" : ""}`}
-                      columns={columns}
-                      rows={view.rows}
-                      getRowKey={(r) => r.id}
-                      rowHeight={rowHeight}
-                      onColumnResize={(column, width) =>
-                        setColumnWidths((previous) => ({
-                          ...previous,
-                          [`${tableHeightKey}:${column.key}`]: width,
-                        }))
-                      }
-                      headerRowHeight={headerHeight}
-                      renderers={frozenRenderers}
-                      enableVirtualization={frozenLayout.enableVirtualization}
-                      style={{
-                        scrollPaddingTop:
-                          headerHeight + frozenLayout.frozenHeight,
-                      }}
-                      sortColumns={sortColumns}
-                      onSortColumnsChange={(sort) => {
-                        if (busy) return;
-                        const s = sort.at(-1);
-                        changeQuery({
-                          ...query,
-                          sort: s
-                            ? {
-                                column: Number(s.columnKey),
-                                direction: s.direction,
-                              }
-                            : undefined,
-                          page: 0,
-                        });
-                      }}
-                      onCellDoubleClick={({ row, rowIdx, column }) => {
-                        if (
-                          busy ||
-                          Number(column.key) < 0 ||
-                          view.columnKinds[Number(column.key)] === "index"
-                        )
-                          return;
-                        const cell = row.cells[Number(column.key)];
-                        if (
-                          cell.container ||
-                          (keyEditable(Number(column.key)) &&
-                            cell.type === "array")
-                        )
-                          void navigate(cell.path);
-                        else if (keyEditable(Number(column.key)))
-                          startKey(cell, rowIdx);
-                        else if (valueColumn(Number(column.key)))
-                          void startInline(cell, rowIdx, Number(column.key));
-                      }}
-                      onCellKeyDown={(args, event) => {
-                        if (busy) return;
-                        if (args.mode !== "ACTIVE" || !args.row || !args.column)
-                          return;
-                        if (
-                          Number(args.column.key) < 0 ||
-                          view.columnKinds[Number(args.column.key)] === "index"
-                        )
-                          return;
-                        const cell = args.row.cells[Number(args.column.key)];
-                        if (
-                          keyEditable(Number(args.column.key)) &&
-                          (event.key === "F2" ||
-                            (event.key === "Enter" &&
-                              !cell.container &&
-                              cell.type !== "array") ||
-                            (event.key.length === 1 &&
-                              !cell.container &&
-                              cell.type !== "array" &&
+                        <DataGrid<Row>
+                          key={tableHeightKey}
+                          ref={grid}
+                          className={`data-grid ${wrapText ? "wrap-text" : ""}`}
+                          columns={columns}
+                          rows={view.rows}
+                          getRowKey={(r) => r.id}
+                          rowHeight={rowHeight}
+                          onColumnResize={(column, width) =>
+                            setColumnWidths((previous) => ({
+                              ...previous,
+                              [`${tableHeightKey}:${column.key}`]: width,
+                            }))
+                          }
+                          headerRowHeight={headerHeight}
+                          renderers={frozenRenderers}
+                          enableVirtualization={
+                            frozenLayout.enableVirtualization
+                          }
+                          style={{
+                            scrollPaddingTop:
+                              headerHeight + frozenLayout.frozenHeight,
+                          }}
+                          sortColumns={sortColumns}
+                          onSortColumnsChange={(sort) => {
+                            if (busy) return;
+                            const s = sort.at(-1);
+                            changeQuery({
+                              ...query,
+                              sort: s
+                                ? {
+                                    column: Number(s.columnKey),
+                                    direction: s.direction,
+                                  }
+                                : undefined,
+                              page: 0,
+                            });
+                          }}
+                          onCellDoubleClick={({ row, rowIdx, column }) => {
+                            if (
+                              busy ||
+                              Number(column.key) < 0 ||
+                              view.columnKinds[Number(column.key)] === "index"
+                            )
+                              return;
+                            const cell = row.cells[Number(column.key)];
+                            if (
+                              cell.container ||
+                              (keyEditable(Number(column.key)) &&
+                                cell.type === "array")
+                            )
+                              void navigate(cell.path);
+                            else if (keyEditable(Number(column.key)))
+                              startKey(cell, rowIdx);
+                            else if (valueColumn(Number(column.key)))
+                              void startInline(
+                                cell,
+                                rowIdx,
+                                Number(column.key),
+                              );
+                          }}
+                          onCellKeyDown={(args, event) => {
+                            if (busy) return;
+                            if (
+                              args.mode !== "ACTIVE" ||
+                              !args.row ||
+                              !args.column
+                            )
+                              return;
+                            if (
+                              Number(args.column.key) < 0 ||
+                              view.columnKinds[Number(args.column.key)] ===
+                                "index"
+                            )
+                              return;
+                            const cell =
+                              args.row.cells[Number(args.column.key)];
+                            if (
+                              keyEditable(Number(args.column.key)) &&
+                              (event.key === "F2" ||
+                                (event.key === "Enter" &&
+                                  !cell.container &&
+                                  cell.type !== "array") ||
+                                (event.key.length === 1 &&
+                                  !cell.container &&
+                                  cell.type !== "array" &&
+                                  !event.metaKey &&
+                                  !event.ctrlKey &&
+                                  !event.altKey &&
+                                  !event.nativeEvent.isComposing))
+                            ) {
+                              event.preventGridDefault();
+                              event.preventDefault();
+                              startKey(
+                                cell,
+                                args.rowIdx,
+                                event.key.length === 1 ? event.key : undefined,
+                              );
+                              return;
+                            }
+
+                            if (
+                              event.key.length === 1 &&
                               !event.metaKey &&
                               !event.ctrlKey &&
                               !event.altKey &&
-                              !event.nativeEvent.isComposing))
-                        ) {
-                          event.preventGridDefault();
-                          event.preventDefault();
-                          startKey(
-                            cell,
-                            args.rowIdx,
-                            event.key.length === 1 ? event.key : undefined,
-                          );
-                          return;
-                        }
-
-                        if (
-                          event.key.length === 1 &&
-                          !event.metaKey &&
-                          !event.ctrlKey &&
-                          !event.altKey &&
-                          !event.nativeEvent.isComposing &&
-                          valueColumn(Number(args.column.key)) &&
-                          !cell.container
-                        ) {
-                          event.preventGridDefault();
-                          event.preventDefault();
-                          void startInline(
-                            cell,
-                            args.rowIdx,
-                            Number(args.column.key),
-                            event.key,
-                          );
-                          return;
-                        }
-                        if (
-                          (event.key === "Delete" ||
-                            event.key === "Backspace") &&
-                          valueColumn(Number(args.column.key)) &&
-                          !cell.container &&
-                          cell.writable !== false
-                        ) {
-                          event.preventDefault();
-                          event.preventGridDefault();
-                          if (cell.type !== "missing")
-                            void run(async () => {
-                              await mutate(
-                                {
-                                  action: "replace",
-                                  path: cell.path,
-                                  raw: "null",
-                                },
-                                view.revision,
+                              !event.nativeEvent.isComposing &&
+                              valueColumn(Number(args.column.key)) &&
+                              !cell.container
+                            ) {
+                              event.preventGridDefault();
+                              event.preventDefault();
+                              void startInline(
+                                cell,
+                                args.rowIdx,
+                                Number(args.column.key),
+                                event.key,
                               );
-                              focusCell(args.rowIdx, Number(args.column!.key));
-                            });
-                          return;
-                        }
-                        if (event.key === "Enter" || event.key === "F2") {
-                          event.preventGridDefault();
-                          event.preventDefault();
-                          if (
-                            (cell.type === "null" || cell.type === "missing") &&
-                            valueColumn(Number(args.column.key))
-                          )
-                            void startInline(
-                              cell,
-                              args.rowIdx,
-                              Number(args.column.key),
-                            );
-                          else if (
-                            (cell.container ||
-                              (keyEditable(Number(args.column.key)) &&
-                                cell.type === "array")) &&
-                            event.key === "Enter"
-                          )
-                            void navigate(cell.path);
-                          else if (cell.container) void edit(cell);
-                          else if (event.key === "Enter")
-                            focusCell(
-                              Math.max(
-                                0,
-                                Math.min(
-                                  view.rows.length - 1,
-                                  args.rowIdx + (event.shiftKey ? -1 : 1),
-                                ),
-                              ),
-                              Number(args.column.key),
-                            );
-                          else if (valueColumn(Number(args.column.key)))
-                            void startInline(
-                              cell,
-                              args.rowIdx,
-                              Number(args.column.key),
-                            );
-                        }
-                      }}
-                      aria-label="JSON data table"
-                    />
-                  </SheetRange>
-                  {view.rows.length === 0 && (
-                    <div className="empty-table">
-                      {query.search
-                        ? "No matching rows. Clear the search to show all rows."
-                        : "This container is empty. Add a property or item to begin."}
-                    </div>
-                  )}
-                  <div className="pagination">
-                    <div className="table-actions">
-                      <div className="table-summary">
-                        {!!Object.keys(query.valueFilters ?? {}).length && (
-                          <span className="sort-summary">
-                            Filtered:{" "}
-                            {Object.keys(query.valueFilters ?? {})
-                              .map((k) => columnLabel(view, Number(k)))
-                              .join(", ")}{" "}
-                            <button
-                              disabled={busy}
-                              onClick={() =>
-                                changeQuery({
-                                  ...query,
-                                  valueFilters: undefined,
-                                  page: 0,
-                                })
-                              }
-                            >
-                              Clear filters
-                            </button>
-                          </span>
-                        )}
-                        {query.sort && (
-                          <span className="sort-summary">
-                            Sorted by {columnLabel(view, query.sort.column)} (
-                            {query.sort.direction === "ASC"
-                              ? "ascending"
-                              : "descending"}
-                            ){" "}
-                            <button
-                              disabled={busy}
-                              onClick={() =>
-                                changeQuery({
-                                  ...query,
-                                  sort: undefined,
-                                  page: 0,
-                                })
-                              }
-                            >
-                              Clear sort
-                            </button>
-                          </span>
-                        )}
-                      </div>
-
-                      {((query.records && view.recordsAvailable) ||
-                        view.total === 0) &&
-                      (view.kind === "object" || view.kind === "array") ? (
-                        <>
-                          <button
-                            disabled={busy || columnName !== null}
-                            onClick={() => void addRow()}
-                          >
-                            Add row
-                          </button>
-                          <button
-                            disabled={
-                              busy || view.total === 0 || columnName !== null
+                              return;
                             }
-                            onClick={() => {
-                              setColumnName("");
-                              setColumnError("");
-                            }}
-                          >
-                            Add column
-                          </button>
-                        </>
-                      ) : (
-                        (view.kind === "object" || view.kind === "array") && (
-                          <button
-                            disabled={busy}
-                            onClick={() => {
-                              setEditError("");
-                              setEditing({
-                                action: "insert",
-                                path: view.path,
-                                revision: view.revision,
-                                kind: "string",
-                                value: "",
-                                key: "",
-                                parentKind: view.kind,
-                              });
-                            }}
-                          >
-                            {view.kind === "object"
-                              ? "Add property"
-                              : "Add item"}
-                          </button>
-                        )
+                            if (
+                              (event.key === "Delete" ||
+                                event.key === "Backspace") &&
+                              valueColumn(Number(args.column.key)) &&
+                              !cell.container &&
+                              cell.writable !== false
+                            ) {
+                              event.preventDefault();
+                              event.preventGridDefault();
+                              if (cell.type !== "missing")
+                                void run(async () => {
+                                  await mutate(
+                                    {
+                                      action: "replace",
+                                      path: cell.path,
+                                      raw: "null",
+                                    },
+                                    view.revision,
+                                  );
+                                  focusCell(
+                                    args.rowIdx,
+                                    Number(args.column!.key),
+                                  );
+                                });
+                              return;
+                            }
+                            if (event.key === "Enter" || event.key === "F2") {
+                              event.preventGridDefault();
+                              event.preventDefault();
+                              if (
+                                (cell.type === "null" ||
+                                  cell.type === "missing") &&
+                                valueColumn(Number(args.column.key))
+                              )
+                                void startInline(
+                                  cell,
+                                  args.rowIdx,
+                                  Number(args.column.key),
+                                );
+                              else if (
+                                (cell.container ||
+                                  (keyEditable(Number(args.column.key)) &&
+                                    cell.type === "array")) &&
+                                event.key === "Enter"
+                              )
+                                void navigate(cell.path);
+                              else if (cell.container) void edit(cell);
+                              else if (event.key === "Enter")
+                                focusCell(
+                                  Math.max(
+                                    0,
+                                    Math.min(
+                                      view.rows.length - 1,
+                                      args.rowIdx + (event.shiftKey ? -1 : 1),
+                                    ),
+                                  ),
+                                  Number(args.column.key),
+                                );
+                              else if (valueColumn(Number(args.column.key)))
+                                void startInline(
+                                  cell,
+                                  args.rowIdx,
+                                  Number(args.column.key),
+                                );
+                            }
+                          }}
+                          aria-label="JSON data table"
+                        />
+                      </SheetRange>
+                      {view.rows.length === 0 && (
+                        <div className="empty-table">
+                          {query.search
+                            ? "No matching rows. Clear the search to show all rows."
+                            : "This container is empty. Add a property or item to begin."}
+                        </div>
                       )}
-                    </div>
+                      <div className="pagination">
+                        <div className="table-actions">
+                          <div className="table-summary">
+                            {!!Object.keys(query.valueFilters ?? {}).length && (
+                              <span className="sort-summary">
+                                Filtered:{" "}
+                                {Object.keys(query.valueFilters ?? {})
+                                  .map((k) => columnLabel(view, Number(k)))
+                                  .join(", ")}{" "}
+                                <button
+                                  disabled={busy}
+                                  onClick={() =>
+                                    changeQuery({
+                                      ...query,
+                                      valueFilters: undefined,
+                                      page: 0,
+                                    })
+                                  }
+                                >
+                                  Clear filters
+                                </button>
+                              </span>
+                            )}
+                            {query.sort && (
+                              <span className="sort-summary">
+                                Sorted by {columnLabel(view, query.sort.column)}{" "}
+                                (
+                                {query.sort.direction === "ASC"
+                                  ? "ascending"
+                                  : "descending"}
+                                ){" "}
+                                <button
+                                  disabled={busy}
+                                  onClick={() =>
+                                    changeQuery({
+                                      ...query,
+                                      sort: undefined,
+                                      page: 0,
+                                    })
+                                  }
+                                >
+                                  Clear sort
+                                </button>
+                              </span>
+                            )}
+                          </div>
 
-                    <button
-                      aria-pressed={wrapText}
-                      onClick={() => setWrapText(!wrapText)}
-                      title="Wrap long or multiline values. Short rows stay compact. Drag a row number’s bottom edge to adjust height."
-                    >
-                      Wrap text
-                    </button>
-                    <FreezeMenu
-                      rows={frozen.rows}
-                      columns={frozen.columns}
-                      selection={activeCell}
-                      rangeSelection={sheetSelection}
-                      pageOffset={view.page * 500}
-                      pageRowCount={view.rows.length}
-                      disabled={busy || !view.rows.length}
-                      paused={freezePaused}
-                      onChange={changeFreeze}
-                    />
-                    <div className="spacer" />
-                    {view.pages > 1 && (
-                      <>
+                          {((query.records && view.recordsAvailable) ||
+                            view.total === 0) &&
+                          (view.kind === "object" || view.kind === "array") ? (
+                            <>
+                              <button
+                                disabled={busy || columnName !== null}
+                                onClick={() => void addRow()}
+                              >
+                                Add row
+                              </button>
+                              <button
+                                disabled={
+                                  busy ||
+                                  view.total === 0 ||
+                                  columnName !== null
+                                }
+                                onClick={() => {
+                                  setColumnName("");
+                                  setColumnError("");
+                                }}
+                              >
+                                Add column
+                              </button>
+                            </>
+                          ) : (
+                            (view.kind === "object" ||
+                              view.kind === "array") && (
+                              <button
+                                disabled={busy}
+                                onClick={() => {
+                                  setEditError("");
+                                  setEditing({
+                                    action: "insert",
+                                    path: view.path,
+                                    revision: view.revision,
+                                    kind: "string",
+                                    value: "",
+                                    key: "",
+                                    parentKind: view.kind,
+                                  });
+                                }}
+                              >
+                                {view.kind === "object"
+                                  ? "Add property"
+                                  : "Add item"}
+                              </button>
+                            )
+                          )}
+                        </div>
+
                         <button
-                          disabled={busy || view.page === 0}
-                          onClick={() =>
-                            changeQuery({ ...query, page: view.page - 1 })
-                          }
+                          aria-pressed={wrapText}
+                          onClick={() => setWrapText(!wrapText)}
+                          title="Wrap long or multiline values. Short rows stay compact. Drag a row number’s bottom edge to adjust height."
                         >
-                          Previous
+                          Wrap text
                         </button>
-                        <span>
-                          Page {view.page + 1} / {view.pages}
-                        </span>
-                        <button
-                          disabled={busy || view.page + 1 >= view.pages}
-                          onClick={() =>
-                            changeQuery({ ...query, page: view.page + 1 })
-                          }
-                        >
-                          Next
-                        </button>
-                      </>
-                    )}
-                    <input
-                      id="find"
-                      aria-label="Find in table"
-                      placeholder="Find in this table…"
-                      value={findDraft}
-                      onChange={(e) => setFindDraft(e.target.value)}
-                    />
-                  </div>
+                        <FreezeMenu
+                          rows={frozen.rows}
+                          columns={frozen.columns}
+                          selection={activeCell}
+                          rangeSelection={sheetSelection}
+                          pageOffset={view.page * 500}
+                          pageRowCount={view.rows.length}
+                          disabled={busy || !view.rows.length}
+                          paused={freezePaused}
+                          onChange={changeFreeze}
+                        />
+                        <div className="spacer" />
+                        {view.pages > 1 && (
+                          <>
+                            <button
+                              disabled={busy || view.page === 0}
+                              onClick={() =>
+                                changeQuery({ ...query, page: view.page - 1 })
+                              }
+                            >
+                              Previous
+                            </button>
+                            <span>
+                              Page {view.page + 1} / {view.pages}
+                            </span>
+                            <button
+                              disabled={busy || view.page + 1 >= view.pages}
+                              onClick={() =>
+                                changeQuery({ ...query, page: view.page + 1 })
+                              }
+                            >
+                              Next
+                            </button>
+                          </>
+                        )}
+                        <input
+                          id="find"
+                          aria-label="Find in table"
+                          placeholder="Find in this table…"
+                          value={findDraft}
+                          onChange={(e) => setFindDraft(e.target.value)}
+                        />
+                      </div>
+                    </>
+                  )}
                 </>
               )}
               {mode === "source" && (
@@ -3078,7 +3251,7 @@ export default function App() {
                   onReset={() => setRightWidth(360)}
                 />
                 <div className="pane-heading">
-                  <h2>Selected value</h2>
+                  <h2>Details</h2>
                   <button
                     className="inspector-close"
                     aria-label="Close inspector"
@@ -3273,7 +3446,14 @@ export default function App() {
             <span>{dirty ? "Unsaved changes" : "Unmodified"}</span>
             {view && mode === "table" && (
               <span className="selection-status">
-                {view.matched.toLocaleString()} rows · {view.headers.length}{" "}
+                {(expanded && expandedStats?.key === expandedKey
+                  ? expandedStats.rows
+                  : view.matched
+                ).toLocaleString()}{" "}
+                rows ·{" "}
+                {expanded && expandedStats?.key === expandedKey
+                  ? expandedStats.columns
+                  : view.headers.length}{" "}
                 columns
                 {sheetSelection &&
                   ` · ${selectedCellCount(sheetSelection, view.matched, view.headers.length).toLocaleString()} ${selectedCellCount(sheetSelection, view.matched, view.headers.length) === 1 ? "cell" : "cells"} selected`}
@@ -3458,7 +3638,7 @@ export default function App() {
   );
   return (
     <FileDropZone
-      blocked={busy || !!inline || !!editing || discardPrompt}
+      blocked={busy || groupedEditing || !!inline || !!editing || discardPrompt}
       onBlocked={() =>
         setNotice(
           "Finish the current edit or operation before opening dropped files.",

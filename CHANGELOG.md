@@ -1,5 +1,47 @@
 # Changelog
 
+## 1.1.0-dev.11 — experimental prerelease
+
+- Generated-structure testing found sparse layouts for partially shared and deeper dictionary keys. Use paired Key/Value rows for entirely disjoint keys, or dictionaries with at least eight potential columns and more than half the slots absent. Deeper dictionary entries retain their exact edit paths.
+- Add reproducible generated-fixture engine/browser audits and a downloadable nesting corpus.
+- Report the active nested table’s actual row and column counts in the status bar.
+
+## 1.1.0-dev.10 — experimental prerelease
+
+- Render keyed dictionaries with distinct, non-overlapping keys as paired Key/Value subcolumns instead of sparse union columns. Preserve shared parent cells, exact value paths, edits, key renaming, sorting/filtering, and bounded rendering.
+- Keep the value-bar area stable when selecting keys, preventing double-clicks from landing on a different row.
+
+- Keep all nested tables above one fixed action footer in All data. The footer targets the selected table and shows its name; single-table layout and section-specific editing/filtering/freezing are preserved.
+
+## 1.1.0-dev.9 — development only
+
+- Replace the page-wide drag frame and overlapping hint with a contained drop target below the toolbar. Clear abandoned file-drag feedback after drag events stop and on normal pointer interaction.
+
+- Apply the workspace redesign to the real editor: quiet commands, joined view switch, consistent pane controls, headers, tabs, and both themes.
+- Make the value bar visibly editable with an address box, Edit value label, bordered field, and distinct read-only Preview state. Preserve Enter, Escape, multiline input, and undo.
+- Supply spreadsheet addresses and matching column letters for nested selections; measure actual nested-header height for frozen rows.
+
+## 1.1.0-dev.8 — development only
+
+- Fixed single records containing nested record arrays being mistaken for parent collections; nested object fields now expand without the false unsupported-layout warning.
+- Unified document-root navigation button styling with Back/Forward and simplified the home glyph.
+
+- Flat key/value sheets retain their vertical layout with nested data enabled; the preference checkbox remains available on every sheet. Unsupported sections fall back without covering sheet tabs; a compact status icon beside the checkbox explains the limit. Its right-aligned message opens only on hover, focus, or click, without reopening on sheet changes.
+- File drops use a stronger inset outline, subtle tint, and centered hint.
+
+
+- Keep primitive book ID arrays inline; remember the nested-view preference across sheets/files and browser reloads, with automatic regular-view fallback. Use a quiet file-drop outline and compact hint.
+- Add a curated-collections sample and standalone example showing merged parent rows and nested column headers together.
+- Keep a single expanded worksheet’s controls anchored above the sheet tabs, matching compact view at different window heights.
+- Use a **Show nested data** checkbox, shared content-based column sizing and a plain select-all corner. Fix compact widths after repeated view switches; increase mapping capacity to 200 total columns within the 10,000-cell bound.
+- Show nested properties under merged group headers and editable leaf subheaders; support sample Orders shipping objects as well as Books details.
+- Fix expansion of nested object mappings at the root and inside named sheets. Render mappings as one worksheet with shared group cells and editable leaf values/row keys.
+- Apply the size bound to the selected table rather than rejecting small nested tables in a larger file.
+- Replace the read-only grouped preview with **Show nested data** in the normal app. Child arrays are discovered automatically; parent cells span their children and edit directly.
+- Keep edits, range paste and insertions tied to exact JSON paths and the existing undo history. Reject conflicting values for one merged parent atomically.
+- Support section sort/filter, row/column insertion, range copy/paste, column resize and whole-group freezing within documented bounds. Retain expanded state across Source navigation.
+- This feature remains on the experimental branch, excluded from RC3 and the hosted app. Real-file, platform and accessibility validation are release gates.
+
 ## 1.0.0-rc.3 — 2026-11-17
 
 - Show the app version on the welcome screen and status bar.
