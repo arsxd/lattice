@@ -2,9 +2,15 @@
 
 Edit JSON like a spreadsheet. Work with cells, rows, and columns. Explore nested data and review your changes—without wrestling with JSON syntax.
 
-[Open Lattice](https://arsxd.github.io/lattice/) · [Download offline HTML](https://github.com/arsxd/lattice/releases/download/v1.0.0-rc.3/Lattice-Offline.html) · [Releases](https://github.com/arsxd/lattice/releases)
+**Current development build: v1.1.0-dev.9** — redesigned workspace and editable nested sheets.
 
-**Release candidate:** v1.0.0-rc.3 is for validation before a stable release. See the [candidate checklist](docs/RELEASE-CANDIDATE.md).
+[Open the current local HTML preview](output/Lattice-Expanded-Preview.html)
+
+This link opens the generated build in a local checkout. Build it with `npm ci` followed by `npm run grouped:build` if the file is missing. Generated HTML is not stored on GitHub; dev.9 has not been published as a release.
+
+**Older published build (v1.0.0-rc.3):** [Open hosted RC3](https://arsxd.github.io/lattice/) · [Download RC3 offline HTML](https://github.com/arsxd/lattice/releases/download/v1.0.0-rc.3/Lattice-Offline.html) · [Releases](https://github.com/arsxd/lattice/releases)
+
+RC3 does not include the development changes above. See the [candidate checklist](docs/RELEASE-CANDIDATE.md).
 
 ## Use
 
@@ -39,7 +45,7 @@ The bundled sample is a fictional bookshop with a keyed catalogue, orders, curat
 
 ## Editable expanded rows (development)
 
-The `experiment/grouped-sheets` branch adds **Show nested data** beside Table/Source. Shared parent cells span their children and can be edited directly. This development feature is not in the RC3 download or hosted app. Build it with `npm run grouped:build`, then open `output/Lattice-Expanded-Preview.html`. Expansion currently supports a selected table up to 2 MiB; see the [design and bounds](prototypes/grouped/DESIGN.md).
+The `experiment/grouped-sheets` branch adds **Show nested data** beside Table/Source. Shared parent cells span their children and can be edited directly. This development feature is not in the RC3 download or hosted app. Build it with `npm run grouped:build`, then [open the generated HTML preview](output/Lattice-Expanded-Preview.html). Expansion currently supports a selected table up to 2 MiB; see the [design and bounds](prototypes/grouped/DESIGN.md).
 
 To see merged rows and grouped column headers together in the development build, choose **Explore sample workspace → collections → Show nested data**.
 
@@ -58,6 +64,7 @@ npm run web:dev
 | ----------------------- | -------------------------------------------- |
 | `npm test`              | Unit and regression checks                   |
 | `npm run test:browser`  | Chromium browser workflows                   |
+| `npm run grouped:build` | Current development HTML in `output/Lattice-Expanded-Preview.html` |
 | `npm run offline:build` | Self-contained `output/Lattice-Offline.html` |
 | `npm run web:build`     | Static site in `dist/`                       |
 | `npm run web:preview`   | Preview the built site                       |
