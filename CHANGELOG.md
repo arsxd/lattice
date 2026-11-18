@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Keep the selected Table/Source view at full contrast.
+- Clear regular and expanded selections on background clicks, preserving active drafts and committing valid input before clearing.
+
 ## 1.1.0-dev.13 — experimental prerelease
 
 - Preserve the regular key/value view when nested mode would only rotate a record into columns without expanding any fields.

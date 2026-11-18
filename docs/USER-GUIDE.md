@@ -152,3 +152,5 @@ Sibling sparse dictionaries appear in separate vertical blocks within their shar
 Selecting an expanded key shows its cell address and key text in the value bar. Double-click the key in the table to rename it. Independent dictionaries retain the separate-row layout; the side-by-side prototype was not adopted.
 
 Show nested data keeps the regular view when expansion would only rotate a record without exposing nested fields. Wide expanded worksheets scroll horizontally within the workspace to their final column.
+
+Click unused sheet space to clear a regular or expanded selection. Valid active inline and value-bar drafts commit first; invalid drafts remain available for correction. The active Table/Source button retains full contrast even when it cannot be clicked again.

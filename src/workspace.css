@@ -393,3 +393,6 @@
 .diagnostics summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .expanded-grid td.expanded-layout-gap { background: var(--chrome); pointer-events: none; border-bottom-color: var(--line); }
+
+/* Active view state must remain distinct from an unavailable alternative. */
+.location .view-mode button[aria-pressed="true"]:disabled { opacity: 1; }

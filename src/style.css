@@ -1271,3 +1271,5 @@ select optgroup {
 .expanded-sheets, .expanded-sections, .expanded-section, .expanded-grid { min-width: 0; }
 .expanded-single > .expanded-sections > .expanded-section { width: 100%; }
 .expanded-grid { max-width: 100%; }
+
+.data-grid.without-selection { --rdg-selection-color: transparent; }

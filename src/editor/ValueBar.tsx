@@ -6,6 +6,7 @@ type Props = {
   editable: boolean;
   previewOnly?: boolean;
   onCommit: (v: string) => Promise<void>;
+  onCommitReady?: (commit: (() => Promise<boolean>) | null) => void;
 };
 
 export function ValueBar(props: Props) {
@@ -27,6 +28,7 @@ function ValueBarEditor({
   editable,
   previewOnly = false,
   onCommit,
+  onCommitReady,
   isCurrent,
 }: Props & { isCurrent: () => boolean }) {
   const [draft, setDraft] = useState(value);
@@ -57,24 +59,25 @@ function ValueBarEditor({
   }, [draft]);
   async function commit() {
     const next = draftRef.current;
-    if (
-      next === committed.current ||
-      pending.current !== null ||
-      readOnly ||
-      !isCurrent()
-    )
-      return;
+    if (pending.current !== null || !isCurrent()) return false;
+    if (next === committed.current || readOnly) return true;
     pending.current = next;
     try {
       await onCommit(next);
       committed.current = next;
       if (mounted.current && isCurrent()) setError("");
+      return true;
     } catch (e) {
       if (mounted.current && isCurrent()) setError(String(e));
+      return false;
     } finally {
       pending.current = null;
     }
   }
+  useLayoutEffect(() => {
+    onCommitReady?.(commit);
+    return () => onCommitReady?.(null);
+  });
   return (
     <div
       className={`value-bar ${readOnly ? "value-bar-readonly" : "value-bar-editable"}`}

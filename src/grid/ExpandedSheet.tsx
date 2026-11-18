@@ -41,6 +41,7 @@ import { ColumnMenu } from "./ColumnMenu";
 import { FreezeMenu } from "./FreezeMenu";
 import type { DocumentClient } from "../worker/client";
 type Props = {
+  clearSelectionVersion?: number;
   onUnavailable: (reason: string) => void;
   client: DocumentClient;
   path: Path;
@@ -342,6 +343,18 @@ function ExpandedTable({
       ? JSON.stringify([item.cell.path, item.identifier !== undefined])
       : null;
   const selectedPath = useRef<string | null>(saved?.path ?? null);
+  const previousClear = useRef(props.clearSelectionVersion);
+  useEffect(() => {
+    if (previousClear.current === props.clearSelectionVersion) return;
+    previousClear.current = props.clearSelectionVersion;
+    selectedPath.current = null;
+    pendingTarget.current = null;
+    setSelection(null);
+    setMenu(null);
+    setContextMenu(null);
+    if (active) props.onSelect(null);
+  }, [props.clearSelectionVersion]);
+
   useEffect(() => {
     onRemember({
       search,
