@@ -352,3 +352,6 @@
 .browse-tab-slot.expanded {
   margin-right: 0;
 }
+
+/* Active view state must remain distinct from an unavailable alternative. */
+.location .view-mode button[aria-pressed="true"]:disabled { opacity: 1; }
