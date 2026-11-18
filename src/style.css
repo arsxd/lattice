@@ -1208,3 +1208,6 @@ select optgroup {
 .file-drop-root:has(.home-screen) > .file-drop-overlay { background: var(--surface); }
 .file-drop-hint > svg { color: var(--muted); margin-bottom: 4px; }
 .file-drop-hint strong { font-weight: 550; }
+
+/* The grid retains a keyboard navigation anchor, but no active selection outline. */
+.data-grid.without-selection { --rdg-selection-color: transparent; }
