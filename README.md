@@ -1,3 +1,5 @@
+<img src="assets/icon-192.png" width="80" height="80" alt="Lattice app icon">
+
 # Lattice — JSON Workbench
 
 Edit JSON like a spreadsheet. Work with cells, rows, and columns. Explore nested data and review your changes—without wrestling with JSON syntax.
