@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Clear selection when clicking unused sheet space, committing valid edits first and preserving invalid drafts for correction.
+
 - Refine the regular workspace with matching pane icons, shared header chevrons and a visibly editable value bar.
 - Contain file-drop feedback and clear abandoned drag state.
 - Validate source drafts on Apply instead of interrupting typing; simplify error details and remove the redundant file-opening action.

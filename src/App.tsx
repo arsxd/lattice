@@ -198,6 +198,7 @@ export default function App() {
   const busy = operationBusy;
   const committingCell = useRef(false);
   const inlineInput = useRef<HTMLTextAreaElement>(null);
+  const valueBarCommit = useRef<(() => Promise<boolean>) | null>(null);
   const suppressBlur = useRef(false);
   const suppressPointerClick = useRef(false);
   const replayingClick = useRef(false);
@@ -2018,6 +2019,54 @@ export default function App() {
         suppressPointerClick.current = false;
       }}
       onPointerDownCapture={(e) => {
+        const backgroundTarget = e.target instanceof Element ? e.target : null;
+        const blankSheet =
+          backgroundTarget &&
+          (backgroundTarget.matches(".workspace,.range-sheet,.data-grid") ||
+            (backgroundTarget.closest(".range-sheet") &&
+              !backgroundTarget.closest(
+                '[role="gridcell"],[role="columnheader"],[role="rowheader"],button,input,textarea,select,[role="dialog"],.sheet-menu,[data-row-resizer]',
+              )));
+        if (
+          e.button === 0 &&
+          mode === "table" &&
+          blankSheet &&
+          !busyRef.current &&
+          !committingCell.current
+        ) {
+          const clear = () => {
+            ++selectionRequest.current;
+            pendingSelection.current = null;
+            setSheetSelection(null);
+            setSelection(null);
+            setHeaderMenu(null);
+            if (
+              document.activeElement instanceof HTMLElement &&
+              document.activeElement.closest(".data-grid") &&
+              !document.activeElement.matches(".inline-cell")
+            )
+              document.activeElement.blur();
+          };
+          if (
+            document.activeElement?.closest(".value-bar") &&
+            valueBarCommit.current
+          ) {
+            e.preventDefault();
+            e.stopPropagation();
+            suppressPointerClick.current = true;
+            void valueBarCommit.current().then((ok) => {
+              if (ok) clear();
+            });
+          } else if (inline) {
+            e.preventDefault();
+            e.stopPropagation();
+            suppressPointerClick.current = true;
+            void commitInline().then((ok) => {
+              if (ok) clear();
+            });
+          } else clear();
+          return;
+        }
         if (
           !inline ||
           committingCell.current ||
@@ -2541,6 +2590,9 @@ export default function App() {
                   )}
                   {selection && activeCell && singleCellSelected ? (
                     <ValueBar
+                      onCommitReady={(commit) => {
+                        valueBarCommit.current = commit;
+                      }}
                       key={`${activeId}:${pointer(selection.cell.path)}`}
                       address={
                         activeCell &&
@@ -2654,7 +2706,7 @@ export default function App() {
                     <DataGrid<Row>
                       key={tableHeightKey}
                       ref={grid}
-                      className={`data-grid ${wrapText ? "wrap-text" : ""}`}
+                      className={`data-grid ${wrapText ? "wrap-text" : ""} ${sheetSelection ? "" : "without-selection"}`}
                       columns={columns}
                       rows={view.rows}
                       getRowKey={(r) => r.id}

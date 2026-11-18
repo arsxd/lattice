@@ -146,3 +146,5 @@ Row/column headers and the top-left corner select ranges. Details shows the numb
 Initial column widths sample up to 50 displayed rows and use bounded widths for wide tables. Small tables also use content-based widths; the last column does not stretch to fill unused workspace. Manual column resizing takes precedence. Primitive arrays remain compact while editing. The selected cell can show up to 1,024 characters; the value bar expands to at most three lines and 4,096 characters. Longer values use a read-only preview and remain available in Source. Enter commits value-bar input, Shift+Enter adds a line, and Escape cancels.
 
 The app version appears in the welcome screen footer and document status bar. Use it when reporting a problem.
+
+Click unused sheet space to clear cell, row or column selection. A valid active edit is applied first; invalid inline or value-bar input remains available for correction. Toolbar and value-bar controls retain their selection context.
