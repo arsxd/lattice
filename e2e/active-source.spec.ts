@@ -15,8 +15,6 @@ test("active Source retains full contrast while unavailable Table stays dimmed",
     page.getByRole("button", { name: "Table", exact: true }),
   ).toBeDisabled();
   await expect(source).toHaveCSS("opacity", "1");
-  await page
-    .getByRole("combobox", { name: "Theme", exact: true })
-    .selectOption("dark");
+  await page.getByRole("button", { name: "Dark theme", exact: true }).click();
   await expect(source).toHaveCSS("opacity", "1");
 });

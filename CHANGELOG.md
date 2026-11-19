@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Add undoable Pretty-print and Minify source actions in a worker, visual line wrapping, and a selected-cell locator with an exact-range underline and persistent gutter bar.
+- Show bounded inline JSON previews for nested values, expandable value-bar contents and explicit string notation; preserve missing properties and empty strings during editing and paste.
+- Add Find result counts, navigation, case and whole-word matching; group active sort/filter controls with clear actions and use a funnel icon for filtered columns.
+- Improve picker/worker error handling, source-return selection, file-drop feedback, shared theme/navigation controls and filename information with a copy action.
+- Clarify recovered-draft comparison limits and diff navigation/restoration; add Source, Star and Support links to the home footer.
+
 - Keep the active Table/Source view at full contrast instead of styling it as unavailable.
 
 - Clear selection when clicking unused sheet space, committing valid edits first and preserving invalid drafts for correction.

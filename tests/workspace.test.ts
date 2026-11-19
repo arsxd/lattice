@@ -81,12 +81,18 @@ it("uses inline scalar types for blank cells instead of the null type editor", a
       container: false,
       inputKind: "object",
     }),
-  ).toBe("string");
+  ).toBe("object");
 });
 it("validates inline primitive arrays without converting precise numeric tokens", () => {
   expect(scalarText("array", '[9007199254740993, 1e400, "001", null]')).toBe(
     '[9007199254740993, 1e400, "001", null]',
   );
-  for (const value of ["[1,]", "[01]", '[{"a":1}]', "[[1]]", "[1] true"])
+  for (const value of ["[1,]", "[01]", "[1] true"])
     expect(() => scalarText("array", value)).toThrow();
+});
+
+it("accepts nested JSON array edits without changing exact tokens", () => {
+  expect(scalarText("array", '[{"a":9007199254740993},[1e400]]')).toBe(
+    '[{"a":9007199254740993},[1e400]]',
+  );
 });

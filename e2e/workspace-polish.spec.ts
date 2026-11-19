@@ -33,7 +33,10 @@ test("redesigned workspace keeps the value bar visibly editable in both themes",
     await detailsIcon.locator("rect").evaluate((el) => el.outerHTML),
   );
   await expect(browseIcon.locator("path")).toHaveAttribute("d", "M9 4v16");
-  await expect(bar).toHaveCSS("border-top-width", "1px");
+  await expect(page.locator(".value-bar-field")).toHaveCSS(
+    "border-top-width",
+    "1px",
+  );
   await expect(page.getByRole("group", { name: "View mode" })).toBeVisible();
   await page.getByRole("button", { name: "Toggle value inspector" }).click();
   await page.getByRole("button", { name: "Browse", exact: true }).click();
@@ -46,14 +49,12 @@ test("redesigned workspace keeps the value bar visibly editable in both themes",
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await expect(cell).toBeVisible();
   await cell.click();
-  await page
-    .getByRole("combobox", { name: "Theme", exact: true })
-    .selectOption("dark");
+  await page.getByRole("button", { name: "Dark theme", exact: true }).click();
   await expect(bar).toBeEditable();
   await page.screenshot({ path: "output/redesigned-workspace-dark.png" });
   await bar.fill("Discard this");
   await bar.press("Escape");
-  await expect(bar).toHaveValue("A Quiet Kitchen");
+  await expect(bar).toHaveValue('"A Quiet Kitchen"');
 });
 
 test("abandoned file drag feedback clears without changing the workspace", async ({
@@ -65,15 +66,13 @@ test("abandoned file drag feedback clears without changing the workspace", async
     transfer.items.add(
       new File(["{}"], "example.json", { type: "application/json" }),
     );
-    document
-      .querySelector(".app-shell")!
-      .dispatchEvent(
-        new DragEvent("dragenter", {
-          bubbles: true,
-          cancelable: true,
-          dataTransfer: transfer,
-        }),
-      );
+    document.querySelector(".app-shell")!.dispatchEvent(
+      new DragEvent("dragenter", {
+        bubbles: true,
+        cancelable: true,
+        dataTransfer: transfer,
+      }),
+    );
   });
   await expect(page.locator(".file-drop-hint")).toBeVisible();
   await expect(page.locator(".file-drop-hint")).toHaveCSS(
@@ -87,15 +86,13 @@ test("abandoned file drag feedback clears without changing the workspace", async
     transfer.items.add(
       new File(["{}"], "example.json", { type: "application/json" }),
     );
-    document
-      .querySelector(".app-shell")!
-      .dispatchEvent(
-        new DragEvent("dragenter", {
-          bubbles: true,
-          cancelable: true,
-          dataTransfer: transfer,
-        }),
-      );
+    document.querySelector(".app-shell")!.dispatchEvent(
+      new DragEvent("dragenter", {
+        bubbles: true,
+        cancelable: true,
+        dataTransfer: transfer,
+      }),
+    );
   });
   await expect(page.locator(".file-drop-overlay")).toBeVisible();
   await expect(page.locator(".file-drop-overlay")).toHaveCount(0, {
