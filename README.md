@@ -4,9 +4,9 @@
 
 Edit JSON like a spreadsheet. Work with cells, rows, and columns. Explore nested data and review your changes—without wrestling with JSON syntax.
 
-[Open Lattice](https://arsxd.github.io/lattice/) · [Download offline HTML](https://github.com/arsxd/lattice/releases/download/v1.0.0-rc.3/Lattice-Offline.html) · [Releases](https://github.com/arsxd/lattice/releases)
+[Open Lattice](https://arsxd.github.io/lattice/) · [Download offline HTML](https://github.com/arsxd/lattice/releases/download/v1.0.0-rc.4/Lattice-Offline.html) · [Releases](https://github.com/arsxd/lattice/releases)
 
-**Release candidate:** v1.0.0-rc.3 is for validation before a stable release. See the [candidate checklist](docs/RELEASE-CANDIDATE.md).
+**Release candidate:** v1.0.0-rc.4 is for validation before a stable release. See the [candidate checklist](docs/RELEASE-CANDIDATE.md).
 
 ## Use
 

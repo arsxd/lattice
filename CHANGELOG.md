@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.0-rc.4 — 2026-11-20
 
 - Add undoable Pretty-print and Minify source actions in a worker, visual line wrapping, and a selected-cell locator with an exact-range underline and persistent gutter bar.
 - Show bounded inline JSON previews for nested values, expandable value-bar contents and explicit string notation; preserve missing properties and empty strings during editing and paste.
