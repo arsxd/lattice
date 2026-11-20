@@ -74,7 +74,7 @@ test("filename menu clears text selection and home has project links", async ({
   page,
 }) => {
   await expect(
-    page.getByRole("link", { name: "Star Lattice on GitHub" }),
+    page.getByRole("link", { name: "Star on GitHub" }),
   ).toHaveAttribute("href", "https://github.com/arsxd/lattice");
   await expect(
     page.getByRole("link", { name: "Support Lattice on Buy Me a Coffee" }),

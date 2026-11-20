@@ -89,7 +89,7 @@ export function HomeScreen({
             href="https://github.com/arsxd/lattice"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="Star Lattice on GitHub"
+            aria-label="Star on GitHub"
             title="Open GitHub to star Lattice"
           >
             <svg

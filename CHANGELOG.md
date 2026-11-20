@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.0-rc.7 — 2026-11-20
+
+- Correct document-tab ownership so close controls stay separate from the tablist while retaining arrow-key switching.
+- Include visible labels in accessible names for project links, Details and column headers.
+- Make the saved Review source keyboard-focusable and explicitly read-only; keep draft focus available during validation.
+- Add focused accessibility and keyboard regressions and record local audit coverage and remaining manual checks.
+
 ## 1.0.0-rc.6 — 2026-11-20
 
 - Show live Source syntax squiggles after a typing pause, with wider unfinished-string ranges and small error gutter markers. Hover the underline, gutter dot or line number for a consistent explanation. Checks run in a cancellable worker; Apply still validates before committing.

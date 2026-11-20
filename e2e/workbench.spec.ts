@@ -47,10 +47,10 @@ test("opens a local JSON file, edits inline, and selects full rows and columns",
     page.getByRole("button", { name: "Select array index 0", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   await page
-    .getByRole("button", { name: "Select column count", exact: true })
+    .getByRole("button", { name: /^Select column [A-Z]+ count$/, exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: "Select column count", exact: true }),
+    page.getByRole("button", { name: /^Select column [A-Z]+ count$/, exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
 });
 test("review blocks invalid drafts and selectively restores a changed region", async ({
@@ -358,7 +358,7 @@ test("reload retains selected property page and scroll after external column reo
     )
     .toBe(before);
   await expect(
-    page.getByRole("button", { name: "Select column id", exact: true }),
+    page.getByRole("button", { name: /^Select column [A-Z]+ id$/, exact: true }),
   ).toContainText("C");
 });
 
@@ -369,7 +369,7 @@ test("highlights the entire selected header and avoids a duplicate Browse filena
   await page.getByRole("button", { name: "Browse", exact: true }).click();
   await expect(page.locator(".outline")).not.toContainText("header-test.json");
   const button = page.getByRole("button", {
-    name: "Select column name",
+    name: /^Select column [A-Z]+ name$/,
     exact: true,
   });
   await button.click();
@@ -510,7 +510,7 @@ test("header and corner selections show a range summary instead of the first val
   await page.getByRole("button", { name: "Toggle value inspector" }).click();
   await expect(page.locator(".inspector .type-label")).toHaveText("string");
   await page
-    .getByRole("button", { name: "Select column name", exact: true })
+    .getByRole("button", { name: /^Select column [A-Z]+ name$/, exact: true })
     .click();
   await expect(page.locator(".inspector")).toContainText("cells selected");
   await expect(page.locator(".inspector .type-label")).toHaveCount(0);
@@ -523,14 +523,14 @@ test("header and corner selections show a range summary instead of the first val
   await expect(page.locator(".inspector")).toContainText("6 cells selected");
   const header = page.locator(".sheet-header").filter({
     has: page.getByRole("button", {
-      name: "Select column count",
+      name: /^Select column [A-Z]+ count$/,
       exact: true,
     }),
   });
   const width = await header.evaluate((e) => e.getBoundingClientRect().width);
   await header.click({ position: { x: width - 3, y: 3 } });
   await expect(
-    page.getByRole("button", { name: "Select column count", exact: true }),
+    page.getByRole("button", { name: /^Select column [A-Z]+ count$/, exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   await page
     .getByRole("button", { name: "Sort and filter count", exact: true })
@@ -590,7 +590,7 @@ test("freeze menu offers selected-header actions with prefix semantics", async (
     page.locator('.data-grid [role=row][style*="sticky"]'),
   ).toHaveCount(3);
   await page
-    .getByRole("button", { name: "Select column name", exact: true })
+    .getByRole("button", { name: /^Select column [A-Z]+ name$/, exact: true })
     .click();
   await page.locator(".freeze-menu summary").click();
   await expect(
