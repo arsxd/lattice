@@ -10,7 +10,7 @@ This records verified behavior and remaining checks. It is not a WCAG conformanc
 - Unsaved-change confirmation initially focuses Keep editing, cycles Tab within its buttons, and Escape preserves the draft.
 - At a 720 × 500 CSS-pixel viewport, file and theme controls remain within the toolbar. This exercises a narrow layout; native browser zoom and OS scaling are separate manual checks.
 
-These flows are in `e2e/workbench.spec.ts`. Existing browser coverage also checks pane resizing and Source/Review workflows. Run `npm run test:browser` against the production build.
+These flows are in `e2e/workbench.spec.ts`. Existing browser coverage also checks pane resizing, source location without automatic text selection, Source line wrapping, format/undo behavior, theme controls and file-menu dismissal. These checks cover Chromium workflows, not full assistive-technology compatibility. Run `npm run test:browser` against the production build.
 
 ## Manual checks still required
 

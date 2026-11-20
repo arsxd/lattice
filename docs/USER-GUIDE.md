@@ -1,160 +1,154 @@
 # Using Lattice
 
-## Start with the downloaded app
+[Open the app](https://arsxd.github.io/lattice/) · [Download rc.4 HTML](https://github.com/arsxd/lattice/releases/download/v1.0.0-rc.4/Lattice-Offline.html) · [Documentation](README.md)
 
-Download `Lattice-Offline.html` from the repository Releases page and open it in a desktop browser. No companion files or server are needed. Replacing the HTML with a newer release does not update a currently open tab: save your work, close it and open the new file.
+## Open your first document
 
-Use a sample first to check your browser's Open, editing and Save/Download behavior. Local file access depends on browser support and permissions.
+Open a JSON file, drop it onto the app, or choose **Explore sample workspace**. The downloaded HTML opens directly in a desktop browser; no Node.js or server is needed. Try the fictional sample to get familiar with editing and Save/Download.
 
-![Lattice start screen](images/home.png)
+![Lattice welcome screen with file opening and the sample workspace](images/home.png)
 
-## Documents, sheets and nested data
+Each file opens in a document tab with its own worker and undo history. A drop can contain up to eight files totalling 64 MiB. Finish an active cell edit before dropping more files. Invalid or empty JSON opens in Source with an explanation; the original text is retained for repair.
 
-Open creates a document tab. You can also drop JSON files onto the app, up to eight files totalling 64 MiB per drop. Each opens in its own tab; finish an active cell edit before dropping files. Dropped files retain a writable handle only where the browser provides one; otherwise use Save as or Download. File-picker and dropped files share UTF-8 and size checks. Empty or invalid JSON opens in Source with an explanation and the original parser details available on demand. Each document has its own worker and undo history. Bottom sheet tabs expose top-level containers and groups beneath single-object wrappers. Nested objects/record arrays open as tables; breadcrumbs return to parents. Nested values display bounded JSON previews in their cells. Double-click/F2 edits; Ctrl/Cmd+click or the value-bar table icon opens a container as a table. Wrap text reveals more preview lines, up to five automatic lines for nested values; manually resizing a row reveals more of the loaded preview.
+The bottom tabs expose document sections. **Browse** shows the structure; breadcrumbs, Back, Forward and Home navigate it. Objects and arrays can open as separate tables. Duplicate object keys are rejected.
 
-Property tables show Key/Value; primitive arrays show Value. Generated array indices are hidden by default; the left gutter shows the original zero-based index for array rows, even after sorting or filtering. Right-click a table cell and choose **Show original index** to expose the original zero-based array positions, or inspect **Original index** in Details. The preference is stored locally. A real JSON field named `index` or `id` remains visible. **Open row** in the right-click menu opens an array record as a property table. Type metadata is available in Details. A real JSON field named `type` remains ordinary data. Object Key cells can be renamed directly; array indices are generated and read-only. Duplicate object keys are rejected.
+## Edit cells and keys
 
-## Enter and change data
+Click once to select. Type to replace a value; double-click or **F2** to edit. **Enter** commits and moves down; **Shift+Enter** moves up. **Tab** moves right and **Shift+Tab** left. **Escape** cancels. Clicking away applies valid cell/value-bar input; invalid input stays available for correction.
 
-Click selects a cell. Type to replace; double-click/F2 edits. Enter commits and moves down; Shift+Enter moves up. Tab commits and moves right; Shift+Tab moves left. Click another cell to commit; Escape cancels. Invalid input stays in the editor with an error.
+The value bar edits the selected value directly. Its chevron expands the display to a bounded height; its table icon opens a selected object or array. In the value bar, **Enter** applies, **Shift+Enter** inserts a line break, and **Escape** cancels.
 
-Blank/null cells accept direct entry. A consistent existing column type guides numeric/boolean input; otherwise blank fields default to text. Existing values retain their type. Use **Change type…** in Details for explicit type changes. The value bar shows JSON notation: `"0"` is text, `0` is a number, and `""` is empty text. Entering `""` directly in a cell creates empty text; editing an untouched missing property leaves it absent. Strings that resemble numbers/formulas remain strings. Numeric input uses JSON number syntax; boolean input uses `true` or `false`.
+| Input or state                       | Meaning                                                                            |
+| ------------------------------------ | ---------------------------------------------------------------------------------- |
+| `0` in the value bar                 | A JSON number                                                                      |
+| `"0"` in the value bar               | A JSON string                                                                      |
+| `""` entered in a cell               | Empty text                                                                         |
+| A subtly shaded, blank property cell | The property is absent; it remains editable                                        |
+| A blank, unshaded value cell         | Inspect Details to distinguish empty text, null, an empty object or an empty array |
 
-Add row creates a blank record with existing fields. Right-click a row for insert above/below, duplicate and delete. Add column asks for a name. Column rename/delete affects the full object-row table and rejects name collisions.
+Existing values retain their type. A consistent column type guides entry into missing/null cells; otherwise these default to text. Use **Change type…** in Details to make an explicit type change. Merely opening and finishing an untouched missing cell does not create a property.
 
-## Select, copy, paste and fill
+Object Key cells can be renamed; generated array indices are read-only. A key selection shows the key in the value bar. Add row creates a blank record using the existing fields; Add column asks for a property name and brings the new column into view. Right-click for relative row insertion, duplication and removal. Column rename/delete affects the full object-row table and checks name collisions.
 
-Click a cell, drag over a range, Shift+click or use Shift+arrows. **Ctrl+C / Cmd+C** copies the selected values; **Ctrl+V / Cmd+V** pastes. Arrow-key navigation updates the copy target. Copy exports quoted tab-separated values compatible with spreadsheet cells, using complete values rather than truncated previews. If preparation is still running, retry Copy when ready.
+## Read nested values
 
-Right-click a cell for **Copy** and **Paste**, with shortcut hints. Right-clicking inside a range keeps the range; right-clicking outside selects the clicked cell. Menu clipboard actions require browser permission. If blocked, close the menu and use the keyboard shortcuts. Inside a text editor, the browser’s normal text-selection clipboard behavior applies.
+Nested cells show bounded JSON previews. Double-click/F2 edits eligible values; **Ctrl/Cmd+click**, **Open row**, or the value-bar table icon opens a container separately. Small nested contents can be inspected as a table in Details.
 
-Paste starts at the selection's top-left cell. It validates before applying, rejects incompatible/read-only/nested targets and does not extend the table automatically. It can cross page boundaries within the filtered/sorted table. Nonadjacent destinations are rejected. A paste is one undo step. Blank pasted cells become null. Ctrl+D/Cmd+D or Fill down copies the top cell of each selected column down; it does not generate numeric sequences.
+**Wrap text** expands only overflowing rows, up to five automatic lines for nested previews and three for ordinary values. Manually increasing row height reveals more of the loaded preview. An ellipsis signals clipped or truncated content. It does not mean the stored JSON has been shortened.
 
-## Sort and filter
+Inline/value-bar previews are bounded at 4,096 characters. Oversized values use a read-only preview so truncated text cannot overwrite the original. Details raw previews stop at 8,192 characters. Source and **Copy JSON** provide complete values. Grouped/merged nested sheets remain experimental and are not part of rc.4.
 
-Header dropdowns contain ascending/descending sort, Clear sort, searchable value checklists and Apply/Cancel. Filters combine across columns. Sorting is view-only; header clicks do not move it to another column. The active column shows an arrow and a summary names the sort.
+## Select, copy and paste
 
-The checklist contains at most 2,000 distinct values; a truncation notice appears when needed. Clear a column filter to include all its values. Global Find searches the table separately from checklist filters. Clear filters resets active filters.
+Select a cell, drag a range, or extend with Shift+click / Shift+arrows. Column letters/titles select across **all matching rows**, including other pages. Row numbers select rows; the corner selects the table. Ctrl/Cmd-click adds or removes row/column ranges.
 
-## Source and review
+Array row labels use original zero-based JSON positions, including after sorting/filtering. Property-table rows use displayed row numbers. An optional **Show original index** context-menu column and **Original index** in Details provide more context. Real properties named `index`, `id` or `type` remain ordinary data. Mixed collections may have a generated **Array value** column marked **view**; it cannot be renamed/deleted as a real property.
 
-Source editing stays quiet while you type. **Apply source** checks the draft before changing the document. If it fails, an error explains what to fix; resuming editing clears that draft error. **Error details** provides parser codes and line/column positions.
+| Action                | Shortcut                      |
+| --------------------- | ----------------------------- |
+| Copy / paste values   | Ctrl/Cmd+C / Ctrl/Cmd+V       |
+| Fill down             | Ctrl/Cmd+D                    |
+| Select current column | Ctrl+Space                    |
+| Select current row    | Shift+Space                   |
+| Select table          | Ctrl/Cmd+A                    |
+| Edit / cancel         | F2 / Escape                   |
+| Document undo / redo  | Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z |
 
-Select a cell, then Source to locate its exact JSON token. Missing fields have no source token. There is no separate source-jump row.
+Clipboard values use quoted TSV compatible with spreadsheet cells. Copy uses complete values, not cell previews. Right-click menus show shortcuts; their Copy/Paste actions depend on clipboard permission. Inside a text editor, normal browser text selection applies.
 
-Source opens only the current table when navigating within a document. Use **Whole document** to inspect or edit the full JSON, or **This table** to return. Apply or discard the draft before changing scope. Applying a table draft replaces that table only; sibling values and their numeric spelling are retained. Recovery checkpoints retain the complete document, including an unfinished table draft.
+Paste validates the entire operation before applying it as one undo step. It does not grow the table. It can cross pages within the filtered/sorted table, but requires one adjacent destination and compatible writable cells. Empty pasted text stays empty text in a string cell; in non-string cells, blank paste becomes null. Fill down repeats the top selected value; it does not generate a numeric series.
 
-Merely viewing source should not create a draft. Editing source reveals Apply source / Discard draft. Apply commits to the document engine; Discard reloads committed text. These are distinct from saving the file to disk.
+Bulk operations are limited to 10,000 cells and 16,777,216 value characters. Larger ranges can be highlighted, but copying asks for a smaller range. Disjoint row/column ranges copy in table order.
 
-Review changes compares the opened/saved baseline on the left with an editable current draft on the right. The right-pointing restore arrow beside a changed region copies that baseline region into the draft; it does not save or immediately change the table. Use Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z for draft undo/redo, including Restore. JSON syntax and existing size/depth limits are checked automatically in a worker; successful validation does not add a toolbar message. Invalid drafts show an actionable error below the editors. **Apply changes** and **Discard draft** appear only while there are unapplied draft edits. Apply is enabled only for a valid changed draft and commits it as one document undo step. **Discard draft** restores the committed document, keeping edits already made in the table.
+Click unused sheet space to clear selection. Toolbar and value-bar actions preserve the context they need.
 
-**Close review** returns to the previous Table or Source view. Closing with an unapplied draft asks whether to discard that draft; committed table changes are kept.
+## Sort, filter and Find
 
-Previous/Next change highlights changed regions. Show/Hide unchanged lines can be toggled repeatedly without losing draft edits. Drafts survive document-tab switching. Apply or discard a Review draft before switching to Table/Source or saving. This compares against the baseline, not a newly modified disk file; it is not a three-way merge tool.
+Use the header chevron for ascending/descending sort and a searchable value checklist. A filtered column shows a **funnel**. Filters combine across columns; sorting changes the view, not the JSON order. Clicking a different header selects it without transferring the sort.
 
-## Save and external editors
+Active **Sort** and **Filters** controls appear beside Table/Source. Use their × actions to clear sort or all filters. Open Filters to inspect active columns and clear one. Checklists show up to 2,000 distinct values and report truncation.
 
-Where browser APIs permit, Open retains a file handle, Save writes back, and Save as selects another destination. Cancelling or failed writes must not mark the document saved. A detected external file change blocks overwriting; no exclusive lock or automatic file watcher exists.
+**Find in this table** highlights matches and shows the number of matching **cells**, not individual text occurrences. Use its previous/next buttons, **Enter** / **Shift+Enter**, **Match case** and **Match whole word**. Find filters matching rows separately from column checklists. Searching large nested values uses the bounded display preview; Source is available for complete contents.
 
-Download exports a copy. The document stays dirty because the app cannot confirm the download was saved. Keep the exported file before closing. Browser file access is not guaranteed after page reload.
+## Source
 
-Reload source refreshes from a retained handle or asks you to choose the source again. Confirming reload replaces only the active document and resets undo history. It retains the current nested location (or its nearest existing parent), with sort/filter columns remapped by name and column role. It restores the selected row/cell path and its page when still present, plus scroll position when that row remains on the page. Missing cells clear selection; multi-cell ranges collapse to their active cell. Array indices retain positions, not semantic record identity if an external editor reorders array elements. Cancel retains your work.
+Select a cell and choose **Source** to locate its exact JSON. Missing properties have no token. A dotted underline marks the exact value; a gutter bar shows its lines. **Selected cell · B4** scrolls back to the linked value without selecting text. Ordinary edits track its range; formatting clears the location marker because it replaces the entire draft.
 
-## Troubleshooting and reports
+![Source with scope, selected-cell location, wrapping and formatting controls](images/source.png)
 
-| Symptom                                      | Check                                                                                             |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Old interface after updating                 | Close the old tab; open the downloaded HTML from the new release                                  |
-| Open starts in the wrong folder              | Newer builds supply a handle hint; local-origin storage or policy may still prevent persistence   |
-| Save unavailable                             | Browser may not expose the file-picker API; use Download                                          |
-| Save says externally changed                 | Keep your edits separately, then reload/reopen the source; do not overwrite blindly               |
-| Source Apply/Discard appears without editing | Report line endings, browser and minimal JSON; CRLF regression checks exist                       |
-| Paste rejected                               | Check table bounds, target column types, metadata/container cells and rectangular clipboard shape |
-| A missing sheet tab                          | Provide a minimal nested JSON example; wrapper handling is heuristic                              |
-| No close/reload warning                      | Browsers can suppress beforeunload dialogs; it is not crash recovery                              |
+| Control                     | Effect                                                                                               |
+| --------------------------- | ---------------------------------------------------------------------------------------------------- |
+| This table / Whole document | Select the source editing scope. The current table is the default when navigating inside a document. |
+| Wrap lines                  | Visually wrap long lines; JSON, logical line numbers and draft status do not change.                 |
+| Pretty-print                | Add two-space indentation in an undoable draft.                                                      |
+| Minify                      | Remove whitespace outside strings in an undoable draft.                                              |
+| Apply source                | Validate and commit the draft to the document engine.                                                |
+| Discard draft               | Restore the committed text, retaining earlier table edits.                                           |
 
-Report bugs through GitHub Issues. Include release version, OS/browser version, exact steps, expected/actual results, and a minimal sanitized JSON example. Never attach company files, credentials, paths or personal data you cannot share publicly. Screenshots should be redacted. See the issue template for a checklist.
+Formatting preserves exact numeric tokens, string contents and property order. Apply or discard a draft before changing scope, returning to Table or saving. Applying a table draft changes only that subtree, keeping sibling data intact. Applying a draft is distinct from saving the file to disk.
 
-## Empty values and nested previews
+Source stays quiet while typing. Validation runs on Apply; an invalid draft remains available for repair, with a readable error and optional parser details. Resuming editing clears the previous Apply error.
 
-Empty strings (`""`), empty objects (`{}`), empty arrays (`[]`), `null` and missing properties appear as blank grid cells. Select a cell and open **Details** to see its exact state and JSON. Hover text and accessible names also identify the state. The underlying values remain distinct; no conversion occurs. Zero, false and literal strings such as "null" remain visible. A missing property is absent from the file; entering a value creates it.
+## Review changes
 
-Nested objects show up to three key/value hints in the cell. Double-click still opens the nested table. Turn on **Details** for a contents table alongside a JSON preview. The preview shows at most 20 rows, 10 columns and 100 cells. Small collections of records use their combined keys as columns; other collections use key/value rows. Preview columns retain readable widths instead of shrinking to fit the pane; scroll within the preview to see additional columns/rows. Headers stay on one line and values show at most three lines. The preview area is capped at 288 pixels high; focus it to scroll with the keyboard. Long values are truncated. Previews are omitted above 32,768 source characters or 12 syntax-tree levels; use **Open table**, **Source** or **Copy JSON** for the complete value. Numeric previews use the original JSON spelling.
+**Review changes** compares the opened/saved baseline on the left with the current editable draft on the right.
 
-Switching from Table to Source and back restores the active cell. Applying a source draft clears the selection because rows and keys may have changed; select a new cell after applying.
+![Two price edits shown as separate changes with unchanged lines collapsed](images/review.png)
 
-## Multiline cells and row height
+- **Previous / Next change** navigates changed regions.
+- **Show / Hide unchanged lines** expands or collapses context, including context expanded manually.
+- A right-pointing **restore arrow** copies that baseline region into the draft. Hovering it marks the affected region. It does not save or immediately change the table.
+- **Apply changes** validates and commits a changed draft as one document undo step. **Discard draft** returns to the committed document while retaining earlier table edits.
 
-Use **Wrap text** in the table footer to show line breaks and wrap long text inside cells. Only rows whose visible content needs extra lines grow automatically, up to three lines. Short and blank rows stay compact. Heights recalculate when columns are resized; manual row heights take precedence. Longer content is clipped to the row height. The grid preview remains limited to 240 characters. Source and Copy JSON provide the full value; Details limits its text preview.
+Use Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z for draft undo/redo, including restoration. Review validates automatically in a worker; only blocking errors appear. **Close review** returns to the previous view and asks before discarding an unapplied draft. Drafts survive document-tab switching.
 
-Drag the bottom edge of a row number to change its height (28–400 pixels). Double-click that edge to reset to its current content-based height. Once the resize handle has focus, Up/Down adjusts its height and Home resets it. Heights are view settings for the current document/table and remain attached to the row path when sorting/filtering. They are not saved in JSON or restored after closing the app.
+Review compares with the stored baseline, not a newly modified disk file; it is not a three-way merge. If comparison exceeds its work budget, highlighting/restoration pause with an explanation instead of showing an approximate broad replacement. Locally recovered drafts have no stored original baseline: Review stays unavailable until a confirmed save establishes one.
 
-While editing a string cell, **Alt+Enter** inserts a line break, **Enter** commits, **Tab** commits and moves, and **Escape** cancels. Line breaks are saved as escaped newlines in valid JSON. String cell editing now uses a multiline text field; other JSON types keep their existing validation.
+## Save, Download and Reload
 
-## Browsing nested tables
+| Action        | Behavior                                                                                         |
+| ------------- | ------------------------------------------------------------------------------------------------ |
+| Save          | Write back through a retained file handle where the browser supports and permits it.             |
+| Save as…      | Choose a destination through a supported browser picker.                                         |
+| Download      | Export an edited copy. The app cannot confirm it reached disk, so the document remains unsaved.  |
+| Reload source | Read the retained source again, or ask you to select it again when direct access is unavailable. |
 
-**Browse** opens an expandable document sidebar. The chevron expands a branch; its name opens that table. The current table is highlighted, ancestors open as you navigate, and sibling branches remain in the hierarchy. Hiding and reopening Browse retains the current expansion state. Each branch lists up to 200 nested tables; all data remains accessible through the parent table.
+Cancelled or failed writes do not mark a document saved. Save compares the decoded disk contents with its baseline and blocks a detected external change. It provides conflict detection, not an exclusive file lock or automatic watcher.
 
-**Back** and **Forward**, beside the breadcrumb, revisit table locations within the active document. Each document has its own history, capped at 100 locations. History retains the most recent search, sort, filters and row page for a visited table. Visiting another table after going back replaces the forward branch. These controls are separate from Undo/Redo and the browser’s page navigation.
+Reload affects only the active document and resets undo/navigation history. It retains the current table or nearest surviving parent, remaps sort/filter columns by name and role, and restores the selected path/page and compatible scroll position when possible. Removed/filtered cells clear selection; ranges collapse to their active cell. Array paths identify positions, not semantic record identity after external reordering. Cancel retains your work.
 
-History resets after source reload or applying a source draft. If an earlier location has been removed through table editing, revisiting it opens the nearest available parent. Navigation is paused while a source draft has unapplied changes.
+Busy operations show a small spinning ring and disable repeated requests. A compact toast confirms successful reload.
 
-The home icon opens the document root. The document tab and status bar show the current filename; the breadcrumb shows the JSON location. Browse contains only the document hierarchy. Browser file handles do not expose an absolute disk path, so the app does not invent one.
+Click or right-click the bottom filename for **file information** and **Copy filename**. Standard web APIs do not provide absolute disk paths. A picker may remember a previous location where the browser permits it, but that is not a guarantee of persistent access.
 
-## Freeze panes
+## Layout and themes
 
-Use **Freeze** beside Wrap text for **Freeze first row**, **Freeze first column**, or **Freeze above and left of selection**. The last option keeps rows above and columns left of the active cell visible. Selecting row or column headers also offers **Freeze selected row(s)** or **Freeze selected column(s)**: this freezes the prefix through the last selected header. Selected rows must be on the displayed page. **Unfreeze panes** clears both. The row-number gutter stays pinned independently.
+Resize columns at header edges and rows at their lower number-cell edge. Titles wrap independently of cell contents. Initial widths sample up to 50 displayed rows, remain bounded for wide tables and use spare width for longer two-column values. Manual sizes take precedence.
 
-Freeze is a view setting for the current document/table, not JSON data. It follows displayed positions after sorting/filtering and applies to each displayed page. Row offsets use the current wrapped/manual heights. Frozen rows may occupy at most 40% of the grid height; frozen columns must leave at least 40% of the width scrollable. Row freezing supports pages with at most 10,000 rendered cells, including the gutter. This mode renders the bounded page to retain editable frozen rows. Wider pages keep virtualization and column freezing. If resizing or wrapping makes a stored freeze unsafe, the menu reports that it is paused; reduce the freeze or unfreeze.
+Toggle **Browse** / **Details** and drag their boundaries to resize them. Focus a boundary and use Left/Right for keyboard resizing; Home or double-click resets it. Details can occupy up to half a wide window and overlays at narrower sizes. Pane widths are local preferences.
 
-## Large selected values
+Freeze first/selected rows or columns through **Freeze**. Freezing uses a prefix through the selected boundary, not independent scattered rows. Frozen rows are limited to 40% of grid height and pages of at most 10,000 rendered cells, including the gutter; frozen columns must leave 40% of the width scrollable. Unsafe freezes pause after resizing/wrapping instead of compromising the view.
 
-The value bar shows a short summary for nested objects/arrays instead of inserting their full JSON into a text input. Scalar values longer than 4,096 characters use a read-only preview; a truncated preview cannot be committed as an edit. Use Source for the complete value.
+Use the System, Light and Dark controls in the top-right corner to choose a theme. See [accessibility checks](ACCESSIBILITY.md) for tested keyboard behavior and remaining manual checks.
 
-Details shows at most 8,192 characters of raw JSON and clearly labels truncated previews. **Copy JSON** and copying selected grid cells still use complete values. Selecting a large container does not modify its data. These limits apply to previews, not the file or nested table.
+## Optional recovery
 
-## Whole rows, columns and pane sizing
+**Local recovery** is off by default. Enable it on the home screen or status bar to keep unsaved document text in this browser's IndexedDB. It requires Web Locks to separate active windows safely; storage errors are reported.
 
-Click a column letter/title to select that column across **all matching rows**, including other pages. Click a row number to select the whole row. Shift extends a selection; Ctrl/Cmd-click adds or removes row/column ranges. Ctrl+Space selects the current column; Shift+Space selects its row. Ctrl/Cmd+A selects the table. Highlighting and copying use the same selection. Grid clipboard operations are limited to 10,000 cells and 16,777,216 value characters; larger selections remain highlightable, but copying requests a smaller range. Native text-field selection is unaffected. Disjoint row/column ranges can be copied in table order; paste requires one adjacent destination.
+After edits settle for two seconds, committed table edits and Source/Review drafts—including incomplete JSON—are checkpointed. In-progress cell text is not stored until committed. On reopening, choose **Restore draft** or **Discard recovered draft**. Restore adopts the checkpoint before deleting the old record.
 
-A generated **Array value** column carries a **view** badge. It holds non-object entries in a mixed collection and cannot be renamed/deleted as a real JSON property. Real properties with the same name remain separate.
+Recovery does not reconnect file handles, restore undo history or replace saving. Turning it off clears recovery records without changing open documents. A crash before the debounce, storage eviction or private-mode restrictions may prevent recovery. Limits are 64 MiB of UTF-16 text/name memory per document and 128 MiB across windows; these are separate from file-byte limits.
 
-Double-click or Enter on a nested collection name opens its table; F2 renames an object key. Scalar arrays remain editable inline in value cells. Array previews remove formatting whitespace outside strings and preserve number spelling and whitespace inside strings.
+## Installation and updates
 
-**Browse** sits above the left pane; **Details** stays beside Review changes. Drag either pane boundary to resize it. Focus the boundary and use Left/Right for keyboard resizing, or Home/double-click to reset. Only pane widths are stored locally, never JSON content. Details can expand to half the window width and shrinks to that limit when the window is resized. The right pane overlays the workspace at narrower window sizes. Column titles wrap to two lines when needed, independently of data wrapping.
+Install the hosted app through a supported browser's prompt or menu. Load it online once and let caching complete before going offline. The service worker caches app assets, not your JSON files.
 
-Long-running actions show a small ring spinning in place after a brief delay. Reload confirmation uses a compact status toast without moving the grid. Busy actions remain disabled to prevent repeated requests.
+**Update available** means a newer cached app is waiting. Save your work, close every Lattice tab/window and reopen. **Keep working** dismisses the explanation without reloading. Offline update checks wait for connectivity.
 
-## Optional local recovery
+The standalone HTML has no service worker. To update it, download the newer release, save your work, close the old file and open the new one. Replacing an HTML file does not update an already open tab.
 
-**Local recovery** is off by default and can be enabled on the welcome screen or bottom status bar. It stores raw unsaved document contents in this browser's IndexedDB on this device; no upload occurs. Enable it only when retaining local copies is appropriate. It requires Web Locks for safe separation between active app windows. Storage/policy failures are shown as errors, not reported as saved work.
+## Limits and reporting issues
 
-After edits settle for two seconds, committed table edits and Source/Review drafts are checkpointed, including incomplete JSON. In-progress cell input is not checkpointed until committed. On reopening after an interrupted session, choose **Restore draft** to open recovered documents as unsaved new tabs, or **Discard recovered draft**. Restore durably adopts the drafts before deleting the older checkpoint. Files must be saved again; recovery does not reconnect a file handle or restore undo history. Saved/closed documents leave the next checkpoint. Turning recovery off removes stored recovery drafts; open documents are unaffected.
+Input limits are UTF-8, 64 MiB, 256 nesting levels and a four-million-token indexing budget. Tables use 500-row pages and support up to 200 record fields. These limits are not a responsiveness guarantee. Details tables cap 20 rows, 10 columns, 100 cells, 32,768 source characters and 12 AST levels. There is no formula evaluation or JSON Schema validation.
 
-Recovery is best effort: a crash before the debounce, browser data deletion/eviction, storage denial or private mode may prevent recovery. Per-document recovery data is limited to 64 MiB of UTF-16 text/name memory, with 128 MiB total across windows; these differ from file-byte limits. Active windows use separate slots and are excluded from recovery prompts.
-
-## Installed-app updates
-
-When a newer cached application waits to activate, the status bar shows **Update available**. It explains how to save and close every Lattice window/tab, then reopen. **Keep working** dismisses the explanation without reloading or discarding your work. The app checks periodically and when it becomes visible. Offline checks may wait until connectivity returns. The downloaded HTML is updated by downloading the newer release file instead.
-
-Review uses unchanged lines as anchors, then compares characters within changed regions. Several distant edits no longer cause an entire intervening block to be colored as changed. Changed lines have subtle side-specific shading and actual changed text has a stronger fill. If matching exceeds its computational budget, Review reports that comparison is unavailable and pauses highlighting/restoration instead of displaying an inaccurate broad replacement; editing and validated Apply remain available. Reopen Review to retry.
-
-## Selection and column sizing
-
-Row/column headers and the top-left corner select ranges. Details shows the number of selected cells; select one cell to inspect its value. Header text and surrounding space select the column; its filter button opens the menu.
-
-Initial column widths sample up to 50 displayed rows and use bounded widths for wide tables. Small tables also use content-based widths; the last column does not stretch to fill unused workspace. Manual column resizing takes precedence. Primitive arrays remain compact while editing. The selected cell can show up to 1,024 characters; the value bar expands to at most three lines and 4,096 characters. Longer values use a read-only preview and remain available in Source. Enter commits value-bar input, Shift+Enter adds a line, and Escape cancels.
-
-The app version appears in the welcome screen footer and document status bar. Use it when reporting a problem.
-
-Click unused sheet space to clear cell, row or column selection. A valid active edit is applied first; invalid inline or value-bar input remains available for correction. Toolbar and value-bar controls retain their selection context.
-
-## Source controls and file information
-
-**Wrap lines** wraps long source lines without changing JSON or creating a draft. **Pretty-print** adds indentation; **Minify** removes whitespace outside strings. Both preserve numeric tokens and string contents, create an undoable draft, and require **Apply source** to commit the result. Apply or discard a draft before switching source scope or returning to Table.
-
-Opening Source from a selected cell marks its exact text with a dotted underline and its lines with a gutter bar. **Selected cell** jumps back to that location without selecting text. Ordinary edits track the range; formatting clears the marker because it rewrites the whole draft.
-
-Find shows matching-cell counts, previous/next navigation, **Match case** and **Match whole word**. Active sort and filters appear beside the view controls, with individual clear buttons. Filtered column menus use a funnel icon.
-
-Click or right-click the bottom filename for file information and **Copy filename**. Web apps cannot obtain the absolute folder path. Recovered drafts have no stored original comparison baseline; Review becomes available after a confirmed save.
+See [performance evidence](PERFORMANCE.md), [browser checks](WINDOWS.md) and the [release-candidate checklist](RELEASE-CANDIDATE.md). Report the version from the home footer/status bar, browser/OS, expected and actual behavior, and a small synthetic example through the [bug form](https://github.com/arsxd/lattice/issues/new?template=bug_report.md). Screenshots should omit sensitive contents.
