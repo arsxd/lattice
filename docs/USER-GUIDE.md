@@ -1,6 +1,6 @@
 # Using Lattice
 
-[Open the app](https://arsxd.github.io/lattice/) · [Download rc.5 HTML](https://github.com/arsxd/lattice/releases/download/v1.0.0-rc.5/Lattice-Offline.html) · [Documentation](README.md)
+[Open the app](https://arsxd.github.io/lattice/) · [Download rc.6 HTML](https://github.com/arsxd/lattice/releases/download/v1.0.0-rc.6/Lattice-Offline.html) · [Documentation](README.md)
 
 ## Open your first document
 
@@ -87,7 +87,9 @@ Select a cell and choose **Source** to locate its exact JSON. Missing properties
 
 Formatting preserves exact numeric tokens, string contents and property order. Apply or discard a draft before changing scope, returning to Table or saving. Applying a table draft changes only that subtree, keeping sibling data intact. Applying a draft is distinct from saving the file to disk.
 
-Source stays quiet while typing. Validation runs on Apply; an invalid draft remains available for repair, with a readable error and optional parser details. Resuming editing clears the previous Apply error.
+Source shows advisory syntax squiggles after a short typing pause. Hover an underline, error gutter dot, or affected line number for an explanation. Checks run in a worker and outdated results clear when editing resumes; no error banner interrupts typing. Apply validates again before committing; an invalid draft remains available for repair, with a readable error and optional parser details. Resuming editing clears the previous Apply error.
+
+Menus and controls use brief motion. Your system’s Reduce Motion setting disables these effects; cell selection, typing and scrolling stay immediate.
 
 ## Review changes
 

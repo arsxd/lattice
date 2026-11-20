@@ -858,3 +858,100 @@
 :root[data-theme="dark"] .value-bar textarea:focus {
   border-color: var(--accent);
 }
+
+/* Syntax errors stay inline while the source draft is being edited. */
+.source-editor .source-syntax-error {
+  text-decoration: underline wavy var(--error);
+  text-underline-offset: 3px;
+}
+.source-syntax-error-empty {
+  display: inline-block;
+  min-width: 0.6em;
+}
+.source-syntax-message {
+  padding: 7px 10px;
+  max-width: min(420px, 90vw);
+  white-space: normal;
+  font: 12px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.source-editor .source-syntax-gutter {
+  width: 16px;
+}
+.source-editor .source-syntax-gutter .cm-gutterElement {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.source-syntax-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  min-height: 18px;
+  height: 100%;
+  cursor: help;
+}
+.source-syntax-marker::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--error);
+  pointer-events: none;
+}
+.source-syntax-line-number {
+  display: inline-block;
+  min-width: 100%;
+  cursor: help;
+}
+
+/* Motion stays on controls and floating surfaces, never on the sheet or editor. */
+@media (prefers-reduced-motion: no-preference) {
+  :is(
+    .toolbar,
+    .location,
+    .pagination,
+    .document-tab,
+    .home-screen,
+    .column-menu,
+    .sheet-menu
+  ) button:not(:disabled) {
+    transition:
+      background-color 100ms ease-out,
+      border-color 100ms ease-out,
+      color 100ms ease-out;
+  }
+
+  :is(.column-menu, .sheet-menu, .active-filters-panel, .file-location-panel) {
+    animation: workspace-menu-enter 120ms ease-out;
+  }
+
+  .edit-dialog {
+    animation: workspace-menu-enter 140ms ease-out;
+  }
+
+  .notice-toast {
+    animation: workspace-fade-enter 120ms ease-out;
+  }
+}
+
+@keyframes workspace-menu-enter {
+  from {
+    opacity: 0.75;
+    translate: 0 2px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes workspace-fade-enter {
+  from {
+    opacity: 0.75;
+  }
+  to {
+    opacity: 1;
+  }
+}
