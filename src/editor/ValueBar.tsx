@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 type Props = {
   address: string;
   caption?: string;
+  placeholder?: string;
   value: string;
   editable: boolean;
   previewOnly?: boolean;
@@ -31,6 +32,7 @@ export function ValueBar(props: Props) {
 function ValueBarEditor({
   address,
   caption,
+  placeholder,
   value,
   editable,
   previewOnly = false,
@@ -137,7 +139,7 @@ function ValueBarEditor({
                 ? "Read-only value. Open its table or Source to edit."
                 : "Click here to edit. Enter to apply; Shift+Enter for a new line; Escape to cancel."
           }
-          placeholder={readOnly ? "Empty value" : "Type a value…"}
+          placeholder={placeholder ?? (readOnly ? "Empty value" : "Type a value…")}
           aria-describedby="value-bar-help"
           rows={1}
           wrap={expanded ? "soft" : "off"}

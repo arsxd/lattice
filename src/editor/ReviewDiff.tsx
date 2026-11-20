@@ -1,3 +1,4 @@
+import { editorTheme } from "./editorTheme";
 import { compareReviewText } from "./reviewComparison";
 import { useEffect, useRef, useState } from "react";
 import { MergeView, uncollapseUnchanged } from "@codemirror/merge";
@@ -64,7 +65,9 @@ export default function ReviewDiff({
   onChange,
   onApply,
   busy = false,
+  dark,
 }: {
+  dark: boolean;
   before: string;
   after: string;
   initialDraft?: string;
@@ -88,6 +91,7 @@ export default function ReviewDiff({
   const [applying, setApplying] = useState(false);
   const validator = useRef<Worker | null>(null);
   const separator = useRef(new Compartment());
+  const appearance = useRef(new Compartment());
   const editable = useRef(new Compartment());
   const baselineSeparator = useRef(new Compartment());
   const [comparisonLimited, setComparisonLimited] = useState(false);
@@ -135,9 +139,16 @@ export default function ReviewDiff({
     setActive(index);
   }
   useEffect(() => {
+    for (const editor of [merge.current?.a, merge.current?.b])
+      editor?.dispatch({
+        effects: appearance.current.reconfigure(editorTheme(dark)),
+      });
+  }, [dark]);
+  useEffect(() => {
     if (!parent.current) return;
     const extensions = [
       lineNumbers(),
+      appearance.current.of(editorTheme(dark)),
       drawSelection(),
       restoreScopeDecorations,
       highlightActiveLine(),

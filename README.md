@@ -10,10 +10,7 @@
   <a href="docs/USER-GUIDE.md">User guide</a>
 </p>
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/table-dark.png">
-  <img src="docs/images/table.png" alt="Lattice rc.4 editing a fictional book catalogue, sorted by price and filtered by availability, with nested JSON previews and sheet navigation">
-</picture>
+![Lattice rc.4 editing a fictional book catalogue, sorted by price and filtered by availability, with nested JSON previews and sheet navigation](docs/images/table.png)
 
 **A browser app, an installable PWA, or one HTML file you can keep.** Lattice processes JSON locally; no document-upload endpoint or analytics integration is implemented. No account is required.
 

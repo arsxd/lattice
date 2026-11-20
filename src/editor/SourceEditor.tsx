@@ -1,3 +1,4 @@
+import { editorTheme } from "./editorTheme";
 import { sourceLineSeparator, sourceTextMatches } from "./sourceText";
 import { sourceRawRangeToDocument } from "./sourceScope";
 import { useEffect, useRef } from "react";
@@ -93,6 +94,7 @@ const sourceLocationGutter = gutter({
 
 export function SourceEditor({
   value,
+  dark,
   onChange,
   target,
   onFormatReady,
@@ -102,6 +104,7 @@ export function SourceEditor({
   onLocationChange,
 }: {
   value: string;
+  dark: boolean;
   wrapLines: boolean;
   onLocateReady: (locate: (() => void) | null) => void;
   onLocationChange: (available: boolean) => void;
@@ -115,6 +118,7 @@ export function SourceEditor({
   const parent = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView>(null);
   const syncing = useRef(false);
+  const appearance = useRef(new Compartment());
   const wrapping = useRef(new Compartment());
   const locationCallback = useRef(onLocationChange);
   locationCallback.current = onLocationChange;
@@ -131,6 +135,7 @@ export function SourceEditor({
         extensions: [
           EditorState.lineSeparator.of(sourceLineSeparator(value)),
           history(),
+          appearance.current.of(editorTheme(dark)),
           wrapping.current.of(wrapLines ? EditorView.lineWrapping : []),
           sourceLocationField,
           sourceLocationGutter,
@@ -139,7 +144,7 @@ export function SourceEditor({
           drawSelection(),
           highlightActiveLineGutter(),
           json(),
-          syntaxHighlighting(defaultHighlightStyle),
+          syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
           keymap.of([...historyKeymap, ...defaultKeymap, indentWithTab]),
           EditorView.updateListener.of((update) => {
             if (
@@ -205,6 +210,11 @@ export function SourceEditor({
       editor.destroy();
     };
   }, []);
+  useEffect(() => {
+    view.current?.dispatch({
+      effects: appearance.current.reconfigure(editorTheme(dark)),
+    });
+  }, [dark]);
   useEffect(() => {
     view.current?.dispatch({
       effects: wrapping.current.reconfigure(

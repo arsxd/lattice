@@ -6,45 +6,44 @@
     sans-serif;
   color-scheme: light;
   --surface: #fff;
-  --chrome: #f3f5f7;
-  --line: #d9dee5;
-  --text: #20262e;
-  --muted: #596575;
-  --accent: #245fc5;
-  --selection: #eaf1fc;
+  --raised: #fff;
+  --chrome: #f6f7f9;
+  --line: #e1e5eb;
+  --text: #202936;
+  --muted: #657285;
+  --accent: #235cc9;
+  --selection: #eaf1ff;
+  --text-selection: #c9daf9;
   --error: #ac2525;
   --error-bg: #fff0ef;
-  --hover: #f7f9fc;
+  --hover: #edf0f5;
+  --diff-added: #299460;
+  --diff-removed: #cc5050;
   color: var(--text);
   background: var(--surface);
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --surface: #20242b;
-  --chrome: #292e36;
-  --line: #444c58;
-  --text: #edf0f5;
-  --muted: #b3bdcc;
-  --accent: #8db6ff;
-  --selection: #293d5a;
-  --error: #ffadad;
-  --error-bg: #452929;
-  --hover: #2a313c;
-}
-@media (prefers-color-scheme: dark) {
-  :root[data-theme="system"] {
-    color-scheme: dark;
-    --surface: #20242b;
-    --chrome: #292e36;
-    --line: #444c58;
-    --text: #edf0f5;
-    --muted: #b3bdcc;
-    --accent: #8db6ff;
-    --selection: #293d5a;
-    --error: #ffadad;
-    --error-bg: #452929;
-    --hover: #2a313c;
-  }
+  --surface: #202020;
+  --raised: #333333;
+  --chrome: #2b2b2b;
+  --line: #404040;
+  --text: #ededed;
+  --muted: #b5b5b5;
+  --accent: #8ab4f8;
+  --selection: #293b54;
+  --text-selection: #36547b;
+  --error: #ffaaaa;
+  --error-bg: #402727;
+  --hover: #353535;
+  --diff-added: #6fc695;
+  --diff-removed: #ed949d;
+  --syntax-string: #a8d7b0;
+  --syntax-number: #e6c084;
+  --syntax-keyword: #c4b1ec;
+  --syntax-definition: #8dbbf2;
+  --syntax-escape: #edbb87;
+  --syntax-comment: #ababab;
 }
 * {
   box-sizing: border-box;
@@ -819,17 +818,17 @@ button[aria-pressed="true"] {
   color: var(--text);
 }
 .diff-host .cm-editor.cm-merge-a .cm-changedLine {
-  background: color-mix(in srgb, #cc5050 8%, var(--surface));
+  background: color-mix(in srgb, var(--diff-removed) 8%, var(--surface));
 }
 .diff-host .cm-editor.cm-merge-b .cm-changedLine {
-  background: color-mix(in srgb, #299460 8%, var(--surface));
+  background: color-mix(in srgb, var(--diff-added) 8%, var(--surface));
 }
 .diff-host .cm-editor.cm-merge-a .cm-changedText {
-  background: color-mix(in srgb, #cc5050 25%, transparent);
+  background: color-mix(in srgb, var(--diff-removed) 25%, transparent);
   border-radius: 2px;
 }
 .diff-host .cm-editor.cm-merge-b .cm-changedText {
-  background: color-mix(in srgb, #299460 25%, transparent);
+  background: color-mix(in srgb, var(--diff-added) 25%, transparent);
   border-radius: 2px;
 }
 .diff-host .cm-merge-revert {

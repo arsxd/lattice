@@ -423,6 +423,17 @@ export default function App() {
   const [theme, setTheme] = useState(
     localStorage.getItem("json-workbench-theme") ?? "system",
   );
+  const [systemDark, setSystemDark] = useState(
+    () => window.matchMedia("(prefers-color-scheme: dark)").matches,
+  );
+  const dark = theme === "dark" || (theme === "system" && systemDark);
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const sync = () => setSystemDark(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
   const [leftWidth, setLeftWidth] = usePaneWidth("browse", 240);
   const [rightWidth, setRightWidth] = usePaneWidth("details", 360);
   const [inspector, setInspector] = useState(false);
@@ -1753,7 +1764,7 @@ export default function App() {
                       originalIndex
                         ? "Original array position (starting at zero). Open row from the right-click menu."
                         : c.type === "missing" && c.writable !== false
-                          ? `Property not set — double-click or press F2 to add a value. ${pointer(c.path)}`
+                          ? `Property absent — double-click or press F2 to add a value. ${pointer(c.path)}`
                           : `${blank ?? c.type} — ${pointer(c.path) || "root"}`
                     }
                     aria-label={
@@ -1994,9 +2005,9 @@ export default function App() {
     };
   }, [!!editing, discardPrompt]);
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
     localStorage.setItem("json-workbench-theme", theme);
-  }, [theme]);
+  }, [theme, dark]);
   useEffect(() => {
     const before = (e: BeforeUnloadEvent) => {
       if (
@@ -2983,6 +2994,11 @@ export default function App() {
                           ? selectedIdentifier.display
                           : (selectedPresentation?.text ?? "")
                       }
+                      placeholder={
+                        !selectedIdentifier && selection.cell.type === "missing"
+                          ? "Property absent. Type a value to add it."
+                          : undefined
+                      }
                       caption={
                         selectedIdentifier
                           ? selectedKey
@@ -3594,6 +3610,7 @@ export default function App() {
                     </div>
                   )}
                   <SourceEditor
+                    dark={dark}
                     wrapLines={sourceWrapLines}
                     onLocateReady={(locate) => {
                       sourceLocate.current = locate;
@@ -3626,6 +3643,7 @@ export default function App() {
               )}
               {mode === "review" && review && (
                 <ReviewDiff
+                  dark={dark}
                   key={activeId}
                   before={review.before}
                   after={review.after}
