@@ -42,7 +42,7 @@ test("blank sheet clears cell and column selections but keeps value-bar editing 
     "transparent",
   );
   const header = page.getByRole("button", {
-    name: "Select column name",
+    name: /^Select column [A-Z]+ name$/,
     exact: true,
   });
   await header.click();

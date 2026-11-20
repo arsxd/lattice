@@ -180,7 +180,13 @@ export default function ReviewDiff({
           baselineSeparator.current.of(
             EditorState.lineSeparator.of(sourceLineSeparator(before)),
           ),
-          EditorView.contentAttributes.of({ "aria-label": "Saved version" }),
+          EditorView.contentAttributes.of({
+            "aria-label": "Saved version",
+            role: "textbox",
+            "aria-readonly": "true",
+            "aria-multiline": "true",
+            tabindex: "0",
+          }),
         ],
       },
       b: {
@@ -210,6 +216,7 @@ export default function ReviewDiff({
           }),
           EditorView.contentAttributes.of({
             "aria-label": "Current JSON draft",
+            tabindex: "0",
           }),
         ],
       },

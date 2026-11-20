@@ -1580,7 +1580,7 @@ export default function App() {
                   <button
                     className="column-select"
                     data-column-select
-                    aria-label={`Select column ${columnLabel(view, i)}`}
+                    aria-label={`Select column ${columnLetter(i)} ${columnLabel(view, i)}${view.columnKinds[i] === "mixed" ? " view" : ""}`}
                     aria-pressed={axisSelected(sheetSelection, "columns", i)}
                     disabled={busy}
                     onClick={(e) => {
@@ -1598,7 +1598,7 @@ export default function App() {
                       );
                     }}
                   >
-                    <small>{columnLetter(i)}</small>
+                    <small>{columnLetter(i)}</small>{" "}
                     <span title={columnLabel(view, i)}>
                       {columnLabel(view, i)}
                       {view.columnKinds[i] === "mixed" && (
@@ -2618,17 +2618,23 @@ export default function App() {
                 <NavigationIcon name="browse" /> Browse
               </button>
             </div>
-            <div
-              className="document-tabs"
-              role="tablist"
-              aria-label="Open documents"
-            >
+            <div className="document-tabs">
+              {/* Explicit ownership keeps close controls outside the tablist. */}
+              <div
+                className="sr-only"
+                role="tablist"
+                aria-label="Open documents"
+                aria-owns={[...sessions.current.keys()]
+                  .map((id) => `document-tab-${id}`)
+                  .join(" ")}
+              />
               {[...sessions.current.values()].map((s) => (
                 <div
                   className={`document-tab-item ${s.id === activeId ? "active" : ""}`}
                   key={s.id}
                 >
                   <button
+                    id={`document-tab-${s.id}`}
                     role="tab"
                     aria-selected={s.id === activeId}
                     tabIndex={s.id === activeId ? 0 : -1}
@@ -2693,7 +2699,7 @@ export default function App() {
             </button>
             {mode === "table" && (
               <button
-                aria-label="Toggle value inspector"
+                aria-label="Details — toggle value inspector"
                 aria-pressed={inspector}
                 onClick={() => setInspector(!inspector)}
               >
