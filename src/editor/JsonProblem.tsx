@@ -1,13 +1,7 @@
 import { ColumnMenuChevron } from "../grid/SheetIcons";
 import type { Diagnostic } from "../document/engine";
 
-export function jsonProblem(text: string, diagnostics: Diagnostic[]) {
-  if (!text.replace(/^\ufeff/, "").trim())
-    return {
-      title: "This document is empty.",
-      message: "Enter JSON in Source below.",
-    };
-  const issue = diagnostics[0];
+export function jsonDiagnosticTitle(message: string) {
   const messages: Record<string, string> = {
     ValueExpected: "A JSON value is missing.",
     PropertyNameExpected:
@@ -18,10 +12,25 @@ export function jsonProblem(text: string, diagnostics: Diagnostic[]) {
     CloseBracketExpected: "An array is missing its closing bracket (]).",
     EndOfFileExpected: "There is extra content after the JSON value.",
     InvalidCommentToken: "Comments are not allowed in JSON.",
-    UnexpectedEndOfString: "A quoted value is not finished.",
+    UnexpectedEndOfString: "A string is missing its closing double quote.",
   };
+  return (
+    messages[message] ??
+    (message.startsWith("Duplicate key ")
+      ? message
+      : "This document is not valid JSON.")
+  );
+}
+export function jsonProblem(text: string, diagnostics: Diagnostic[]) {
+  if (!text.replace(/^\ufeff/, "").trim())
+    return {
+      title: "This document is empty.",
+      message: "Enter JSON in Source below.",
+    };
+  const issue = diagnostics[0];
+
   return {
-    title: messages[issue?.message] ?? "This document is not valid JSON.",
+    title: jsonDiagnosticTitle(issue?.message ?? ""),
     message: `Check line ${issue?.line ?? 1}, column ${issue?.column ?? 1} in Source below.`,
   };
 }

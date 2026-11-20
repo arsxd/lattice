@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.0-rc.6 — 2026-11-20
+
+- Show live Source syntax squiggles after a typing pause, with wider unfinished-string ranges and small error gutter markers. Hover the underline, gutter dot or line number for a consistent explanation. Checks run in a cancellable worker; Apply still validates before committing.
+- Add brief menu/dialog entrances and control colour transitions, respecting Reduce Motion without animating the grid or editor.
+
 ## 1.0.0-rc.5 — 2026-11-20
 
 - Use neutral charcoal surfaces and clearer headers and menus in dark mode. Source and Review syntax colours follow theme changes without replacing drafts.

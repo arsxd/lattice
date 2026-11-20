@@ -1,3 +1,4 @@
+import { sourceDiagnostics } from "./sourceDiagnostics";
 import { editorTheme } from "./editorTheme";
 import { sourceLineSeparator, sourceTextMatches } from "./sourceText";
 import { sourceRawRangeToDocument } from "./sourceScope";
@@ -144,6 +145,7 @@ export function SourceEditor({
           drawSelection(),
           highlightActiveLineGutter(),
           json(),
+          sourceDiagnostics,
           syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
           keymap.of([...historyKeymap, ...defaultKeymap, indentWithTab]),
           EditorView.updateListener.of((update) => {
