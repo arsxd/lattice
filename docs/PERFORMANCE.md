@@ -1,8 +1,24 @@
-# Performance measurements
+# Performance and limits
+
+**Historical measurements:** the runs below were recorded before rc.4 and have not been re-measured for rc.4. They describe one synthetic shape on one machine, not a current-version benchmark or supported maximum.
 
 Measured 2026-11-13 on Apple M4, macOS arm64, Chromium 158.0.8127.18. Production build, 1440 × 900 viewport, no CPU throttling. Three runs per size; fresh page per run in a reused browser. Generic product records include strings, numbers, booleans, arrays and nested objects.
 
-## Browser workflows
+## Current input and preview limits
+
+| Area                     | Limit                                                                                 |
+| ------------------------ | ------------------------------------------------------------------------------------- |
+| Input                    | UTF-8; 64 MiB file limit, 256 nesting levels and a four-million-token indexing budget |
+| Table projection         | 500 rows per page; up to 200 record fields                                            |
+| Bulk operations          | 10,000 cells; clipboard value-character limit of 16,777,216                           |
+| Value checklist          | 2,000 distinct values                                                                 |
+| Inline/value-bar preview | 4,096 characters; truncated value-bar previews cannot be committed                    |
+| Details raw preview      | 8,192 characters                                                                      |
+| Details contents table   | 20 rows, 10 columns, 100 cells, 32,768 source characters, 12 AST levels               |
+
+Accepted size is not a guarantee of smooth interaction. Source/Review, wide or deeply nested data, multiple open files and device/browser memory can dominate cost. Use a separate copy when evaluating a large file.
+
+## Historical browser workflows
 
 Wall-clock medians in milliseconds (minimum–maximum). Measurements include Playwright overhead and two animation frames. Open starts at the file-input action and ends when the grid is visible. Navigate opens the records table. Edit ends when the new value appears; Sort includes waiting for the preceding edit refresh to finish. These are workflow timings, not INP or isolated engine timings.
 
@@ -18,7 +34,7 @@ The file input uses an on-disk fixture path. Passing a large in-memory buffer th
 
 ## Findings
 
-The larger fixture exposed a query race: sorting immediately after a nested-table edit could update the indicator while the final refresh was still busy, leaving rows unsorted. Query changes are now guarded and filter buttons disabled until the operation completes. A deterministic browser test delays the final refresh to retain this regression check. No speculative caching or parsing optimization was added.
+The larger fixture exposed a query race: sorting immediately after a nested-table edit could update the indicator while the final refresh was still busy, leaving rows unsorted. Query changes are now guarded and filter buttons disabled until the operation completes. A deterministic browser test delays the final refresh to retain this regression check. Those findings describe the measured build. Later rc.4 changes include worker-based Source formatting, bounded inline previews and removal of redundant projection work; the historical timings do not quantify those changes.
 
 ## Reproduce
 

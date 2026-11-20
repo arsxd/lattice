@@ -1,11 +1,11 @@
 # Web architecture and verification
 
-Lattice 0.1.7 distributes a hosted PWA and a single-file offline HTML. Native apps are not released. Node 24 is for development only; end users need only a supported desktop browser.
+Lattice v1.0.0-rc.4 distributes a hosted PWA and a single-file offline HTML. Native apps are not released. Node 24 is for development only; end users need only a supported desktop browser.
 
 ## Build and verification
 
 - `npm ci`, `npm test`: engine, state and platform regression checks.
-- `npm run test:browser`: Playwright Chromium workflow checks against a dedicated local preview server. CI runs these on Windows and Linux and gates Pages deployment on both jobs.
+- `npm run test:browser`: Playwright Chromium workflow checks against a dedicated local preview server. CI runs these on Windows, Linux and macOS and gates Pages deployment on all three jobs.
 - `npm run offline:build`: builds `output/Lattice-Offline.html`, embedding code, styles, favicon, document/validation workers.
 - `npm run pwa:build`: creates `dist` with a manifest, icons and hashed-cache service worker.
 
@@ -13,7 +13,7 @@ GitHub Pages deploys only `main` after verification. Feature-branch workflow dis
 
 ## Data and revisions
 
-Each document has its own worker-backed text/AST engine. Mutations and bulk operations guard the canonical revision; numbers and string tokens are retained as text. Review validation uses a separate worker. Its baseline is read-only, current pane editable; per-hunk restore changes only the draft. Strict review Apply validates again in the canonical worker and creates one undoable document commit. Source can still represent invalid repair drafts. LF/CRLF replacement and cross-pane restoration use CodeMirror Text to avoid doubled carriage returns.
+Each document has its own worker-backed text/AST engine. Mutations and bulk operations guard the canonical revision; numbers and string tokens are retained as text. Source formatting and document operations run in the document worker. Pretty-print applies whitespace edits in one join rather than repeatedly copying the whole document; Minify removes only whitespace outside strings. Source visual wrapping does not mutate text. A mapped CodeMirror decoration and gutter marker track the selected value; whole-draft formatting clears the positional marker. Review validation uses a separate worker. Its baseline is read-only, current pane editable; per-hunk restore changes only the draft. Strict review Apply validates again in the canonical worker and creates one undoable document commit. Source can still represent invalid repair drafts. LF/CRLF replacement and cross-pane restoration use CodeMirror Text to avoid doubled carriage returns.
 
 Reload retains the nearest available nested location, remaps query columns by name and role, locates the previous row once after filtering/sorting, and restores its page/active cell and compatible scroll position. Deleted cells clear selection. Multi-cell ranges collapse to the active cell. Array paths are positional; no heuristic record identity is invented. Reload resets undo/navigation history.
 
@@ -21,7 +21,7 @@ Reload retains the nearest available nested location, remaps query columns by na
 
 Browser file handles provide Save when supported and authorized. Save checks decoded disk contents against the baseline before writing and confirms success only after stream closure. This is conflict detection, not an exclusive lock; external races remain possible. Other browsers use file input and Download, retaining dirty state because downloading is not confirmed disk saving. Browser handles do not reveal absolute paths.
 
-Picker hints and layout preferences are optional metadata. JSON recovery is separate and OFF by default. Enabling **Local recovery** stores raw unsaved name/text records in IndexedDB after a two-second debounce. Per-window UUID keys and held Web Locks prevent overwriting or recovering a live window. Startup restore checkpoints the adopted workspace before deleting older records. Disable clears recovery data; save/close removes clean documents from subsequent snapshots. Invalid source/review drafts can be recovered. Uncommitted cell input, undo history and file handles are not recovered. Quota, unsupported APIs or damaged records produce visible errors and retain previous valid snapshots where possible. Recovery is not a crash-proof disk save.
+Picker hints and layout preferences are optional metadata. JSON recovery is separate and OFF by default. Enabling **Local recovery** stores raw unsaved name/text records in IndexedDB after a two-second debounce. Per-window UUID keys and held Web Locks prevent overwriting or recovering a live window. Startup restore checkpoints the adopted workspace before deleting older records. Disable clears recovery data; save/close removes clean documents from subsequent snapshots. Invalid source/review drafts can be recovered. The original comparison baseline is not stored, so Review is unavailable for recovered drafts until a confirmed save establishes a new baseline. Uncommitted cell input, undo history and file handles are not recovered. Quota, unsupported APIs or damaged records produce visible errors and retain previous valid snapshots where possible. Recovery is not a crash-proof disk save.
 
 ## Installation, updates and privacy
 
@@ -31,9 +31,11 @@ The service worker caches application assets, not JSON files. Once successfully 
 
 ## Rendering and freeze limits
 
+Find uses escaped literal matching with optional case sensitivity and Unicode-aware whole-word boundaries. Result counts and navigation refer to matching cells after filtering/sorting; large nested values are searched through their bounded display preview. Sort/filter state remains view-only.
+
 The table uses 500-row pages and virtualized columns/rows. Frozen columns use the grid's native support. Frozen rows use the public editable Row renderer with measured cumulative heights and bounded page rendering: at most 10,000 cells including the gutter, at most 40% viewport height. Larger pages retain virtualization and column freezing. Resizing/wrapping can pause unsafe freezes; no fixed-height row offsets or private grid internals are used.
 
-Details tables cap 20 rows, 10 columns, 100 cells, 32,768 source characters and 12 AST levels. The scroll region is at most 288px high; headers stay single-line and values at most three lines. Raw JSON previews cap 8,192 characters, value-bar previews 4,096; truncated scalar previews are read-only. Exact Source/Copy JSON remain available. These bounds do not guarantee every accepted 64 MiB file will feel equally responsive.
+Details tables cap 20 rows, 10 columns, 100 cells, 32,768 source characters and 12 AST levels. The scroll region is at most 288px high; headers stay single-line and values at most three lines. Raw JSON previews cap 8,192 characters; inline and value-bar previews cap 4,096. Truncated value-bar previews are read-only. Wrapped nested cells grow to at most five automatic lines; manual row resizing can reveal more of the loaded preview. Exact JSON notation distinguishes text from other types in the value bar. Exact Source/Copy JSON remain available. These bounds do not guarantee every accepted 64 MiB file will feel equally responsive.
 
 ## Verification boundaries
 
