@@ -72,6 +72,7 @@
 }
 .value-bar textarea::placeholder {
   color: var(--muted);
+  font-style: italic;
 }
 .value-bar textarea::selection {
   color: var(--surface);

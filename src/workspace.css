@@ -1,33 +1,4 @@
 /* Workspace visual contract. */
-:root {
-  --chrome: #f6f7f9;
-  --line: #e1e5eb;
-  --text: #202936;
-  --muted: #657285;
-  --accent: #235cc9;
-  --selection: #eaf1ff;
-  --hover: #edf0f5;
-}
-:root[data-theme="dark"] {
-  --chrome: #252a33;
-  --line: #39414e;
-  --text: #e4e9f0;
-  --muted: #a0adbd;
-  --accent: #9abaff;
-  --selection: #2d405f;
-  --hover: #333b47;
-}
-@media (prefers-color-scheme: dark) {
-  :root[data-theme="system"] {
-    --chrome: #252a33;
-    --line: #39414e;
-    --text: #e4e9f0;
-    --muted: #a0adbd;
-    --accent: #9abaff;
-    --selection: #2d405f;
-    --hover: #333b47;
-  }
-}
 .toolbar {
   height: 44px;
   gap: 2px;
@@ -453,12 +424,6 @@
   background: #725619;
   color: #fff3cb;
 }
-@media (prefers-color-scheme: dark) {
-  :root[data-theme="system"] .find-match {
-    background: #725619;
-    color: #fff3cb;
-  }
-}
 
 .theme-picker {
   display: inline-flex;
@@ -502,10 +467,6 @@
 }
 .data-grid .row-number {
   border-inline-end: 1px solid var(--line);
-}
-/* Only absent properties receive a neutral tint; normal selection styles win. */
-:where(.data-grid .missing-property-cell) {
-  background: color-mix(in srgb, var(--surface) 94%, var(--text));
 }
 
 .find-bar {
@@ -862,4 +823,38 @@
 .source-format-actions button[aria-pressed="true"] {
   background: var(--selection);
   color: var(--accent);
+}
+
+/* Menus sit one surface above the sheet; grid dividers remain quieter. */
+.column-menu,
+.sheet-menu,
+.edit-dialog,
+.active-filters-panel,
+.file-location-panel {
+  background: var(--raised);
+}
+
+:root[data-theme="dark"] .source-editor .cm-selectionBackground {
+  background: color-mix(in srgb, var(--text-selection) 65%, transparent);
+}
+:root[data-theme="dark"] .source-editor .cm-focused .cm-selectionBackground {
+  background: var(--text-selection);
+}
+
+/* Neutral sheet chrome keeps dark mode distinct from blue selection cues. */
+:root[data-theme="dark"] .data-grid {
+  --rdg-header-background-color: #303030;
+}
+:root[data-theme="dark"] .data-grid .row-number {
+  background: #303030;
+}
+:root[data-theme="dark"] .data-grid .active-cell-header {
+  background: #454545;
+}
+:root[data-theme="dark"] .value-bar :is(textarea, output, .value-bar-empty-field) {
+  background: #262626;
+  border-color: #555;
+}
+:root[data-theme="dark"] .value-bar textarea:focus {
+  border-color: var(--accent);
 }
