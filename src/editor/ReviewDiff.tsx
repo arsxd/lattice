@@ -1,9 +1,16 @@
 import { compareReviewText } from "./reviewComparison";
 import { useEffect, useRef, useState } from "react";
-import { MergeView } from "@codemirror/merge";
-import { Compartment, EditorState } from "@codemirror/state";
+import { MergeView, uncollapseUnchanged } from "@codemirror/merge";
+import {
+  Compartment,
+  EditorState,
+  StateEffect,
+  StateField,
+} from "@codemirror/state";
 import {
   EditorView,
+  Decoration,
+  type DecorationSet,
   lineNumbers,
   drawSelection,
   highlightActiveLine,
@@ -18,6 +25,38 @@ import {
   sourceDocumentText,
   sourceRestoreChange,
 } from "./sourceText";
+const restoreScope = StateEffect.define<{ from: number; to: number } | null>();
+const restoreScopeDecorations = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update: (previous, transaction) => {
+    let decorations = transaction.docChanged ? Decoration.none : previous;
+    for (const effect of transaction.effects) {
+      if (!effect.is(restoreScope)) continue;
+      const range = effect.value;
+      if (!range) decorations = Decoration.none;
+      else {
+        const from = Math.max(
+          0,
+          Math.min(range.from, transaction.state.doc.length),
+        );
+        const to = Math.max(
+          from,
+          Math.min(range.to, transaction.state.doc.length),
+        );
+        decorations = Decoration.set([
+          from < to
+            ? Decoration.mark({ class: "cm-restore-target" }).range(from, to)
+            : Decoration.line({ class: "cm-restore-target" }).range(
+                transaction.state.doc.lineAt(from).from,
+              ),
+        ]);
+      }
+    }
+    return decorations;
+  },
+  provide: (field) => EditorView.decorations.from(field),
+});
+
 export default function ReviewDiff({
   before,
   after,
@@ -54,6 +93,7 @@ export default function ReviewDiff({
   const [comparisonLimited, setComparisonLimited] = useState(false);
   const [count, setCount] = useState(0);
   const [collapsed, setCollapsed] = useState(true);
+  const [manuallyExpanded, setManuallyExpanded] = useState(false);
   const [active, setActive] = useState(-1);
   function jump(direction: number) {
     const view = merge.current;
@@ -66,18 +106,32 @@ export default function ReviewDiff({
         : (active + direction + count) % count;
     const chunk = view.chunks[index];
     if (!chunk) return;
+    const first = chunk.changes[0];
+    const last = chunk.changes.at(-1);
     for (const [editor, from, to] of [
-      [view.a, chunk.fromA, chunk.toA],
-      [view.b, chunk.fromB, chunk.toB],
+      [
+        view.a,
+        chunk.fromA + (first?.fromA ?? 0),
+        chunk.fromA + (last?.toA ?? 0),
+      ],
+      [
+        view.b,
+        chunk.fromB + (first?.fromB ?? 0),
+        chunk.fromB + (last?.toB ?? 0),
+      ],
     ] as const) {
-      const start = Math.min(from, editor.state.doc.length),
-        end = Math.min(to, editor.state.doc.length);
+      const start = Math.max(0, Math.min(from, editor.state.doc.length)),
+        end = Math.max(start, Math.min(to, editor.state.doc.length));
       editor.dispatch({
-        selection: { anchor: start, head: end },
+        // The selection head controls the active line; keep it on the change.
+        selection: { anchor: end, head: start },
         effects: EditorView.scrollIntoView(start, { y: "center" }),
       });
     }
-    view.b.focus();
+    const removedOnly = chunk.changes.every(
+      (change) => change.fromB === change.toB,
+    );
+    (removedOnly ? view.a : view.b).focus();
     setActive(index);
   }
   useEffect(() => {
@@ -85,7 +139,18 @@ export default function ReviewDiff({
     const extensions = [
       lineNumbers(),
       drawSelection(),
+      restoreScopeDecorations,
       highlightActiveLine(),
+      EditorView.updateListener.of((update) => {
+        if (
+          update.transactions.some((transaction) =>
+            transaction.effects.some((effect) =>
+              effect.is(uncollapseUnchanged),
+            ),
+          )
+        )
+          setManuallyExpanded(true);
+      }),
       json(),
       EditorView.theme({
         "&": { fontSize: "13px" },
@@ -142,12 +207,30 @@ export default function ReviewDiff({
         const button = document.createElement("button");
         button.type = "button";
         button.textContent = "→";
-        button.title =
-          "Restore this region from saved version into draft (undoable)";
+        button.title = "Restore this change from saved version (undoable)";
         button.setAttribute(
           "aria-label",
           "Restore this changed region from saved version into draft",
         );
+        const preview = (show: boolean) => {
+          const view = merge.current;
+          const chunk = view?.chunks[Number(button.dataset.chunk)];
+          if (!view) return;
+          view.a.dispatch({
+            effects: restoreScope.of(
+              show && chunk ? { from: chunk.fromA, to: chunk.toA } : null,
+            ),
+          });
+          view.b.dispatch({
+            effects: restoreScope.of(
+              show && chunk ? { from: chunk.fromB, to: chunk.toB } : null,
+            ),
+          });
+        };
+        button.addEventListener("mouseenter", () => preview(true));
+        button.addEventListener("mouseleave", () => preview(false));
+        button.addEventListener("focus", () => preview(true));
+        button.addEventListener("blur", () => preview(false));
         button.addEventListener("click", (event) => {
           // MergeView's default handler serializes through the baseline separator.
           // Copy Text directly so restored logical lines use the draft separator.
@@ -311,18 +394,21 @@ export default function ReviewDiff({
                 : `${count} changed region${count === 1 ? "" : "s"}`
               : "No changes"}
         </span>
-        <button disabled={!count || comparisonLimited} onClick={() => jump(-1)}>
-          Previous change
-        </button>
-        <button disabled={!count || comparisonLimited} onClick={() => jump(1)}>
-          Next change
-        </button>
         <button
-          aria-pressed={!collapsed}
           disabled={comparisonLimited}
-          onClick={() => setCollapsed(!collapsed)}
+          onClick={() => {
+            if (collapsed && manuallyExpanded) {
+              // Rebuild collapsed ranges without expanding the other hidden regions.
+              merge.current?.reconfigure({
+                collapseUnchanged: { margin: 3, minSize: 8 },
+              });
+            } else setCollapsed(!collapsed);
+            setManuallyExpanded(false);
+          }}
         >
-          {collapsed ? "Show unchanged lines" : "Hide unchanged lines"}
+          {collapsed && !manuallyExpanded
+            ? "Show unchanged lines"
+            : "Hide unchanged lines"}
         </button>
         <div className="spacer" />
         {draft !== after && (
@@ -348,6 +434,24 @@ export default function ReviewDiff({
             </button>
           </>
         )}
+        <div
+          className="diff-navigation"
+          role="group"
+          aria-label="Change navigation"
+        >
+          <button
+            disabled={!count || comparisonLimited}
+            onClick={() => jump(-1)}
+          >
+            Previous change
+          </button>
+          <button
+            disabled={!count || comparisonLimited}
+            onClick={() => jump(1)}
+          >
+            Next change
+          </button>
+        </div>
       </div>
       {comparisonLimited && (
         <p role="alert">

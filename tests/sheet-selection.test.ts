@@ -108,3 +108,11 @@ it("keeps whole-table selection distinct from an individual cell", async () => {
   expect(selectWholeTable(0, 2)).toBeNull();
   expect(selectWholeTable(620, 3, 500)?.anchor).toEqual({ r: 500, c: 0 });
 });
+
+it("pasting an empty string into a text cell keeps an empty string, not null", () => {
+  const engine = new DocumentEngine('[{"name":"before"}]');
+  const query = { ...q, showIndex: false };
+  const selection = selectCell(null, { r: 0, c: 0 });
+  pasteSelection(engine, query, selection, '""', engine.revision);
+  expect(engine.raw([0, "name"])).toBe('""');
+});

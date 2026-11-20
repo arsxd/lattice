@@ -281,7 +281,7 @@ test("source typing stays quiet and validation runs only on Apply", async ({
   const editor = page.getByRole("textbox", { name: "JSON source draft" });
   await editor.fill('{"first":1,"second":2}');
   await expect(page.locator(".source-actions")).toContainText(
-    "Source draft has unapplied changes",
+    "Unapplied draft.",
   );
   await expect(alert).toHaveCount(0);
   await editor.fill('{"first":}');
@@ -297,7 +297,7 @@ test("source typing stays quiet and validation runs only on Apply", async ({
   await expect(alert).not.toContainText("A comma is missing");
   await editor.fill('{"first":3}');
   await expect(page.locator(".source-actions")).toContainText(
-    "Source draft has unapplied changes",
+    "Unapplied draft.",
   );
   await expect(alert).toHaveCount(0);
   await page

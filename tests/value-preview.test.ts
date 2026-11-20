@@ -26,7 +26,7 @@ it("summarizes objects without rounding numeric tokens", () => {
   const engine = new DocumentEngine(text);
   const view = engine.project({ ...query, records: false });
   expect(view.rows[0].cells.at(-1)?.display).toBe(
-    "id: 9007199254740993, big: 1e400, nested: {0 fields}, …",
+    '{"id": 9007199254740993, "big": 1e400, "nested": {}, "extra": 1}',
   );
   expect(objectPreview(engine.raw(["entry"]))?.rows.slice(0, 2)).toEqual([
     { key: "id", value: "9007199254740993" },

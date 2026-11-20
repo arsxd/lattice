@@ -10,15 +10,15 @@ Use a sample first to check your browser's Open, editing and Save/Download behav
 
 ## Documents, sheets and nested data
 
-Open creates a document tab. You can also drop JSON files onto the app, up to eight files totalling 64 MiB per drop. Each opens in its own tab; finish an active cell edit before dropping files. Dropped files retain a writable handle only where the browser provides one; otherwise use Save as or Download. File-picker and dropped files share UTF-8 and size checks. Empty or invalid JSON opens in Source with an explanation and the original parser details available on demand. Each document has its own worker and undo history. Bottom sheet tabs expose top-level containers and groups beneath single-object wrappers. Nested objects/record arrays open as tables; breadcrumbs return to parents. Simple primitive arrays display inside the cell and can be edited as JSON, e.g. `[1, 2, 3]`.
+Open creates a document tab. You can also drop JSON files onto the app, up to eight files totalling 64 MiB per drop. Each opens in its own tab; finish an active cell edit before dropping files. Dropped files retain a writable handle only where the browser provides one; otherwise use Save as or Download. File-picker and dropped files share UTF-8 and size checks. Empty or invalid JSON opens in Source with an explanation and the original parser details available on demand. Each document has its own worker and undo history. Bottom sheet tabs expose top-level containers and groups beneath single-object wrappers. Nested objects/record arrays open as tables; breadcrumbs return to parents. Nested values display bounded JSON previews in their cells. Double-click/F2 edits; Ctrl/Cmd+click or the value-bar table icon opens a container as a table. Wrap text reveals more preview lines, up to five automatic lines for nested values; manually resizing a row reveals more of the loaded preview.
 
-Property tables show Key/Value; primitive arrays show Value. Generated array indices are hidden by default; the left gutter shows the displayed row number. Right-click a table cell and choose **Show original index** to expose the original zero-based array positions, or inspect **Original index** in Details. The preference is stored locally. A real JSON field named `index` or `id` remains visible. **Open row** in the right-click menu opens an array record as a property table. Type metadata is available in Details. A real JSON field named `type` remains ordinary data. Object Key cells can be renamed directly; array indices are generated and read-only. Duplicate object keys are rejected.
+Property tables show Key/Value; primitive arrays show Value. Generated array indices are hidden by default; the left gutter shows the original zero-based index for array rows, even after sorting or filtering. Right-click a table cell and choose **Show original index** to expose the original zero-based array positions, or inspect **Original index** in Details. The preference is stored locally. A real JSON field named `index` or `id` remains visible. **Open row** in the right-click menu opens an array record as a property table. Type metadata is available in Details. A real JSON field named `type` remains ordinary data. Object Key cells can be renamed directly; array indices are generated and read-only. Duplicate object keys are rejected.
 
 ## Enter and change data
 
 Click selects a cell. Type to replace; double-click/F2 edits. Enter commits and moves down; Shift+Enter moves up. Tab commits and moves right; Shift+Tab moves left. Click another cell to commit; Escape cancels. Invalid input stays in the editor with an error.
 
-Blank/null cells accept direct entry. A consistent existing column type guides numeric/boolean input; otherwise blank fields default to text. Existing values retain their type. Details provides explicit type-changing operations. Strings that resemble numbers/formulas remain strings. Numeric input uses JSON number syntax; boolean input uses `true` or `false`.
+Blank/null cells accept direct entry. A consistent existing column type guides numeric/boolean input; otherwise blank fields default to text. Existing values retain their type. Use **Change type…** in Details for explicit type changes. The value bar shows JSON notation: `"0"` is text, `0` is a number, and `""` is empty text. Entering `""` directly in a cell creates empty text; editing an untouched missing property leaves it absent. Strings that resemble numbers/formulas remain strings. Numeric input uses JSON number syntax; boolean input uses `true` or `false`.
 
 Add row creates a blank record with existing fields. Right-click a row for insert above/below, duplicate and delete. Add column asks for a name. Column rename/delete affects the full object-row table and rejects name collisions.
 
@@ -148,3 +148,13 @@ Initial column widths sample up to 50 displayed rows and use bounded widths for 
 The app version appears in the welcome screen footer and document status bar. Use it when reporting a problem.
 
 Click unused sheet space to clear cell, row or column selection. A valid active edit is applied first; invalid inline or value-bar input remains available for correction. Toolbar and value-bar controls retain their selection context.
+
+## Source controls and file information
+
+**Wrap lines** wraps long source lines without changing JSON or creating a draft. **Pretty-print** adds indentation; **Minify** removes whitespace outside strings. Both preserve numeric tokens and string contents, create an undoable draft, and require **Apply source** to commit the result. Apply or discard a draft before switching source scope or returning to Table.
+
+Opening Source from a selected cell marks its exact text with a dotted underline and its lines with a gutter bar. **Selected cell** jumps back to that location without selecting text. Ordinary edits track the range; formatting clears the marker because it rewrites the whole draft.
+
+Find shows matching-cell counts, previous/next navigation, **Match case** and **Match whole word**. Active sort and filters appear beside the view controls, with individual clear buttons. Filtered column menus use a funnel icon.
+
+Click or right-click the bottom filename for file information and **Copy filename**. Web apps cannot obtain the absolute folder path. Recovered drafts have no stored original comparison baseline; Review becomes available after a confirmed save.

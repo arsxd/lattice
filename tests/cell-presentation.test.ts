@@ -20,7 +20,7 @@ it("keeps short and blank rows compact and expands only overflowing text", () =>
     ),
   ).toBe(28);
   expect(wrappedHeight([{ text: "x".repeat(20), width: 100 }], measure)).toBe(
-    48,
+    68,
   );
   expect(wrappedHeight([{ text: "x".repeat(20), width: 200 }], measure)).toBe(
     28,
@@ -69,7 +69,10 @@ it("keeps large container selections out of input/pre rendering without changing
   const cell = view.rows[0].cells[1];
   const raw = engine.raw(["items"]);
   const bar = valueBarPresentation(cell, raw);
-  expect(bar).toEqual({ text: "Array · 5000", previewOnly: true });
+  expect(bar.previewOnly).toBe(true);
+  expect(bar.text).toContain('"id": 0');
+  expect(bar.text.length).toBeLessThanOrEqual(VALUE_BAR_PREVIEW_LIMIT);
+  expect(bar.text.endsWith("…")).toBe(true);
   const preview = jsonSelectionPreview(raw);
   expect(preview.truncated).toBe(true);
   expect(preview.text).toHaveLength(JSON_PREVIEW_LIMIT);

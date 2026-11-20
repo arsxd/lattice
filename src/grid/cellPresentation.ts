@@ -10,13 +10,15 @@ export function blankState(cell: Cell): string | null {
   return null;
 }
 export function wrappedHeight(
-  cells: { text: string; width: number }[],
+  cells: { text: string; width: number; nested?: boolean }[],
   measure: (text: string) => number,
 ): number {
   let maxLines = 1;
   for (const cell of cells) {
     if (!cell.text) continue;
-    const width = Math.max(20, cell.width - 16);
+    // Match cell padding and the preview’s reserved overflow-indicator gutter.
+    const width = Math.max(20, cell.width - 16 - 18);
+    const limit = cell.nested ? 5 : 3;
     let lines = 0;
     for (const paragraph of cell.text
       .replace(/\t/g, "    ")
@@ -46,15 +48,15 @@ export function wrappedHeight(
                 used = 0;
               }
               used += charWidth;
-              if (lines >= 3) break;
+              if (lines >= limit) break;
             }
           }
-          if (lines >= 3) break;
+          if (lines >= limit) break;
         }
       }
-      if (lines >= 3) break;
+      if (lines >= limit) break;
     }
-    maxLines = Math.max(maxLines, Math.min(3, lines));
+    maxLines = Math.max(maxLines, Math.min(limit, lines));
   }
   return 28 + (maxLines - 1) * 20;
 }
@@ -65,14 +67,14 @@ export function valueBarPresentation(
   cell: Cell,
   raw: string,
 ): { text: string; previewOnly: boolean } {
-  if (blankState(cell)) return { text: "", previewOnly: false };
-  if (cell.container) return { text: cell.display, previewOnly: true };
+  if (cell.type === "missing") return { text: "", previewOnly: false };
+  if (cell.container && raw.length > VALUE_BAR_PREVIEW_LIMIT)
+    return { text: cell.display, previewOnly: true };
   const text =
-    cell.type === "string"
-      ? (JSON.parse(raw) as string)
-      : cell.type === "array" && raw.length <= VALUE_BAR_PREVIEW_LIMIT
-        ? compactJson(raw)
-        : raw;
+    (cell.type === "array" || cell.type === "object") &&
+    raw.length <= VALUE_BAR_PREVIEW_LIMIT
+      ? compactJson(raw)
+      : raw;
   return text.length > VALUE_BAR_PREVIEW_LIMIT
     ? { text: text.slice(0, VALUE_BAR_PREVIEW_LIMIT) + "…", previewOnly: true }
     : { text, previewOnly: false };

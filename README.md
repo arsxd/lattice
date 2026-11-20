@@ -4,9 +4,9 @@
 
 Edit JSON like a spreadsheet. Work with cells, rows, and columns. Explore nested data and review your changes—without wrestling with JSON syntax.
 
-[Open Lattice](https://arsxd.github.io/lattice/) · [Download offline HTML](https://github.com/arsxd/lattice/releases/download/v1.0.0-rc.3/Lattice-Offline.html) · [Releases](https://github.com/arsxd/lattice/releases)
+[Open Lattice](https://arsxd.github.io/lattice/) · [Download offline HTML](https://github.com/arsxd/lattice/releases/download/v1.0.0-rc.4/Lattice-Offline.html) · [Releases](https://github.com/arsxd/lattice/releases)
 
-**Release candidate:** v1.0.0-rc.3 is for validation before a stable release. See the [candidate checklist](docs/RELEASE-CANDIDATE.md).
+**Release candidate:** v1.0.0-rc.4 is for validation before a stable release. See the [candidate checklist](docs/RELEASE-CANDIDATE.md).
 
 ## Use
 
@@ -60,3 +60,5 @@ npm run web:dev
 Read [CONTRIBUTING.md](CONTRIBUTING.md), [the web guide](docs/WEB.md), [keyboard checks](docs/ACCESSIBILITY.md) and [CHANGELOG.md](CHANGELOG.md). Report issues through the [bug report form](https://github.com/arsxd/lattice/issues/new?template=bug_report.md).
 
 Lattice project code uses [0BSD](LICENSE): reuse does not require attribution or preservation of its license notice. Bundled dependencies retain their own licenses; [third-party notices](public/third-party-notices.txt) are included in the distribution and embedded in the standalone HTML.
+
+If Lattice is useful to you, you can [buy me a coffee](https://buymeacoffee.com/arshaaad).

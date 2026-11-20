@@ -106,7 +106,9 @@ export function pasteSelection(
       commands.push(
         replacement(
           item,
-          values[r][c] === "" ? "null" : scalarText(kind, values[r][c]),
+          values[r][c] === "" && kind !== "string"
+            ? "null"
+            : scalarText(kind, values[r][c]),
         ),
       );
     }

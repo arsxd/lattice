@@ -40,9 +40,11 @@ test("opens a local JSON file, edits inline, and selects full rows and columns",
   await editor.fill("Changed");
   await editor.press("Enter");
   await expect(cell(page, 0, 1)).toContainText("Changed");
-  await page.getByRole("button", { name: "Select row 1", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Select array index 0", exact: true })
+    .click();
   await expect(
-    page.getByRole("button", { name: "Select row 1", exact: true }),
+    page.getByRole("button", { name: "Select array index 0", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   await page
     .getByRole("button", { name: "Select column count", exact: true })
@@ -113,7 +115,7 @@ test("keeps a resized frozen first row visible during scrolling", async ({
     ),
   );
   const resizer = page.getByRole("separator", {
-    name: "Resize row 1",
+    name: "Resize row 0",
     exact: true,
   });
   await resizer.focus();
@@ -124,7 +126,10 @@ test("keeps a resized frozen first row visible during scrolling", async ({
   await page
     .getByRole("button", { name: "Freeze first row", exact: true })
     .click();
-  const first = page.getByRole("button", { name: "Select row 1", exact: true });
+  const first = page.getByRole("button", {
+    name: "Select array index 0",
+    exact: true,
+  });
   const before = await first.boundingBox();
   await page
     .getByRole("grid", { name: "JSON data table" })
@@ -143,7 +148,7 @@ test("keeps a resized frozen first row visible during scrolling", async ({
     .poll(async () => Math.abs((await first.boundingBox())!.y - before!.y))
     .toBeLessThan(2);
   await expect(
-    page.getByRole("button", { name: "Select row 40", exact: true }),
+    page.getByRole("button", { name: "Select array index 39", exact: true }),
   ).toBeVisible();
 });
 test("recovers an opt-in invalid raw draft after refresh", async ({ page }) => {
@@ -387,7 +392,7 @@ test("highlights the entire selected header and avoids a duplicate Browse filena
   ).toBe("none");
   await expect(page.locator(".status .document-filename")).toHaveAttribute(
     "title",
-    /full disk path/,
+    /File information and copy filename/,
   );
 });
 
@@ -574,7 +579,9 @@ test("freeze menu offers selected-header actions with prefix semantics", async (
       Array.from({ length: 20 }, (_, i) => ({ name: `row-${i}`, count: i })),
     ),
   );
-  await page.getByRole("button", { name: "Select row 3", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Select array index 2", exact: true })
+    .click();
   await page.locator(".freeze-menu summary").click();
   await page
     .getByRole("button", { name: "Freeze selected row", exact: true })
@@ -723,7 +730,7 @@ test("value bar commits and cancels bounded multiline edits", async ({
   const bar = page.getByRole("textbox", { name: "Selected cell value" });
   await bar.fill("cancelled");
   await bar.press("Escape");
-  await expect(bar).toHaveValue("original");
+  await expect(bar).toHaveValue('"original"');
   await bar.fill("line one");
   await bar.press("End");
   await bar.press("Shift+Enter");
@@ -758,7 +765,7 @@ test("sort waits for the complete nested-table edit refresh", async ({
                 pending >= 0 &&
                 value?.rows &&
                 value?.headers &&
-                ++pending === 2
+                ++pending === 1
               ) {
                 pending = -1;
                 (window as any).delayedRefresh = true;
@@ -782,7 +789,6 @@ test("sort waits for the complete nested-table edit refresh", async ({
   await page
     .getByRole("textbox", { name: "Edit price (number)" })
     .press("Enter");
-  await expect(cell(page, 0, 1)).toHaveText("19.75");
   const filter = page.getByRole("button", {
     name: "Sort and filter price",
     exact: true,
@@ -792,6 +798,7 @@ test("sort waits for the complete nested-table edit refresh", async ({
     .toBe(true);
   await expect(filter).toBeDisabled();
   await expect(filter).toBeEnabled();
+  await expect(cell(page, 0, 1)).toHaveText("19.75");
   await filter.click();
   await page
     .getByRole("button", { name: "Sort ascending ↑", exact: true })

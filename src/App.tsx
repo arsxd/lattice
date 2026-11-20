@@ -1,11 +1,18 @@
+import { FileLocation } from "./workspace/FileLocation";
+import { ActiveFilters, columnFilterSummaries } from "./grid/ActiveFilters";
+import { FindBar } from "./grid/FindBar";
+import { ThemePicker } from "./ThemePicker";
+import { FindHighlight } from "./grid/FindHighlight";
+import { CellPreview } from "./grid/CellPreview";
+import { columnLetter } from "./grid/columnAddress";
 import { ColumnMenuChevron } from "./grid/SheetIcons";
-import { validateSourceDraft } from "./editor/sourceValidation";
-import type { Diagnostic } from "./document/engine";
 import { FileDropZone, type DroppedFile } from "./workspace/FileDropZone";
 import { droppedJsonFile } from "./platform/files";
+import { validateSourceDraft } from "./editor/sourceValidation";
+import type { Diagnostic } from "./document/engine";
 import { JsonProblem } from "./editor/JsonProblem";
 import { HomeScreen } from "./HomeScreen";
-import { contentColumnWidths } from "./grid/columnSizing";
+import { contentColumnWidths, createTextMeasurer } from "./grid/columnSizing";
 import { compactJson } from "./document/compactJson";
 import {
   applyScopedDraft,
@@ -78,7 +85,13 @@ import {
   type Opened,
 } from "./platform/files";
 import { SourceEditor } from "./editor/SourceEditor";
-import { scalarText, cellInputKind } from "./editor/scalar";
+import {
+  scalarText,
+  cellInputKind,
+  valueBarRaw,
+  cellEntryText,
+  gridStringDraft,
+} from "./editor/scalar";
 import {
   packRecovery,
   unpackRecovery,
@@ -120,6 +133,7 @@ type Session = {
   view: Projection;
   query: Query;
   selection: Selection | null;
+  sheetSelection: SheetSelection | null;
   mode: "table" | "source" | "review";
   source: string;
   sourceBase: string;
@@ -142,14 +156,15 @@ type InlineEdit = {
   column: number;
   error: string;
 };
-function columnLetter(index: number): string {
-  let label = "";
-  for (let n = index + 1; n > 0; n = Math.floor((n - 1) / 26))
-    label = String.fromCharCode(65 + ((n - 1) % 26)) + label;
-  return label;
-}
 export default function App() {
   const { installPrompt, updateStatus } = useOfflineApp();
+  const [sourceWrapLines, setSourceWrapLines] = useState(false);
+  const [hasSourceLocation, setHasSourceLocation] = useState(false);
+  const sourceLocate = useRef<(() => void) | null>(null);
+  const [formattingSource, setFormattingSource] = useState(false);
+  const sourceFormatter = useRef<
+    ((action: "pretty" | "minify") => Promise<void>) | null
+  >(null);
   const [discardPrompt, setDiscardPrompt] = useState(false);
   const [discardContext, setDiscardContext] = useState("");
   const discardResolve = useRef<((answer: boolean) => void) | null>(null);
@@ -199,6 +214,7 @@ export default function App() {
   const committingCell = useRef(false);
   const inlineInput = useRef<HTMLTextAreaElement>(null);
   const valueBarCommit = useRef<(() => Promise<boolean>) | null>(null);
+  const valueBarHasChanges = useRef<() => boolean>(() => false);
   const suppressBlur = useRef(false);
   const suppressPointerClick = useRef(false);
   const replayingClick = useRef(false);
@@ -209,23 +225,13 @@ export default function App() {
   const [gridSize, setGridSize] = useState({ width: 900, height: 400 });
   const [wrapText, setWrapText] = useState(false);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
-  const textMeasure = useMemo(() => {
-    const context = document.createElement("canvas").getContext("2d");
-    if (context)
-      context.font =
-        '13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-    const widths = new Map<string, number>();
-    return (text: string) => {
-      const cached = widths.get(text);
-      if (cached !== undefined) return cached;
-      const width = context?.measureText(text).width ?? text.length * 7;
-      if (text.length === 1) widths.set(text, width);
-      return width;
-    };
-  }, []);
+  const textMeasure = useMemo(createTextMeasurer, []);
   const [rowHeights, setRowHeights] = useState<Record<string, number>>({});
   const sessions = useRef(new Map<string, Session>());
   const navigationHistory = useRef(new Map<string, NavigationHistory>());
+  const sourceTableScroll = useRef(
+    new Map<string, { top: number; left: number }>(),
+  );
   const [activeId, setActiveId] = useState("");
   const tableHeightKey = `${activeId}:${pointer(query.path)}:${query.showIndex !== false}`;
   const heightKey = (row: Row) => `${tableHeightKey}:${row.id}`;
@@ -249,6 +255,7 @@ export default function App() {
                 ? ""
                 : cell.display,
             width: columnWidth(i),
+            nested: cell.container || cell.type === "array",
           })),
           textMeasure,
         ),
@@ -263,12 +270,15 @@ export default function App() {
     query.records,
     textMeasure,
   ]);
-  const rowHeight = (row: Row) =>
-    rowHeights[heightKey(row)] ??
-    (wrapText && inline && view?.rows[inline.row]?.id === row.id
-      ? Math.max(
-          automaticHeights.get(row.id) ?? 28,
-          wrappedHeight(
+  const rowHeight = (row: Row) => {
+    const saved =
+      rowHeights[heightKey(row)] ?? automaticHeights.get(row.id) ?? 28;
+    if (!inline || view?.rows[inline.row]?.id !== row.id) return saved;
+    return Math.max(
+      saved,
+      52,
+      wrapText
+        ? wrappedHeight(
             [
               {
                 text: inline.value.slice(0, 4096),
@@ -276,9 +286,10 @@ export default function App() {
               },
             ],
             textMeasure,
-          ),
-        )
-      : (automaticHeights.get(row.id) ?? 28));
+          )
+        : 0,
+    );
+  };
   function resizeRow(row: Row, height?: number) {
     const key = heightKey(row);
     setRowHeights((previous) => {
@@ -397,9 +408,15 @@ export default function App() {
   useEffect(() => {
     const element = grid.current?.element;
     if (!element) return;
-    const observer = new ResizeObserver(() =>
-      setGridSize({ width: element.clientWidth, height: element.clientHeight }),
-    );
+    const measure = () => {
+      if (element.clientWidth > 0 && element.clientHeight > 0)
+        setGridSize({
+          width: element.clientWidth,
+          height: element.clientHeight,
+        });
+    };
+    const observer = new ResizeObserver(measure);
+    measure();
     observer.observe(element);
     return () => observer.disconnect();
   }, [mode, tableHeightKey, !!view]);
@@ -416,7 +433,13 @@ export default function App() {
   useEffect(() => {
     if (mode !== "table" || busy || findDraft === query.search) return;
     const timer = setTimeout(
-      () => changeQuery({ ...query, search: findDraft, page: 0 }),
+      () =>
+        changeQuery({
+          ...query,
+          search: findDraft,
+          searchResult: undefined,
+          page: 0,
+        }),
       150,
     );
     return () => clearTimeout(timer);
@@ -472,6 +495,7 @@ export default function App() {
       view,
       query,
       selection,
+      sheetSelection,
       mode,
       source,
       sourceBase,
@@ -499,7 +523,12 @@ export default function App() {
     setDoc(s.doc);
     setView(s.view);
     setQuery(s.query);
+    setFindDraft(s.query.search);
     setSelection(s.selection);
+    setSheetSelection(s.sheetSelection);
+    setHeaderMenu(null);
+    setFilterAnchor(null);
+    setAddedColumn(null);
     setMode(s.mode);
     setSource(s.source);
     setSourceBase(s.sourceBase);
@@ -538,6 +567,7 @@ export default function App() {
       target.client.dispose();
       sessions.current.delete(id);
       navigationHistory.current.delete(id);
+      sourceTableScroll.current.delete(id);
       if (id === activeId) {
         const next = [...sessions.current.values()].at(-1);
         if (next) activate(next);
@@ -588,13 +618,12 @@ export default function App() {
     if (id !== request.current) return;
     if (view && p.revision !== view.revision) setSheetSelection(null);
     setView(p);
-    const root = q.path.length
-      ? await client.current.call<Projection>("project", initialQuery)
-      : p;
-    if (id !== request.current) return;
-    setSheets(root.sheets ?? root.children);
-    setTruncatedSheets(root.rootKind === "object" && root.truncatedChildren);
+    setSheets(p.sheets ?? p.children);
+    setTruncatedSheets(
+      p.sheetsTruncated ?? (p.rootKind === "object" && p.truncatedChildren),
+    );
     if (p.diagnostics.length && mode === "table") await showSource();
+    return p;
   }
   async function prepare(
     opened: Opened,
@@ -602,26 +631,26 @@ export default function App() {
     recovered = false,
     showIndex = originalIndexPreference(),
   ): Promise<Session> {
-    const next = new DocumentClient();
+    let next: DocumentClient | undefined;
     try {
+      next = new DocumentClient();
       await next.call("open", { text: opened.text });
       if (recovered) await next.call("saved", { text: "\u0000recovered" });
       const q = { ...initialQuery, path, showIndex };
-      let p = await next.call<Projection>("project", q);
+      const p = await next.call<Projection>("project", q);
       if (!path.length && p.rootKind === "object" && !p.recordsAvailable) {
         q.records = false;
-        p = await next.call<Projection>("project", q);
       }
-      const root = path.length
-        ? await next.call<Projection>("project", initialQuery)
-        : p;
       return {
         id: crypto.randomUUID(),
         client: next,
-        doc: recovered ? { ...opened, text: "" } : opened,
+        doc: recovered
+          ? { ...opened, text: "", reviewUnavailable: true }
+          : opened,
         view: p,
         query: q,
         selection: null,
+        sheetSelection: null,
         mode: p.diagnostics.length ? "source" : "table",
         source: opened.text,
         sourceBase: opened.text,
@@ -629,12 +658,13 @@ export default function App() {
         sourceScope: null,
         reviewOrigin: "table",
         review: null,
-        sheets: root.sheets ?? root.children,
-        truncatedSheets: root.rootKind === "object" && root.truncatedChildren,
+        sheets: p.sheets ?? p.children,
+        truncatedSheets:
+          p.sheetsTruncated ?? (p.rootKind === "object" && p.truncatedChildren),
       };
     } catch (e) {
-      next.dispose();
-      if (opened.token) await release(opened.token);
+      next?.dispose();
+      if (opened.token) await release(opened.token).catch(() => {});
       throw e;
     }
   }
@@ -705,68 +735,78 @@ export default function App() {
       const opened = await reloadFile(doc);
       if (!opened) return;
       const next = await prepare(opened, [], false, query.showIndex);
-      const path = [...query.path];
-      while (path.length) {
-        try {
-          await next.client.call("raw", { path });
-          break;
-        } catch {
-          path.pop();
+      let adopted = false;
+      try {
+        const path = [...query.path];
+        while (path.length) {
+          try {
+            await next.client.call("raw", { path });
+            break;
+          } catch {
+            path.pop();
+          }
+        }
+        const projected = await next.client.call<Projection>("project", {
+          ...query,
+          path,
+          page: 0,
+        });
+        next.query = view
+          ? remapReloadQuery({ ...query, path }, view, projected)
+          : { ...initialQuery, path };
+        const located =
+          position && JSON.stringify(path) === JSON.stringify(query.path)
+            ? await next.client.call<{ row?: number; page: number }>(
+                "locate-row",
+                { query: next.query, path: position.rowPath },
+              )
+            : null;
+        next.query.page =
+          located?.row === undefined
+            ? Math.min(query.page, projected.pages - 1)
+            : located.page;
+        next.view = await next.client.call<Projection>("project", next.query);
+        const restoredSelection = restoreReloadSelection(
+          position,
+          next.view,
+          located?.row,
+        );
+        next.id = activeId;
+        navigationHistory.current.delete(activeId);
+        if (doc.token) await release(doc.token);
+        client.current?.dispose();
+        sessions.current.set(activeId, next);
+        activate(next);
+        adopted = true;
+        setSheetSelection(restoredSelection);
+        setTabVersion((v) => v + 1);
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            const target = grid.current?.element;
+            if (!target) return;
+            const top = next.view.rows.findIndex(
+              (row) => JSON.stringify(row.path) === JSON.stringify(topPath),
+            );
+            target.scrollLeft = scrollLeft;
+            target.scrollTop =
+              top >= 0
+                ? next.view.rows
+                    .slice(0, top)
+                    .reduce((sum, row) => sum + rowHeight(row), 0) +
+                  (scrollTop - topOffset)
+                : next.query.page === query.page
+                  ? scrollTop
+                  : 0;
+          }),
+        );
+        setNotice("Source reloaded.");
+      } finally {
+        if (!adopted) {
+          next.client.dispose();
+          if (next.doc.token && next.doc.token !== doc.token)
+            await release(next.doc.token).catch(() => {});
         }
       }
-      const projected = await next.client.call<Projection>("project", {
-        ...query,
-        path,
-        page: 0,
-      });
-      next.query = view
-        ? remapReloadQuery({ ...query, path }, view, projected)
-        : { ...initialQuery, path };
-      const located =
-        position && JSON.stringify(path) === JSON.stringify(query.path)
-          ? await next.client.call<{ row?: number; page: number }>(
-              "locate-row",
-              { query: next.query, path: position.rowPath },
-            )
-          : null;
-      next.query.page =
-        located?.row === undefined
-          ? Math.min(query.page, projected.pages - 1)
-          : located.page;
-      next.view = await next.client.call<Projection>("project", next.query);
-      const restoredSelection = restoreReloadSelection(
-        position,
-        next.view,
-        located?.row,
-      );
-      next.id = activeId;
-      navigationHistory.current.delete(activeId);
-      if (doc.token) await release(doc.token);
-      client.current?.dispose();
-      sessions.current.set(activeId, next);
-      activate(next);
-      setSheetSelection(restoredSelection);
-      setTabVersion((v) => v + 1);
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => {
-          const target = grid.current?.element;
-          if (!target) return;
-          const top = next.view.rows.findIndex(
-            (row) => JSON.stringify(row.path) === JSON.stringify(topPath),
-          );
-          target.scrollLeft = scrollLeft;
-          target.scrollTop =
-            top >= 0
-              ? next.view.rows
-                  .slice(0, top)
-                  .reduce((sum, row) => sum + rowHeight(row), 0) +
-                (scrollTop - topOffset)
-              : next.query.page === query.page
-                ? scrollTop
-                : 0;
-        }),
-      );
-      setNotice("Source reloaded.");
     });
   }
   async function save(as = false) {
@@ -785,7 +825,7 @@ export default function App() {
       const saved = await saveFile(target, text, as);
       if (saved) {
         if (desktop || saved.confirmed) {
-          setDoc({ ...doc, ...saved, text });
+          setDoc({ ...doc, ...saved, text, reviewUnavailable: false });
           if (mode === "review") setReview({ before: text, after: text });
           await client.current.call("saved", { text });
           await refresh();
@@ -871,6 +911,12 @@ export default function App() {
   async function showSource(
     path: Path = view?.diagnostics.length ? [] : (view?.path ?? query.path),
   ) {
+    if (mode === "table" && grid.current?.element) {
+      sourceTableScroll.current.set(activeId, {
+        top: grid.current.element.scrollTop,
+        left: grid.current.element.scrollLeft,
+      });
+    }
     setSourceTarget(null);
     if (!client.current) return null;
     const result = await client.current.call<{
@@ -894,6 +940,18 @@ export default function App() {
     setSourceRevision(result.revision);
     setSourceScope(scope);
     setMode("source");
+    if (currentCell && currentCell.type !== "missing") {
+      try {
+        const range = await client.current.call<{ from: number; to: number }>(
+          "locate",
+          { path: currentCell.path, property: !!selectedIdentifier },
+        );
+        const relative = scopedSelectionRange(range, scope);
+        if (relative) setSourceTarget({ ...relative, id: Date.now() });
+      } catch {
+        /* A removed value has no source location to mark. */
+      }
+    }
     return scope;
   }
   async function toggleReview() {
@@ -919,6 +977,12 @@ export default function App() {
           setSourceRevision(current.revision);
           setMode("table");
         }
+        return;
+      }
+      if (doc.reviewUnavailable) {
+        setNotice(
+          "Changes cannot be compared for this recovered draft because its original file was not stored. A confirmed save establishes a new comparison baseline.",
+        );
         return;
       }
       if (sourceDirty)
@@ -1145,10 +1209,6 @@ export default function App() {
     if (!view || !client.current || busy || cell.writable === false) return;
     const blank = cell.type === "missing" || cell.type === "null";
     const kind = cellInputKind(cell);
-    if (cell.container || kind === "object") {
-      await edit(cell);
-      return;
-    }
     if (initial !== undefined) {
       setInline({
         cell,
@@ -1173,10 +1233,10 @@ export default function App() {
         return;
       }
       const value =
-        kind === "array"
+        kind === "array" || kind === "object"
           ? compactJson(raw)
           : !blank && kind === "string"
-            ? (JSON.parse(raw) as string)
+            ? gridStringDraft(raw)
             : raw;
       setInline({
         cell,
@@ -1214,6 +1274,35 @@ export default function App() {
       );
     });
   }
+  const [addedColumn, setAddedColumn] = useState<{
+    table: string;
+    name: string;
+    row: number;
+  } | null>(null);
+  useEffect(() => {
+    if (!addedColumn || !view || busy) return;
+    if (addedColumn.table !== tableHeightKey) {
+      setAddedColumn(null);
+      return;
+    }
+    const column = view.headers.indexOf(addedColumn.name);
+    if (column < 0) return;
+    const row = Math.max(0, Math.min(addedColumn.row, view.rows.length - 1));
+    const frame = requestAnimationFrame(() => {
+      // Grid position zero is the row-number gutter, not the first JSON field.
+      grid.current?.scrollToCell({ idx: column + 1, rowIdx: row });
+      if (view.rows.length) {
+        setSheetSelection(selectCell(null, { r: row, c: column }));
+        grid.current?.setActivePosition(
+          { rowIdx: row, idx: column + 1 },
+          { shouldFocus: true },
+        );
+        void select(view.rows[row].cells[column]);
+      }
+      setAddedColumn(null);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [addedColumn, view, busy, tableHeightKey]);
   async function addColumn() {
     if (!view || columnName === null) return;
     await run(async () => {
@@ -1224,9 +1313,11 @@ export default function App() {
         );
         setColumnName(null);
         setColumnError("");
-        requestAnimationFrame(() =>
-          grid.current?.scrollToCell({ idx: view.headers.length }),
-        );
+        setAddedColumn({
+          table: tableHeightKey,
+          name: columnName,
+          row: activeCell?.row ?? 0,
+        });
         setNotice("");
       } catch (e) {
         setColumnError(e instanceof Error ? e.message : String(e));
@@ -1273,20 +1364,29 @@ export default function App() {
         const raw =
           (blank || current.kind !== "string") && current.value === ""
             ? "null"
-            : scalarText(current.kind, current.value);
-        await mutate(
-          current.rename
-            ? { action: "rename", path: current.cell.path, key: current.value }
-            : current.cell.type === "missing"
+            : cellEntryText(current.kind, current.value);
+        if (!(
+          current.cell.type === "missing" &&
+          current.value === "" &&
+          !current.rename
+        ))
+          await mutate(
+            current.rename
               ? {
-                  action: "insert",
-                  path: current.cell.path.slice(0, -1),
-                  key: String(current.cell.path.at(-1)),
-                  raw,
+                  action: "rename",
+                  path: current.cell.path,
+                  key: current.value,
                 }
-              : { action: "replace", path: current.cell.path, raw },
-          current.revision,
-        );
+              : current.cell.type === "missing"
+                ? {
+                    action: "insert",
+                    path: current.cell.path.slice(0, -1),
+                    key: String(current.cell.path.at(-1)),
+                    raw,
+                  }
+                : { action: "replace", path: current.cell.path, raw },
+            current.revision,
+          );
         setInline(null);
         succeeded = true;
         let row = current.row,
@@ -1335,6 +1435,36 @@ export default function App() {
       suppressBlur.current = false;
     });
   }
+  function rowLabel(row: Row, position: number): number {
+    return view?.kind === "array"
+      ? Number(row.label)
+      : (view?.page ?? 0) * 500 + position + 1;
+  }
+  const activeFilters = useMemo(
+    () => columnFilterSummaries(query, view),
+    [query.filters, query.valueFilters, view],
+  );
+  function clearColumnFilter(column?: number) {
+    const filters = { ...query.filters };
+    const valueFilters = { ...query.valueFilters };
+    if (column !== undefined) {
+      delete filters[String(column)];
+      delete valueFilters[String(column)];
+    }
+    changeQuery({
+      ...query,
+      page: 0,
+      searchResult: undefined,
+      filters:
+        column === undefined || !Object.keys(filters).length
+          ? undefined
+          : filters,
+      valueFilters:
+        column === undefined || !Object.keys(valueFilters).length
+          ? undefined
+          : valueFilters,
+    });
+  }
   const columns = useMemo<Column<Row>[]>(
     () =>
       view
@@ -1345,7 +1475,12 @@ export default function App() {
               width: 44,
               minWidth: 44,
               frozen: true,
-              cellClass: "row-number",
+              cellClass: (row) =>
+                singleCellSelected &&
+                activeCell &&
+                view.rows[activeCell.row]?.id === row.id
+                  ? "row-number active-cell-header"
+                  : "row-number",
               renderHeaderCell: () => (
                 <button
                   className="select-all-cells"
@@ -1367,7 +1502,7 @@ export default function App() {
                 <div className="row-number-content">
                   <button
                     className="row-select"
-                    aria-label={`Select row ${view.page * 500 + rowIdx + 1}`}
+                    aria-label={`Select ${view.kind === "array" ? "array index" : "row"} ${rowLabel(row, rowIdx)}`}
                     aria-pressed={axisSelected(
                       sheetSelection,
                       "rows",
@@ -1389,10 +1524,10 @@ export default function App() {
                       );
                     }}
                   >
-                    {view.page * 500 + rowIdx + 1}
+                    {rowLabel(row, rowIdx)}
                   </button>
                   <RowHeightHandle
-                    number={view.page * 500 + rowIdx + 1}
+                    number={rowLabel(row, rowIdx)}
                     height={rowHeight(row)}
                     onChange={(height) => resizeRow(row, height)}
                     onReset={() => resizeRow(row)}
@@ -1405,7 +1540,9 @@ export default function App() {
               name,
               headerCellClass: axisSelected(sheetSelection, "columns", i)
                 ? "sheet-header sheet-header-selected"
-                : "sheet-header",
+                : singleCellSelected && activeCell?.column === i
+                  ? "sheet-header active-cell-header"
+                  : "sheet-header",
               frozen: i < columnsFrozen,
               renderHeaderCell: () => (
                 <div
@@ -1476,7 +1613,16 @@ export default function App() {
                     </span>
                   </button>
                   <button
-                    className="header-filter"
+                    className={`header-filter ${activeFilters.some((filter) => filter.column === i) ? "filter-active" : ""}`}
+                    title={
+                      activeFilters.find((filter) => filter.column === i)
+                        ? `${columnLabel(view, i)}: ${activeFilters.find((filter) => filter.column === i)!.description}`
+                        : `Sort and filter ${columnLabel(view, i)}`
+                    }
+                    aria-description={
+                      activeFilters.find((filter) => filter.column === i)
+                        ?.description
+                    }
                     onKeyDown={(e) => e.stopPropagation()}
                     disabled={operationBusy}
                     aria-label={`Sort and filter ${columnLabel(view, i)}`}
@@ -1486,10 +1632,11 @@ export default function App() {
                       setHeaderMenu(headerMenu === i ? null : i);
                     }}
                   >
-                    <ColumnMenuChevron />
-                    {query.valueFilters?.[String(i)] !== undefined && (
-                      <span className="filter-dot" />
-                    )}
+                    <ColumnMenuChevron
+                      filtered={activeFilters.some(
+                        (filter) => filter.column === i,
+                      )}
+                    />
                   </button>
                 </div>
               ),
@@ -1497,6 +1644,10 @@ export default function App() {
               minWidth: 80,
               resizable: true,
               sortable: false,
+              cellClass: (row) =>
+                valueColumn(i) && row.cells[i]?.type === "missing"
+                  ? "missing-property-cell"
+                  : undefined,
               renderCell: ({ row, rowIdx }) => {
                 if (inline && inline.row === rowIdx && inline.column === i)
                   return (
@@ -1504,7 +1655,7 @@ export default function App() {
                       ref={inlineInput}
                       rows={1}
                       wrap={wrapText ? "soft" : "off"}
-                      title="Enter to finish editing. Alt+Enter adds a line to a string."
+                      title='Enter to finish. Type "" for empty text; use quoted JSON for explicit strings. Alt+Enter adds a line.'
                       className="inline-cell"
                       aria-label={`Edit ${name} (${inline.kind})`}
                       aria-invalid={!!inline.error}
@@ -1586,12 +1737,24 @@ export default function App() {
                 const originalIndex = view.columnKinds[i] === "index";
                 const blank = valueColumn(i) ? blankState(c) : null;
                 return (
-                  <span
+                  <CellPreview
                     className={`cell-value ${blank ? "empty-value" : ""} ${c.container && !originalIndex ? "container-value" : ""} ${c.type === "array" && !originalIndex ? "array-value" : ""} ${c.type === "number" ? "numeric" : ""}`}
+                    onClick={
+                      (c.container || c.type === "array") && !originalIndex
+                        ? (event) => {
+                            if (event.ctrlKey || event.metaKey) {
+                              event.stopPropagation();
+                              void navigate(c.path);
+                            }
+                          }
+                        : undefined
+                    }
                     title={
                       originalIndex
                         ? "Original array position (starting at zero). Open row from the right-click menu."
-                        : `${blank ?? c.type} — ${pointer(c.path) || "root"}`
+                        : c.type === "missing" && c.writable !== false
+                          ? `Property not set — double-click or press F2 to add a value. ${pointer(c.path)}`
+                          : `${blank ?? c.type} — ${pointer(c.path) || "root"}`
                     }
                     aria-label={
                       blank
@@ -1599,18 +1762,24 @@ export default function App() {
                         : undefined
                     }
                   >
-                    {blank
-                      ? ""
-                      : c.type === "array" &&
-                          !c.container &&
-                          singleCellSelected &&
-                          activeCell?.row === rowIdx &&
-                          activeCell.column === i &&
-                          selectedPresentation
-                        ? selectedPresentation.text.slice(0, 1024) +
-                          (selectedPresentation.text.length > 1024 ? "…" : "")
-                        : c.display}
-                  </span>
+                    <FindHighlight
+                      search={query.search}
+                      caseSensitive={query.searchCaseSensitive}
+                      wholeWord={query.searchWholeWord}
+                      text={
+                        blank
+                          ? ""
+                          : c.type === "array" &&
+                              !c.container &&
+                              singleCellSelected &&
+                              activeCell?.row === rowIdx &&
+                              activeCell.column === i &&
+                              selectedPresentation
+                            ? selectedPresentation.text
+                            : c.display
+                      }
+                    />
+                  </CellPreview>
                 );
               },
             })),
@@ -1911,6 +2080,34 @@ export default function App() {
     window.addEventListener("keydown", handle);
     return () => window.removeEventListener("keydown", handle);
   });
+  useEffect(() => {
+    const target = view?.searchSelection;
+    if (!view || !target || query.searchResult === undefined || busy) return;
+    const row = target.row - view.page * 500;
+    const frame = requestAnimationFrame(() => {
+      grid.current?.scrollToCell({ idx: target.column + 1, rowIdx: row });
+      grid.current?.setActivePosition(
+        { idx: target.column + 1, rowIdx: row },
+        { shouldFocus: false },
+      );
+      setSheetSelection(selectCell(null, { r: target.row, c: target.column }));
+      if (view.rows[row]) void select(view.rows[row].cells[target.column]);
+      setQuery((previous) => ({
+        ...previous,
+        page: view.page,
+        searchResult: undefined,
+      }));
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [view, query.searchResult, busy]);
+  const selectedIdentifier =
+    activeCell &&
+    (view?.columnKinds[activeCell.column] === "key" ||
+      view?.columnKinds[activeCell.column] === "index")
+      ? view.rows[activeCell.row]?.cells[activeCell.column]
+      : undefined;
+  const selectedKey =
+    !!selectedIdentifier && !!activeCell && keyEditable(activeCell.column);
   const selectedPresentation = useMemo(
     () =>
       selection ? valueBarPresentation(selection.cell, selection.raw) : null,
@@ -1943,7 +2140,9 @@ export default function App() {
           : null,
     );
     setQuery(next);
-    void run(() => refresh(next));
+    void run(async () => {
+      await refresh(next);
+    });
   }
   async function selectionMutation(
     action: "paste" | "fill",
@@ -2019,6 +2218,10 @@ export default function App() {
         suppressPointerClick.current = false;
       }}
       onPointerDownCapture={(e) => {
+        if (mode !== "table") {
+          suppressPointerClick.current = false;
+          return;
+        }
         const backgroundTarget = e.target instanceof Element ? e.target : null;
         const blankSheet =
           backgroundTarget &&
@@ -2068,6 +2271,111 @@ export default function App() {
           return;
         }
         if (
+          e.button === 0 &&
+          backgroundTarget &&
+          !backgroundTarget.closest(".value-bar") &&
+          valueBarHasChanges.current() &&
+          valueBarCommit.current
+        ) {
+          const control = backgroundTarget.closest<HTMLElement>(
+            "button,input,select,a[href],summary",
+          );
+          const cell =
+            backgroundTarget.closest<HTMLElement>('[role="gridcell"]');
+          if (control || cell) {
+            const documentId = activeId;
+            const row = cell?.closest('[role="row"]');
+            const rowIndex = Number(row?.getAttribute("aria-rowindex")) - 2;
+            const column = Number(cell?.getAttribute("aria-colindex")) - 2;
+            const position =
+              !control && view && rowIndex >= 0 && column >= 0
+                ? captureReloadPosition(
+                    view,
+                    selectCell(null, {
+                      r: view.page * 500 + rowIndex,
+                      c: column,
+                    }),
+                  )
+                : null;
+            const modifiers = {
+              shiftKey: e.shiftKey,
+              ctrlKey: e.ctrlKey,
+              metaKey: e.metaKey,
+              altKey: e.altKey,
+            };
+            e.preventDefault();
+            e.stopPropagation();
+            suppressPointerClick.current = true;
+            void valueBarCommit.current().then((ok) => {
+              if (!ok) return;
+              requestAnimationFrame(() => {
+                const latest = currentSnapshot.current;
+                if (!latest || latest.id !== documentId) return;
+                if (control?.isConnected) {
+                  control.focus();
+                  replayingClick.current = true;
+                  try {
+                    if (Object.values(modifiers).some(Boolean))
+                      control.dispatchEvent(
+                        new MouseEvent("click", {
+                          bubbles: true,
+                          cancelable: true,
+                          ...modifiers,
+                        }),
+                      );
+                    else control.click();
+                  } finally {
+                    replayingClick.current = false;
+                  }
+                } else if (position) {
+                  const index = latest.view.rows.findIndex(
+                    (row) =>
+                      JSON.stringify(row.path) ===
+                      JSON.stringify(position.rowPath),
+                  );
+                  const restored = restoreReloadSelection(
+                    position,
+                    latest.view,
+                    index < 0 ? undefined : latest.view.page * 500 + index,
+                  );
+                  if (!restored) {
+                    setSheetSelection(null);
+                    setNotice(
+                      "Value saved. The clicked row moved or is no longer visible; select it again.",
+                    );
+                    return;
+                  }
+                  const point = restored.anchor;
+                  const target =
+                    latest.view.rows[point.r - latest.view.page * 500]?.cells[
+                      point.c
+                    ];
+                  if (
+                    target &&
+                    (modifiers.ctrlKey || modifiers.metaKey) &&
+                    (target.container || target.type === "array")
+                  ) {
+                    void navigate(target.path);
+                    return;
+                  }
+                  setSheetSelection(
+                    selectCell(sheetSelection, point, modifiers.shiftKey),
+                  );
+                  grid.current?.setActivePosition(
+                    {
+                      rowIdx: point.r - latest.view.page * 500,
+                      idx: point.c + 1,
+                    },
+                    { shouldFocus: true },
+                  );
+                  if (target) void select(target);
+                }
+              });
+            });
+            return;
+          }
+        }
+        if (
           !inline ||
           committingCell.current ||
           !(e.target instanceof HTMLElement) ||
@@ -2101,7 +2409,7 @@ export default function App() {
     >
       <header className="toolbar">
         <strong title="JSON Workbench">Lattice</strong>
-        {busy && (
+        {operationBusy && (
           <span className="activity" role="status" aria-label="Working" />
         )}
         <span className="divider" />
@@ -2132,16 +2440,22 @@ export default function App() {
         )}
         <span className="divider" />
         <button
+          className="toolbar-history"
+          aria-label="Undo"
+          title="Undo (Ctrl/⌘+Z)"
           onClick={() => void history("undo")}
           disabled={busy || !view?.undo || sourceDirty}
         >
-          Undo
+          <NavigationIcon name="undo" size={18} />
         </button>
         <button
+          className="toolbar-history"
+          aria-label="Redo"
+          title="Redo (Ctrl/⌘+Shift+Z)"
           onClick={() => void history("redo")}
           disabled={busy || !view?.redo || sourceDirty}
         >
-          Redo
+          <NavigationIcon name="redo" size={18} />
         </button>
         <div className="spacer" />
         <button
@@ -2155,21 +2469,7 @@ export default function App() {
         >
           {doc?.handle ? "Reload source" : "Reload source…"}
         </button>
-        {!desktop && <span className="muted">Web client</span>}
-        <label className="sr-only" htmlFor="theme">
-          Theme
-        </label>
-        <span className="select-inset">
-          <select
-            id="theme"
-            value={theme}
-            onChange={(e) => setTheme(e.target.value)}
-          >
-            <option value="system">System theme</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </select>
-        </span>
+        <ThemePicker value={theme} onChange={setTheme} />
       </header>
       {error && (
         <div className="message error" role="alert">
@@ -2276,6 +2576,7 @@ export default function App() {
       )}
       {!doc ? (
         <HomeScreen
+          webClient={!desktop}
           busy={busy}
           onOpen={() => void open()}
           onNew={() =>
@@ -2363,13 +2664,18 @@ export default function App() {
             </div>
             <div className="spacer" />
             <button
-              disabled={busy || (mode !== "review" && sourceDirty)}
+              disabled={
+                busy ||
+                (mode !== "review" && (sourceDirty || !!doc?.reviewUnavailable))
+              }
               aria-pressed={mode === "review"}
               onClick={() => void toggleReview()}
               title={
                 mode === "review"
                   ? "Return to the previous view"
-                  : "Compare with the opened or saved version"
+                  : doc?.reviewUnavailable
+                    ? "Comparison unavailable: local recovery contains the draft but not the original file. A confirmed save establishes a new baseline."
+                    : "Compare with the opened or saved version"
               }
             >
               {mode === "review" ? "Close review" : "Review changes"}
@@ -2474,7 +2780,12 @@ export default function App() {
                 <div className="spacer" />
                 {mode === "source" && !!view?.path.length && (
                   <div
-                    className="segmented source-scope-switch"
+                    className="view-mode source-scope-switch"
+                    title={
+                      sourceDirty
+                        ? "Apply or discard this draft before switching scope"
+                        : "Source scope"
+                    }
                     role="group"
                     aria-label="Source scope"
                   >
@@ -2498,45 +2809,146 @@ export default function App() {
                     </button>
                   </div>
                 )}
-                <div
-                  className="segmented view-mode"
-                  role="group"
-                  aria-label="View mode"
-                >
+                {mode === "source" && hasSourceLocation && (
                   <button
-                    aria-pressed={mode === "table"}
-                    disabled={busy || sourceDirty || !!view?.diagnostics.length}
-                    onClick={() => {
-                      const previous = activeCell;
-                      setMode("table");
-                      if (
-                        previous &&
-                        view?.rows[previous.row]?.cells[previous.column]
-                      )
-                        focusCell(previous.row, previous.column);
-                    }}
+                    className="source-cell-locator"
+                    disabled={busy}
+                    title="Jump to the selected table cell. Its source is marked by dotted underlines, blue line numbers and a gutter bar."
+                    onClick={() => sourceLocate.current?.()}
                   >
-                    Table
+                    Selected cell
+                    {activeCell && view?.rows[activeCell.row]
+                      ? ` · ${columnLetter(activeCell.column)}${rowLabel(view.rows[activeCell.row], activeCell.row)}`
+                      : ""}
                   </button>
-                  <button
-                    title={
-                      currentCell
-                        ? "Open source at selected cell"
-                        : "Open JSON source"
-                    }
-                    aria-pressed={mode === "source"}
-                    disabled={busy || mode === "source" || sourceDirty}
-                    onClick={() => {
-                      if (currentCell && currentCell.type !== "missing")
-                        void showInSource(currentCell.path);
-                      else {
-                        setSourceTarget(null);
-                        void run(() => showSource().then(() => {}));
+                )}
+                {mode === "source" && formattingSource && (
+                  <span className="source-format-status" role="status">
+                    Formatting…
+                  </span>
+                )}
+                {mode === "source" && (
+                  <div
+                    className="source-format-actions"
+                    role="group"
+                    aria-label="Source actions"
+                  >
+                    <button
+                      aria-pressed={sourceWrapLines}
+                      title="Wrap long source lines visually without changing the JSON"
+                      onClick={() => setSourceWrapLines(!sourceWrapLines)}
+                    >
+                      Wrap lines
+                    </button>
+                    {(["pretty", "minify"] as const).map((action) => (
+                      <button
+                        key={action}
+                        disabled={busy}
+                        title={
+                          action === "pretty"
+                            ? "Indent this source draft with two spaces"
+                            : "Remove whitespace outside JSON strings"
+                        }
+                        onClick={() =>
+                          void run(async () => {
+                            setFormattingSource(true);
+                            try {
+                              await sourceFormatter.current?.(action);
+                            } finally {
+                              setFormattingSource(false);
+                            }
+                          })
+                        }
+                      >
+                        {action === "pretty" ? "Pretty-print" : "Minify"}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="segmented">
+                  {mode === "table" && query.sort && view && (
+                    <div className="table-state-control active-sort">
+                      <span
+                        title={`Sorted by ${columnLabel(view, query.sort.column)} (${query.sort.direction === "ASC" ? "ascending" : "descending"})`}
+                      >
+                        Sort: {columnLabel(view, query.sort.column)}{" "}
+                        {query.sort.direction === "ASC" ? "↑" : "↓"}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        aria-label="Clear sort"
+                        title="Clear sort"
+                        onClick={() =>
+                          changeQuery({ ...query, sort: undefined, page: 0 })
+                        }
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                  {mode === "table" && activeFilters.length > 0 && (
+                    <ActiveFilters
+                      filters={activeFilters}
+                      disabled={busy}
+                      onClear={clearColumnFilter}
+                      onClearAll={() => clearColumnFilter()}
+                    />
+                  )}
+                  <div
+                    className="view-mode"
+                    role="group"
+                    aria-label="View mode"
+                  >
+                    <button
+                      aria-pressed={mode === "table"}
+                      disabled={
+                        busy || sourceDirty || !!view?.diagnostics.length
                       }
-                    }}
-                  >
-                    Source
-                  </button>
+                      onClick={() => {
+                        const previous = activeCell;
+                        setMode("table");
+                        requestAnimationFrame(() => {
+                          const scroll =
+                            sourceTableScroll.current.get(activeId);
+                          const element = grid.current?.element;
+                          if (element && scroll) {
+                            element.scrollTop = scroll.top;
+                            element.scrollLeft = scroll.left;
+                          }
+                          if (
+                            previous &&
+                            view?.rows[previous.row]?.cells[previous.column]
+                          )
+                            focusCell(previous.row, previous.column);
+                        });
+                      }}
+                    >
+                      Table
+                    </button>
+                    <button
+                      title={
+                        currentCell
+                          ? "Open source at selected cell"
+                          : "Open JSON source"
+                      }
+                      aria-pressed={mode === "source"}
+                      disabled={busy || mode === "source" || sourceDirty}
+                      onClick={() => {
+                        if (currentCell && currentCell.type !== "missing")
+                          void showInSource(
+                            currentCell.path,
+                            !!selectedIdentifier,
+                          );
+                        else {
+                          setSourceTarget(null);
+                          void run(() => showSource().then(() => {}));
+                        }
+                      }}
+                    >
+                      Source
+                    </button>
+                  </div>
                 </div>
               </div>
               {displayedDiagnostics.length > 0 && (
@@ -2547,78 +2959,68 @@ export default function App() {
               )}
               {mode === "table" && view && (
                 <>
-                  {headerMenu !== null && (
-                    <ColumnMenu
-                      key={`${pointer(query.path)}:${headerMenu}`}
-                      anchor={filterAnchor}
-                      name={columnLabel(view, headerMenu)}
-                      selected={query.valueFilters?.[String(headerMenu)]}
-                      load={async () => {
-                        const p = await client.current!.call<Projection>(
-                          "project",
-                          { ...query, optionsColumn: headerMenu },
-                        );
-                        return {
-                          options: p.filterOptions ?? [],
-                          truncated: !!p.filterOptionsTruncated,
-                        };
-                      }}
-                      onClose={() => setHeaderMenu(null)}
-                      onSort={(direction) => {
-                        changeQuery({
-                          ...query,
-                          page: 0,
-                          sort: direction
-                            ? { column: headerMenu, direction }
-                            : undefined,
-                        });
-                        setHeaderMenu(null);
-                      }}
-                      onApply={(keys) => {
-                        const filters = { ...query.valueFilters };
-                        if (keys === undefined)
-                          delete filters[String(headerMenu)];
-                        else filters[String(headerMenu)] = keys;
-                        changeQuery({
-                          ...query,
-                          page: 0,
-                          valueFilters: filters,
-                        });
-                        setHeaderMenu(null);
-                      }}
-                    />
-                  )}
-                  {selection && activeCell && singleCellSelected ? (
+                  {selection &&
+                  activeCell &&
+                  singleCellSelected &&
+                  currentCell &&
+                  pointer(selection.cell.path) === pointer(currentCell.path) ? (
                     <ValueBar
-                      onCommitReady={(commit) => {
+                      onCommitReady={(commit, hasChanges) => {
                         valueBarCommit.current = commit;
+                        valueBarHasChanges.current =
+                          hasChanges ?? (() => false);
                       }}
                       key={`${activeId}:${pointer(selection.cell.path)}`}
                       address={
                         activeCell &&
                         activeCell.row >= 0 &&
                         activeCell.column >= 0
-                          ? `${columnLetter(activeCell.column)}${view.page * 500 + activeCell.row + 1}`
+                          ? `${columnLetter(activeCell.column)}${view.rows[activeCell.row] ? rowLabel(view.rows[activeCell.row], activeCell.row) : activeCell.row + 1}`
                           : ""
                       }
-                      value={selectedPresentation?.text ?? ""}
-                      previewOnly={selectedPresentation?.previewOnly}
+                      value={
+                        selectedIdentifier
+                          ? selectedIdentifier.display
+                          : (selectedPresentation?.text ?? "")
+                      }
+                      caption={
+                        selectedIdentifier
+                          ? selectedKey
+                            ? "Key"
+                            : "Index"
+                          : undefined
+                      }
+                      previewOnly={
+                        selectedIdentifier
+                          ? false
+                          : selectedPresentation?.previewOnly
+                      }
+                      onOpenTable={
+                        !selectedIdentifier &&
+                        (selection.cell.type === "object" ||
+                          selection.cell.type === "array")
+                          ? () => void navigate(selection.cell.path)
+                          : undefined
+                      }
                       editable={
                         !!selection &&
-                        !!activeCell &&
-                        valueColumn(activeCell.column) &&
-                        !selection.cell.container &&
-                        !selectedPresentation?.previewOnly &&
+                        (selectedKey ||
+                          (!!activeCell && valueColumn(activeCell.column))) &&
+                        (selectedKey || !selectedPresentation?.previewOnly) &&
                         selection.cell.writable !== false
                       }
                       onCommit={async (value) => {
                         if (!selection) return;
                         const c = selection.cell;
+                        if (selectedKey) {
+                          await mutate(
+                            { action: "rename", path: c.path, key: value },
+                            selection.revision,
+                          );
+                          return;
+                        }
                         const kind = cellInputKind(c);
-                        const raw =
-                          value === "" && kind !== "string"
-                            ? "null"
-                            : scalarText(kind as Kind, value);
+                        const raw = valueBarRaw(kind, value);
                         await mutate(
                           c.type === "missing"
                             ? {
@@ -2633,406 +3035,453 @@ export default function App() {
                       }}
                     />
                   ) : (
-                    <ValueBarPlaceholder />
+                    <ValueBarPlaceholder address="" />
                   )}
-
-                  {columnName !== null && (
-                    <form
-                      className="column-form"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        void addColumn();
+                  <>
+                    {headerMenu !== null && (
+                      <ColumnMenu
+                        key={`${pointer(query.path)}:${headerMenu}`}
+                        anchor={filterAnchor}
+                        name={columnLabel(view, headerMenu)}
+                        selected={query.valueFilters?.[String(headerMenu)]}
+                        load={async () => {
+                          const p = await client.current!.call<Projection>(
+                            "project",
+                            { ...query, optionsColumn: headerMenu },
+                          );
+                          return {
+                            options: p.filterOptions ?? [],
+                            truncated: !!p.filterOptionsTruncated,
+                          };
+                        }}
+                        onClose={() => setHeaderMenu(null)}
+                        onSort={(direction) => {
+                          changeQuery({
+                            ...query,
+                            page: 0,
+                            sort: direction
+                              ? { column: headerMenu, direction }
+                              : undefined,
+                          });
+                          setHeaderMenu(null);
+                        }}
+                        onApply={(keys) => {
+                          const filters = { ...query.valueFilters };
+                          if (keys === undefined)
+                            delete filters[String(headerMenu)];
+                          else filters[String(headerMenu)] = keys;
+                          changeQuery({
+                            ...query,
+                            page: 0,
+                            valueFilters: filters,
+                          });
+                          setHeaderMenu(null);
+                        }}
+                      />
+                    )}
+                    {columnName !== null && (
+                      <form
+                        className="column-form"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          void addColumn();
+                        }}
+                      >
+                        <label>
+                          Column name{" "}
+                          <input
+                            autoFocus
+                            value={columnName}
+                            disabled={operationBusy}
+                            onChange={(e) => {
+                              setColumnName(e.target.value);
+                              setColumnError("");
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Escape") setColumnName(null);
+                            }}
+                          />
+                        </label>
+                        <button type="submit" disabled={operationBusy}>
+                          Add column
+                        </button>
+                        <button
+                          type="button"
+                          disabled={operationBusy}
+                          onClick={() => setColumnName(null)}
+                        >
+                          Cancel
+                        </button>
+                        {columnError && <span role="alert">{columnError}</span>}
+                      </form>
+                    )}
+                    <SheetRange
+                      isValueColumn={valueColumn}
+                      showIndex={query.showIndex !== false}
+                      onToggleIndex={() => void toggleIndex()}
+                      onOpenRow={(path) => void navigate(path)}
+                      view={view}
+                      selection={sheetSelection}
+                      onSelectionChange={setSheetSelection}
+                      copy={(selected) =>
+                        client.current!.call<string>("copy", {
+                          query,
+                          selection: selected,
+                          revision: view.revision,
+                        })
+                      }
+                      paste={(selected, text) =>
+                        selectionMutation("paste", selected, text)
+                      }
+                      fill={(selected) => selectionMutation("fill", selected)}
+                      apply={async (ops) => {
+                        await mutate(
+                          { action: "batch", commands: ops },
+                          view.revision,
+                        );
+                      }}
+                      onAddRow={() => void addRow()}
+                      onAddColumn={() => {
+                        setColumnName("");
+                        setColumnError("");
                       }}
                     >
-                      <label>
-                        Column name{" "}
-                        <input
-                          autoFocus
-                          value={columnName}
-                          disabled={operationBusy}
-                          onChange={(e) => {
-                            setColumnName(e.target.value);
-                            setColumnError("");
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Escape") setColumnName(null);
-                          }}
-                        />
-                      </label>
-                      <button type="submit" disabled={operationBusy}>
-                        Add column
-                      </button>
-                      <button
-                        type="button"
-                        disabled={operationBusy}
-                        onClick={() => setColumnName(null)}
-                      >
-                        Cancel
-                      </button>
-                      {columnError && <span role="alert">{columnError}</span>}
-                    </form>
-                  )}
-                  <SheetRange
-                    isValueColumn={valueColumn}
-                    showIndex={query.showIndex !== false}
-                    onToggleIndex={() => void toggleIndex()}
-                    onOpenRow={(path) => void navigate(path)}
-                    view={view}
-                    selection={sheetSelection}
-                    onSelectionChange={setSheetSelection}
-                    copy={(selected) =>
-                      client.current!.call<string>("copy", {
-                        query,
-                        selection: selected,
-                        revision: view.revision,
-                      })
-                    }
-                    paste={(selected, text) =>
-                      selectionMutation("paste", selected, text)
-                    }
-                    fill={(selected) => selectionMutation("fill", selected)}
-                    apply={async (ops) => {
-                      await mutate(
-                        { action: "batch", commands: ops },
-                        view.revision,
-                      );
-                    }}
-                    onAddRow={() => void addRow()}
-                    onAddColumn={() => {
-                      setColumnName("");
-                      setColumnError("");
-                    }}
-                  >
-                    <DataGrid<Row>
-                      key={tableHeightKey}
-                      ref={grid}
-                      className={`data-grid ${wrapText ? "wrap-text" : ""} ${sheetSelection ? "" : "without-selection"}`}
-                      columns={columns}
-                      rows={view.rows}
-                      getRowKey={(r) => r.id}
-                      rowHeight={rowHeight}
-                      onColumnResize={(column, width) =>
-                        setColumnWidths((previous) => ({
-                          ...previous,
-                          [`${tableHeightKey}:${column.key}`]: width,
-                        }))
-                      }
-                      headerRowHeight={headerHeight}
-                      renderers={frozenRenderers}
-                      enableVirtualization={frozenLayout.enableVirtualization}
-                      style={{
-                        scrollPaddingTop:
-                          headerHeight + frozenLayout.frozenHeight,
-                      }}
-                      sortColumns={sortColumns}
-                      onSortColumnsChange={(sort) => {
-                        if (busy) return;
-                        const s = sort.at(-1);
-                        changeQuery({
-                          ...query,
-                          sort: s
-                            ? {
-                                column: Number(s.columnKey),
-                                direction: s.direction,
-                              }
-                            : undefined,
-                          page: 0,
-                        });
-                      }}
-                      onCellDoubleClick={({ row, rowIdx, column }) => {
-                        if (
-                          busy ||
-                          Number(column.key) < 0 ||
-                          view.columnKinds[Number(column.key)] === "index"
-                        )
-                          return;
-                        const cell = row.cells[Number(column.key)];
-                        if (
-                          cell.container ||
-                          (keyEditable(Number(column.key)) &&
-                            cell.type === "array")
-                        )
-                          void navigate(cell.path);
-                        else if (keyEditable(Number(column.key)))
-                          startKey(cell, rowIdx);
-                        else if (valueColumn(Number(column.key)))
-                          void startInline(cell, rowIdx, Number(column.key));
-                      }}
-                      onCellKeyDown={(args, event) => {
-                        if (busy) return;
-                        if (args.mode !== "ACTIVE" || !args.row || !args.column)
-                          return;
-                        if (
-                          Number(args.column.key) < 0 ||
-                          view.columnKinds[Number(args.column.key)] === "index"
-                        )
-                          return;
-                        const cell = args.row.cells[Number(args.column.key)];
-                        if (
-                          keyEditable(Number(args.column.key)) &&
-                          (event.key === "F2" ||
-                            (event.key === "Enter" &&
-                              !cell.container &&
-                              cell.type !== "array") ||
-                            (event.key.length === 1 &&
-                              !cell.container &&
-                              cell.type !== "array" &&
-                              !event.metaKey &&
-                              !event.ctrlKey &&
-                              !event.altKey &&
-                              !event.nativeEvent.isComposing))
-                        ) {
-                          event.preventGridDefault();
-                          event.preventDefault();
-                          startKey(
-                            cell,
-                            args.rowIdx,
-                            event.key.length === 1 ? event.key : undefined,
-                          );
-                          return;
+                      <DataGrid<Row>
+                        key={tableHeightKey}
+                        ref={grid}
+                        className={`data-grid ${wrapText ? "wrap-text" : ""} ${sheetSelection ? "" : "without-selection"}`}
+                        columns={columns}
+                        rows={view.rows}
+                        getRowKey={(r) => r.id}
+                        rowHeight={rowHeight}
+                        onColumnResize={(column, width) =>
+                          setColumnWidths((previous) => ({
+                            ...previous,
+                            [`${tableHeightKey}:${column.key}`]: width,
+                          }))
                         }
-
-                        if (
-                          event.key.length === 1 &&
-                          !event.metaKey &&
-                          !event.ctrlKey &&
-                          !event.altKey &&
-                          !event.nativeEvent.isComposing &&
-                          valueColumn(Number(args.column.key)) &&
-                          !cell.container
-                        ) {
-                          event.preventGridDefault();
-                          event.preventDefault();
-                          void startInline(
-                            cell,
-                            args.rowIdx,
-                            Number(args.column.key),
-                            event.key,
-                          );
-                          return;
-                        }
-                        if (
-                          (event.key === "Delete" ||
-                            event.key === "Backspace") &&
-                          valueColumn(Number(args.column.key)) &&
-                          !cell.container &&
-                          cell.writable !== false
-                        ) {
-                          event.preventDefault();
-                          event.preventGridDefault();
-                          if (cell.type !== "missing")
-                            void run(async () => {
-                              await mutate(
-                                {
-                                  action: "replace",
-                                  path: cell.path,
-                                  raw: "null",
-                                },
-                                view.revision,
-                              );
-                              focusCell(args.rowIdx, Number(args.column!.key));
-                            });
-                          return;
-                        }
-                        if (event.key === "Enter" || event.key === "F2") {
-                          event.preventGridDefault();
-                          event.preventDefault();
+                        headerRowHeight={headerHeight}
+                        renderers={frozenRenderers}
+                        enableVirtualization={frozenLayout.enableVirtualization}
+                        style={{
+                          scrollPaddingTop:
+                            headerHeight + frozenLayout.frozenHeight,
+                        }}
+                        sortColumns={sortColumns}
+                        onSortColumnsChange={(sort) => {
+                          if (busy) return;
+                          const s = sort.at(-1);
+                          changeQuery({
+                            ...query,
+                            sort: s
+                              ? {
+                                  column: Number(s.columnKey),
+                                  direction: s.direction,
+                                }
+                              : undefined,
+                            page: 0,
+                          });
+                        }}
+                        onCellDoubleClick={({ row, rowIdx, column }) => {
                           if (
-                            (cell.type === "null" || cell.type === "missing") &&
-                            valueColumn(Number(args.column.key))
+                            busy ||
+                            Number(column.key) < 0 ||
+                            view.columnKinds[Number(column.key)] === "index"
                           )
-                            void startInline(
-                              cell,
-                              args.rowIdx,
-                              Number(args.column.key),
-                            );
-                          else if (
-                            (cell.container ||
-                              (keyEditable(Number(args.column.key)) &&
-                                cell.type === "array")) &&
-                            event.key === "Enter"
+                            return;
+                          const cell = row.cells[Number(column.key)];
+                          if (
+                            keyEditable(Number(column.key)) &&
+                            (cell.container || cell.type === "array")
                           )
                             void navigate(cell.path);
-                          else if (cell.container) void edit(cell);
-                          else if (event.key === "Enter")
-                            focusCell(
-                              Math.max(
-                                0,
-                                Math.min(
-                                  view.rows.length - 1,
-                                  args.rowIdx + (event.shiftKey ? -1 : 1),
-                                ),
-                              ),
-                              Number(args.column.key),
+                          else if (keyEditable(Number(column.key)))
+                            startKey(cell, rowIdx);
+                          else if (valueColumn(Number(column.key)))
+                            void startInline(cell, rowIdx, Number(column.key));
+                        }}
+                        onCellKeyDown={(args, event) => {
+                          if (busy) return;
+                          if (
+                            args.mode !== "ACTIVE" ||
+                            !args.row ||
+                            !args.column
+                          )
+                            return;
+                          if (
+                            Number(args.column.key) < 0 ||
+                            view.columnKinds[Number(args.column.key)] ===
+                              "index"
+                          )
+                            return;
+                          const cell = args.row.cells[Number(args.column.key)];
+                          if (
+                            keyEditable(Number(args.column.key)) &&
+                            (event.key === "F2" ||
+                              (event.key === "Enter" &&
+                                !cell.container &&
+                                cell.type !== "array") ||
+                              (event.key.length === 1 &&
+                                !cell.container &&
+                                cell.type !== "array" &&
+                                !event.metaKey &&
+                                !event.ctrlKey &&
+                                !event.altKey &&
+                                !event.nativeEvent.isComposing))
+                          ) {
+                            event.preventGridDefault();
+                            event.preventDefault();
+                            startKey(
+                              cell,
+                              args.rowIdx,
+                              event.key.length === 1 ? event.key : undefined,
                             );
-                          else if (valueColumn(Number(args.column.key)))
+                            return;
+                          }
+
+                          if (
+                            event.key.length === 1 &&
+                            !event.metaKey &&
+                            !event.ctrlKey &&
+                            !event.altKey &&
+                            !event.nativeEvent.isComposing &&
+                            valueColumn(Number(args.column.key)) &&
+                            !cell.container
+                          ) {
+                            event.preventGridDefault();
+                            event.preventDefault();
                             void startInline(
                               cell,
                               args.rowIdx,
                               Number(args.column.key),
+                              event.key,
                             );
-                        }
-                      }}
-                      aria-label="JSON data table"
-                    />
-                  </SheetRange>
-                  {view.rows.length === 0 && (
-                    <div className="empty-table">
-                      {query.search
-                        ? "No matching rows. Clear the search to show all rows."
-                        : "This container is empty. Add a property or item to begin."}
-                    </div>
-                  )}
-                  <div className="pagination">
-                    <div className="table-actions">
-                      <div className="table-summary">
-                        {!!Object.keys(query.valueFilters ?? {}).length && (
-                          <span className="sort-summary">
-                            Filtered:{" "}
-                            {Object.keys(query.valueFilters ?? {})
-                              .map((k) => columnLabel(view, Number(k)))
-                              .join(", ")}{" "}
+                            return;
+                          }
+                          if (
+                            (event.key === "Delete" ||
+                              event.key === "Backspace") &&
+                            valueColumn(Number(args.column.key)) &&
+                            !cell.container &&
+                            cell.writable !== false
+                          ) {
+                            event.preventDefault();
+                            event.preventGridDefault();
+                            if (cell.type !== "missing")
+                              void run(async () => {
+                                await mutate(
+                                  {
+                                    action: "replace",
+                                    path: cell.path,
+                                    raw: "null",
+                                  },
+                                  view.revision,
+                                );
+                                focusCell(
+                                  args.rowIdx,
+                                  Number(args.column!.key),
+                                );
+                              });
+                            return;
+                          }
+                          if (event.key === "Enter" || event.key === "F2") {
+                            event.preventGridDefault();
+                            event.preventDefault();
+                            if (
+                              (cell.type === "null" ||
+                                cell.type === "missing") &&
+                              valueColumn(Number(args.column.key))
+                            )
+                              void startInline(
+                                cell,
+                                args.rowIdx,
+                                Number(args.column.key),
+                              );
+                            else if (
+                              (cell.container ||
+                                (keyEditable(Number(args.column.key)) &&
+                                  cell.type === "array")) &&
+                              event.key === "Enter"
+                            )
+                              void navigate(cell.path);
+                            else if (cell.container)
+                              void startInline(
+                                cell,
+                                args.rowIdx,
+                                Number(args.column.key),
+                              );
+                            else if (event.key === "Enter")
+                              focusCell(
+                                Math.max(
+                                  0,
+                                  Math.min(
+                                    view.rows.length - 1,
+                                    args.rowIdx + (event.shiftKey ? -1 : 1),
+                                  ),
+                                ),
+                                Number(args.column.key),
+                              );
+                            else if (valueColumn(Number(args.column.key)))
+                              void startInline(
+                                cell,
+                                args.rowIdx,
+                                Number(args.column.key),
+                              );
+                          }
+                        }}
+                        aria-label="JSON data table"
+                      />
+                    </SheetRange>
+                    {view.rows.length === 0 && (
+                      <div className="empty-table">
+                        {query.search
+                          ? "No matching rows. Clear the search to show all rows."
+                          : "This container is empty. Add a property or item to begin."}
+                      </div>
+                    )}
+                    <div className="pagination">
+                      <div className="table-actions">
+                        {((query.records && view.recordsAvailable) ||
+                          view.total === 0) &&
+                        (view.kind === "object" || view.kind === "array") ? (
+                          <>
+                            <button
+                              disabled={busy || columnName !== null}
+                              onClick={() => void addRow()}
+                            >
+                              Add row
+                            </button>
+                            <button
+                              disabled={
+                                busy || view.total === 0 || columnName !== null
+                              }
+                              onClick={() => {
+                                setColumnName("");
+                                setColumnError("");
+                              }}
+                            >
+                              Add column
+                            </button>
+                          </>
+                        ) : (
+                          (view.kind === "object" || view.kind === "array") && (
                             <button
                               disabled={busy}
-                              onClick={() =>
-                                changeQuery({
-                                  ...query,
-                                  valueFilters: undefined,
-                                  page: 0,
-                                })
-                              }
+                              onClick={() => {
+                                setEditError("");
+                                setEditing({
+                                  action: "insert",
+                                  path: view.path,
+                                  revision: view.revision,
+                                  kind: "string",
+                                  value: "",
+                                  key: "",
+                                  parentKind: view.kind,
+                                });
+                              }}
                             >
-                              Clear filters
+                              {view.kind === "object"
+                                ? "Add property"
+                                : "Add item"}
                             </button>
-                          </span>
-                        )}
-                        {query.sort && (
-                          <span className="sort-summary">
-                            Sorted by {columnLabel(view, query.sort.column)} (
-                            {query.sort.direction === "ASC"
-                              ? "ascending"
-                              : "descending"}
-                            ){" "}
-                            <button
-                              disabled={busy}
-                              onClick={() =>
-                                changeQuery({
-                                  ...query,
-                                  sort: undefined,
-                                  page: 0,
-                                })
-                              }
-                            >
-                              Clear sort
-                            </button>
-                          </span>
+                          )
                         )}
                       </div>
 
-                      {((query.records && view.recordsAvailable) ||
-                        view.total === 0) &&
-                      (view.kind === "object" || view.kind === "array") ? (
+                      <button
+                        aria-pressed={wrapText}
+                        onClick={() => setWrapText(!wrapText)}
+                        title="Wrap long or multiline values. Short rows stay compact. Drag a row number’s bottom edge to adjust height."
+                      >
+                        Wrap text
+                      </button>
+                      <FreezeMenu
+                        rows={frozen.rows}
+                        columns={frozen.columns}
+                        selection={activeCell}
+                        rangeSelection={sheetSelection}
+                        pageOffset={view.page * 500}
+                        pageRowCount={view.rows.length}
+                        disabled={busy || !view.rows.length}
+                        paused={freezePaused}
+                        onChange={changeFreeze}
+                      />
+                      <div className="spacer" />
+                      {view.pages > 1 && (
                         <>
                           <button
-                            disabled={busy || columnName !== null}
-                            onClick={() => void addRow()}
-                          >
-                            Add row
-                          </button>
-                          <button
-                            disabled={
-                              busy || view.total === 0 || columnName !== null
+                            disabled={busy || view.page === 0}
+                            onClick={() =>
+                              changeQuery({ ...query, page: view.page - 1 })
                             }
-                            onClick={() => {
-                              setColumnName("");
-                              setColumnError("");
-                            }}
                           >
-                            Add column
+                            Previous
+                          </button>
+                          <span>
+                            Page {view.page + 1} / {view.pages}
+                          </span>
+                          <button
+                            disabled={busy || view.page + 1 >= view.pages}
+                            onClick={() =>
+                              changeQuery({ ...query, page: view.page + 1 })
+                            }
+                          >
+                            Next
                           </button>
                         </>
-                      ) : (
-                        (view.kind === "object" || view.kind === "array") && (
-                          <button
-                            disabled={busy}
-                            onClick={() => {
-                              setEditError("");
-                              setEditing({
-                                action: "insert",
-                                path: view.path,
-                                revision: view.revision,
-                                kind: "string",
-                                value: "",
-                                key: "",
-                                parentKind: view.kind,
-                              });
-                            }}
-                          >
-                            {view.kind === "object"
-                              ? "Add property"
-                              : "Add item"}
-                          </button>
-                        )
                       )}
+                      <FindBar
+                        id="find"
+                        value={findDraft}
+                        onChange={setFindDraft}
+                        disabled={busy}
+                        count={view.searchMatchCount ?? 0}
+                        index={view.searchIndex}
+                        caseSensitive={!!query.searchCaseSensitive}
+                        wholeWord={!!query.searchWholeWord}
+                        onCase={() =>
+                          changeQuery({
+                            ...query,
+                            search: findDraft,
+                            searchCaseSensitive: !query.searchCaseSensitive,
+                            searchResult: undefined,
+                            page: 0,
+                          })
+                        }
+                        onWord={() =>
+                          changeQuery({
+                            ...query,
+                            search: findDraft,
+                            searchWholeWord: !query.searchWholeWord,
+                            searchResult: undefined,
+                            page: 0,
+                          })
+                        }
+                        onNavigate={(direction) => {
+                          const count = view.searchMatchCount ?? 0;
+                          if (!count || busy || findDraft !== query.search)
+                            return;
+                          const index =
+                            view.searchIndex === undefined
+                              ? direction > 0
+                                ? 0
+                                : count - 1
+                              : (view.searchIndex + direction + count) % count;
+                          changeQuery({ ...query, searchResult: index });
+                        }}
+                      />
                     </div>
-
-                    <button
-                      aria-pressed={wrapText}
-                      onClick={() => setWrapText(!wrapText)}
-                      title="Wrap long or multiline values. Short rows stay compact. Drag a row number’s bottom edge to adjust height."
-                    >
-                      Wrap text
-                    </button>
-                    <FreezeMenu
-                      rows={frozen.rows}
-                      columns={frozen.columns}
-                      selection={activeCell}
-                      rangeSelection={sheetSelection}
-                      pageOffset={view.page * 500}
-                      pageRowCount={view.rows.length}
-                      disabled={busy || !view.rows.length}
-                      paused={freezePaused}
-                      onChange={changeFreeze}
-                    />
-                    <div className="spacer" />
-                    {view.pages > 1 && (
-                      <>
-                        <button
-                          disabled={busy || view.page === 0}
-                          onClick={() =>
-                            changeQuery({ ...query, page: view.page - 1 })
-                          }
-                        >
-                          Previous
-                        </button>
-                        <span>
-                          Page {view.page + 1} / {view.pages}
-                        </span>
-                        <button
-                          disabled={busy || view.page + 1 >= view.pages}
-                          onClick={() =>
-                            changeQuery({ ...query, page: view.page + 1 })
-                          }
-                        >
-                          Next
-                        </button>
-                      </>
-                    )}
-                    <input
-                      id="find"
-                      aria-label="Find in table"
-                      placeholder="Find in this table…"
-                      value={findDraft}
-                      onChange={(e) => setFindDraft(e.target.value)}
-                    />
-                  </div>
+                  </>
                 </>
               )}
               {mode === "source" && (
                 <>
                   {sourceDirty && (
                     <div className="source-actions">
-                      <span>Source draft has unapplied changes</span>
+                      <span>
+                        Unapplied draft. Apply or discard to switch scope or
+                        return to Table.
+                      </span>
                       <div className="spacer" />
                       <button
                         disabled={!sourceDirty || busy}
@@ -3062,6 +3511,14 @@ export default function App() {
                               diagnostics,
                             });
                             if (diagnostics.length) return;
+                            const before = view;
+                            const position = before
+                              ? captureReloadPosition(before, sheetSelection)
+                              : null;
+                            const tableQuery = {
+                              ...query,
+                              searchResult: undefined,
+                            };
                             const scopePath = sourceScope?.path ?? [];
                             if (sourceScope)
                               await client.current!.call("mutate", {
@@ -3082,9 +3539,52 @@ export default function App() {
                                 revision: sourceRevision,
                               });
                             setSelection(null);
-                            setSheetSelection(null);
+                            ++selectionRequest.current;
+                            pendingSelection.current = null;
                             navigationHistory.current.delete(activeId);
-                            await refresh();
+                            const projected =
+                              await client.current!.call<Projection>(
+                                "project",
+                                tableQuery,
+                              );
+                            const nextQuery = before
+                              ? remapReloadQuery(
+                                  { ...tableQuery, path: projected.path },
+                                  before,
+                                  projected,
+                                )
+                              : { ...tableQuery, path: projected.path };
+                            const sameTable =
+                              JSON.stringify(nextQuery.path) ===
+                              JSON.stringify(tableQuery.path);
+                            const located =
+                              position && sameTable
+                                ? await client.current!.call<{
+                                    row?: number;
+                                    page: number;
+                                  }>("locate-row", {
+                                    query: nextQuery,
+                                    path: position.rowPath,
+                                  })
+                                : null;
+                            nextQuery.page =
+                              located?.row === undefined
+                                ? Math.min(tableQuery.page, projected.pages - 1)
+                                : located.page;
+                            setQuery(nextQuery);
+                            const updated = await refresh(nextQuery);
+                            const restored = updated
+                              ? restoreReloadSelection(
+                                  position,
+                                  updated,
+                                  located?.row,
+                                )
+                              : null;
+                            setSheetSelection(restored);
+                            if (position?.selected && !restored)
+                              setNotice(
+                                "The previously selected value is no longer visible. Selection cleared.",
+                              );
                             await showSource(scopePath);
                           })
                         }
@@ -3094,6 +3594,24 @@ export default function App() {
                     </div>
                   )}
                   <SourceEditor
+                    wrapLines={sourceWrapLines}
+                    onLocateReady={(locate) => {
+                      sourceLocate.current = locate;
+                    }}
+                    onLocationChange={setHasSourceLocation}
+                    onFormatReady={(format) => {
+                      sourceFormatter.current = format;
+                    }}
+                    formatSource={(text, action) => {
+                      if (!client.current)
+                        return Promise.reject(
+                          new Error("No document is open."),
+                        );
+                      return client.current.call<string>("format-source", {
+                        text,
+                        action,
+                      });
+                    }}
                     key={`${activeId}:${sourceScope ? JSON.stringify(sourceScope.path) : "whole"}`}
                     value={scopedSourceText(source, sourceBase, sourceScope)}
                     onChange={(draft) => {
@@ -3154,7 +3672,7 @@ export default function App() {
                   onReset={() => setRightWidth(360)}
                 />
                 <div className="pane-heading">
-                  <h2>Selected value</h2>
+                  <h2>Details</h2>
                   <button
                     className="inspector-close"
                     aria-label="Close inspector"
@@ -3220,23 +3738,10 @@ export default function App() {
                     )}
                     <div className="inspector-actions">
                       <button
-                        className="primary"
-                        disabled={busy}
-                        onClick={() => {
-                          if (
-                            activeCell &&
-                            (selection.cell.type === "null" ||
-                              selection.cell.type === "missing")
-                          )
-                            void startInline(
-                              selection.cell,
-                              activeCell.row,
-                              activeCell.column,
-                            );
-                          else void edit(selection.cell);
-                        }}
+                        disabled={busy || selection.cell.writable === false}
+                        onClick={() => void edit(selection.cell)}
                       >
-                        Edit value
+                        Change type…
                       </button>
                       {selection.cell.container && (
                         <button
@@ -3367,16 +3872,13 @@ export default function App() {
             >
               v{__APP_VERSION__}
             </span>
-            <span
-              className="document-filename"
-              title={
-                doc.handle
-                  ? `${doc.name} — linked local file. The browser does not expose its absolute disk path.`
-                  : `${doc.name} — the browser does not expose its full disk path.`
-              }
-            >
-              {doc.name}
-            </span>
+            {!desktop && <span className="status-client">Web client</span>}
+            <FileLocation
+              key={activeId}
+              name={doc.name}
+              linked={!!doc.handle}
+              onNotice={setNotice}
+            />
             {updateStatus}
             {recoverySetting}
           </footer>

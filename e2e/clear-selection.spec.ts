@@ -31,9 +31,9 @@ test("blank sheet clears cell and column selections but keeps value-bar editing 
   const cell = page.getByRole("gridcell", { name: "Alpha", exact: true });
   await cell.click();
   const bar = page.getByRole("textbox", { name: "Selected cell value" });
-  await expect(bar).toHaveValue("Alpha");
+  await expect(bar).toHaveValue('"Alpha"');
   await bar.click();
-  await expect(bar).toHaveValue("Alpha");
+  await expect(bar).toHaveValue('"Alpha"');
   await blank(page);
   await expect(bar).toHaveCount(0);
   await expect(page.locator(".status")).not.toContainText("cells selected");
@@ -51,7 +51,7 @@ test("blank sheet clears cell and column selections but keeps value-bar editing 
   await expect(header).toHaveAttribute("aria-pressed", "false");
   await expect(page.locator(".status")).not.toContainText("cells selected");
   await cell.click();
-  await expect(bar).toHaveValue("Alpha");
+  await expect(bar).toHaveValue('"Alpha"');
 });
 test("blank sheet commits valid inline input then clears selection", async ({
   page,
