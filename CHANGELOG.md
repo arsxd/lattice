@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.0-rc.5 — 2026-11-20
+
+- Use neutral charcoal surfaces and clearer headers and menus in dark mode. Source and Review syntax colours follow theme changes without replacing drafts.
+- Remove the absent-property cell fill; explain missing properties through hover hints and an italic editable value-bar prompt.
+- Use the light workspace screenshot in the README.
+
 ## 1.0.0-rc.4 — 2026-11-20
 
 - Add undoable Pretty-print and Minify source actions in a worker, visual line wrapping, and a selected-cell locator with an exact-range underline and persistent gutter bar.
