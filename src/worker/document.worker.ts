@@ -1,3 +1,4 @@
+import { compactPrettyJson } from "../document/compactPrettyJson";
 import { format, parseTree, type ParseError } from "jsonc-parser";
 import {
   copySelection,
@@ -27,17 +28,23 @@ self.onmessage = (event: MessageEvent) => {
           const bom = text.startsWith("\uFEFF") ? "\uFEFF" : "";
           const body = text.slice(bom.length);
           const errors: ParseError[] = [];
-          if (
-            !parseTree(body, errors, {
-              disallowComments: true,
-              allowTrailingComma: false,
-            }) ||
-            errors.length
-          )
+          const root = parseTree(body, errors, {
+            disallowComments: true,
+            allowTrailingComma: false,
+          });
+          if (!root || errors.length)
             throw new Error(
               "Correct the JSON before formatting. Your draft has been kept.",
             );
-          if (args.action === "minify") {
+          if (args.action === "compact") {
+            value =
+              bom +
+              compactPrettyJson(
+                body,
+                root,
+                text.includes("\r\n") ? "\r\n" : "\n",
+              );
+          } else if (args.action === "minify") {
             value =
               bom +
               body.replace(/"(?:[^"\\]|\\[\s\S])*"|\s+/g, (token) =>

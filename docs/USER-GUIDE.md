@@ -1,6 +1,6 @@
 # Using Lattice
 
-[Open the app](https://arsxd.github.io/lattice/) · [Download rc.7 HTML](https://github.com/arsxd/lattice/releases/download/v1.0.0-rc.7/Lattice-Offline.html) · [Documentation](README.md)
+[Open the app](https://arsxd.github.io/lattice/) · [Download rc.8 HTML](https://github.com/arsxd/lattice/releases/download/v1.0.0-rc.8/Lattice-Offline.html) · [Documentation](README.md)
 
 ## Open your first document
 
@@ -81,11 +81,14 @@ Select a cell and choose **Source** to locate its exact JSON. Missing properties
 | This table / Whole document | Select the source editing scope. The current table is the default when navigating inside a document. |
 | Wrap lines                  | Visually wrap long lines; JSON, logical line numbers and draft status do not change.                 |
 | Pretty-print                | Add two-space indentation in an undoable draft.                                                      |
+| Compact                     | Keep short objects and arrays inline, with a 120-character line target and two-space indentation.    |
 | Minify                      | Remove whitespace outside strings in an undoable draft.                                              |
 | Apply source                | Validate and commit the draft to the document engine.                                                |
 | Discard draft               | Restore the committed text, retaining earlier table edits.                                           |
 
-Formatting preserves exact numeric tokens, string contents and property order. Apply or discard a draft before changing scope, returning to Table or saving. Applying a table draft changes only that subtree, keeping sibling data intact. Applying a draft is distinct from saving the file to disk.
+Formatting preserves exact numeric tokens, string contents and property order. Compact keeps the outer container multiline and expands nested containers when needed. Long primitive arrays pack several values per line; object records stay separate. It does not split long strings to meet its line target. Apply or discard a draft before changing scope, returning to Table or saving. Applying a table draft changes only that subtree, keeping sibling data intact. Applying a draft is distinct from saving the file to disk.
+
+Source automatically pairs JSON quotes, braces and brackets while typing. Typing an automatically inserted closing character moves past it; Backspace removes an empty pair. Paste and ordinary cell editing are unchanged.
 
 Source shows advisory syntax squiggles after a short typing pause. Hover an underline, error gutter dot, or affected line number for an explanation. Checks run in a worker and outdated results clear when editing resumes; no error banner interrupts typing. Apply validates again before committing; an invalid draft remains available for repair, with a readable error and optional parser details. Resuming editing clears the previous Apply error.
 

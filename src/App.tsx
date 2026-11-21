@@ -1,3 +1,4 @@
+import { SourceFormatButton } from "./editor/SourceFormatButton";
 import { FileLocation } from "./workspace/FileLocation";
 import { ActiveFilters, columnFilterSummaries } from "./grid/ActiveFilters";
 import { FindBar } from "./grid/FindBar";
@@ -163,7 +164,7 @@ export default function App() {
   const sourceLocate = useRef<(() => void) | null>(null);
   const [formattingSource, setFormattingSource] = useState(false);
   const sourceFormatter = useRef<
-    ((action: "pretty" | "minify") => Promise<void>) | null
+    ((action: "pretty" | "compact" | "minify") => Promise<void>) | null
   >(null);
   const [discardPrompt, setDiscardPrompt] = useState(false);
   const [discardContext, setDiscardContext] = useState("");
@@ -2079,7 +2080,15 @@ export default function App() {
         void save(e.shiftKey);
       }
       if (k === "z") {
-        if (sourceDirty) return;
+        if (
+          sourceDirty ||
+          e.defaultPrevented ||
+          (e.target instanceof Element &&
+            e.target.closest(
+              '.cm-editor, input, textarea, [contenteditable="true"]',
+            ))
+        )
+          return;
         e.preventDefault();
         void history(e.shiftKey ? "redo" : "undo");
       }
@@ -2857,29 +2866,53 @@ export default function App() {
                     >
                       Wrap lines
                     </button>
-                    {(["pretty", "minify"] as const).map((action) => (
-                      <button
-                        key={action}
-                        disabled={busy}
-                        title={
-                          action === "pretty"
-                            ? "Indent this source draft with two spaces"
-                            : "Remove whitespace outside JSON strings"
-                        }
-                        onClick={() =>
-                          void run(async () => {
-                            setFormattingSource(true);
-                            try {
-                              await sourceFormatter.current?.(action);
-                            } finally {
-                              setFormattingSource(false);
+                    <div
+                      className="source-format-options"
+                      role="group"
+                      aria-label="Format"
+                    >
+                      <div className="source-format-buttons">
+                        {(
+                          [
+                            {
+                              action: "pretty",
+                              label: "Pretty-print",
+                              description:
+                                "Put properties and array items on separate lines.",
+                            },
+                            {
+                              action: "compact",
+                              label: "Compact",
+                              description:
+                                "Keep short objects and arrays inline.",
+                            },
+                            {
+                              action: "minify",
+                              label: "Minify",
+                              description:
+                                "Remove formatting whitespace outside strings.",
+                            },
+                          ] as const
+                        ).map(({ action, label, description }) => (
+                          <SourceFormatButton
+                            key={action}
+                            disabled={busy}
+                            label={label}
+                            description={description}
+                            onClick={() =>
+                              void run(async () => {
+                                setFormattingSource(true);
+                                try {
+                                  await sourceFormatter.current?.(action);
+                                } finally {
+                                  setFormattingSource(false);
+                                }
+                              })
                             }
-                          })
-                        }
-                      >
-                        {action === "pretty" ? "Pretty-print" : "Minify"}
-                      </button>
-                    ))}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )}
                 <div className="segmented">

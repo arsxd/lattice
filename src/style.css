@@ -881,7 +881,7 @@ button[aria-pressed="true"] {
   z-index: 100;
   background: var(--surface);
   border: 1px solid var(--line);
-  box-shadow: 0 4px 16px #0003;
+  box-shadow: 0 2px 8px #00000014;
   padding: 4px;
   min-width: 190px;
   display: flex;
@@ -963,7 +963,7 @@ select {
   gap: 6px;
   background: var(--surface);
   border: 1px solid var(--line);
-  box-shadow: 0 5px 20px #0003;
+  box-shadow: 0 2px 8px #00000014;
   padding: 12px;
 }
 .column-menu > button {

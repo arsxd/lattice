@@ -1,8 +1,8 @@
-# v1.0.0-rc.7 validation
+# v1.0.0-rc.8 validation
 
-This is a release candidate, **not the stable release**. This round fixes document-tab semantics, accessible names and Review keyboard access. Grouped child-row layouts remain experimental and are excluded from this candidate.
+This is a release candidate, **not the stable release**. This round adds Compact Source formatting and quote/bracket pairing, and refines formatting controls, menu shadows and the selected-cell arrival cue. Grouped child-row layouts remain experimental and are excluded from this candidate.
 
-Download `Lattice-Offline.html` and `SHA256SUMS.txt` from [v1.0.0-rc.7](https://github.com/arsxd/lattice/releases/tag/v1.0.0-rc.7). The HTML runs by itself. The checksum is optional for use and lets testers identify the exact artifact. The [hosted app](https://arsxd.github.io/lattice/) follows main; its contents may change after this candidate. Use the versioned HTML for a repeatable candidate test.
+Download `Lattice-Offline.html` and `SHA256SUMS.txt` from [v1.0.0-rc.8](https://github.com/arsxd/lattice/releases/tag/v1.0.0-rc.8). The HTML runs by itself. The checksum is optional for use and lets testers identify the exact artifact. The [hosted app](https://arsxd.github.io/lattice/) follows main; its contents may change after this candidate. Use the versioned HTML for a repeatable candidate test.
 
 ## Automated gates
 
