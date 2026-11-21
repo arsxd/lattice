@@ -50,7 +50,10 @@ test("opens a local JSON file, edits inline, and selects full rows and columns",
     .getByRole("button", { name: /^Select column [A-Z]+ count$/, exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: /^Select column [A-Z]+ count$/, exact: true }),
+    page.getByRole("button", {
+      name: /^Select column [A-Z]+ count$/,
+      exact: true,
+    }),
   ).toHaveAttribute("aria-pressed", "true");
 });
 test("review blocks invalid drafts and selectively restores a changed region", async ({
@@ -358,7 +361,10 @@ test("reload retains selected property page and scroll after external column reo
     )
     .toBe(before);
   await expect(
-    page.getByRole("button", { name: /^Select column [A-Z]+ id$/, exact: true }),
+    page.getByRole("button", {
+      name: /^Select column [A-Z]+ id$/,
+      exact: true,
+    }),
   ).toContainText("C");
 });
 
@@ -530,7 +536,10 @@ test("header and corner selections show a range summary instead of the first val
   const width = await header.evaluate((e) => e.getBoundingClientRect().width);
   await header.click({ position: { x: width - 3, y: 3 } });
   await expect(
-    page.getByRole("button", { name: /^Select column [A-Z]+ count$/, exact: true }),
+    page.getByRole("button", {
+      name: /^Select column [A-Z]+ count$/,
+      exact: true,
+    }),
   ).toHaveAttribute("aria-pressed", "true");
   await page
     .getByRole("button", { name: "Sort and filter count", exact: true })
@@ -675,7 +684,10 @@ test("recovers an incomplete scoped draft without losing sibling data", async ({
   await page.getByRole("button", { name: "Source", exact: true }).click();
   const draft = page.getByRole("textbox", { name: "JSON source draft" });
   await expect(draft).toHaveText('[{"value":1}]');
-  await draft.fill("[");
+  await draft.fill("");
+  await draft.press("[");
+  await draft.press("Delete");
+  await expect(draft).toHaveText("[");
   // Wait for the actual persisted snapshot, not merely the debounce timer.
   await expect
     .poll(() =>

@@ -1,3 +1,4 @@
+import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { sourceDiagnostics } from "./sourceDiagnostics";
 import { editorTheme } from "./editorTheme";
 import { sourceLineSeparator, sourceTextMatches } from "./sourceText";
@@ -110,9 +111,12 @@ export function SourceEditor({
   onLocateReady: (locate: (() => void) | null) => void;
   onLocationChange: (available: boolean) => void;
   onFormatReady: (
-    format: ((action: "pretty" | "minify") => Promise<void>) | null,
+    format: ((action: "pretty" | "compact" | "minify") => Promise<void>) | null,
   ) => void;
-  formatSource: (text: string, action: "pretty" | "minify") => Promise<string>;
+  formatSource: (
+    text: string,
+    action: "pretty" | "compact" | "minify",
+  ) => Promise<string>;
   target?: { from: number; to: number; id: number } | null;
   onChange: (text: string) => void;
 }) {
@@ -145,9 +149,15 @@ export function SourceEditor({
           drawSelection(),
           highlightActiveLineGutter(),
           json(),
+          closeBrackets(),
           sourceDiagnostics,
           syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-          keymap.of([...historyKeymap, ...defaultKeymap, indentWithTab]),
+          keymap.of([
+            ...closeBracketsKeymap,
+            ...historyKeymap,
+            ...defaultKeymap,
+            indentWithTab,
+          ]),
           EditorView.updateListener.of((update) => {
             if (
               update.startState.field(sourceLocationField) !==
@@ -181,9 +191,17 @@ export function SourceEditor({
     view.current = editor;
     onLocateReady(() => {
       const location = editor.state.field(sourceLocationField);
-      if (location)
-        editor.dispatch({
-          effects: EditorView.scrollIntoView(location.from, { y: "center" }),
+      if (!location) return;
+      editor.dispatch({
+        effects: EditorView.scrollIntoView(location.from, { y: "center" }),
+      });
+      // Visible lines retain their DOM, so replay the completed arrival animation.
+      editor.dom
+        .querySelector(".source-cell-arrival")
+        ?.getAnimations()
+        .forEach((animation) => {
+          animation.currentTime = 0;
+          animation.play();
         });
     });
     let alive = true;

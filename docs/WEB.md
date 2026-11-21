@@ -1,6 +1,6 @@
 # Web architecture and verification
 
-Lattice v1.0.0-rc.7 distributes a hosted PWA and a single-file offline HTML. Native apps are not released. Node 24 is for development only; end users need only a supported desktop browser.
+Lattice v1.0.0-rc.8 distributes a hosted PWA and a single-file offline HTML. Native apps are not released. Node 24 is for development only; end users need only a supported desktop browser.
 
 ## Build and verification
 
@@ -13,7 +13,7 @@ GitHub Pages deploys only `main` after verification. Feature-branch workflow dis
 
 ## Data and revisions
 
-Each document has its own worker-backed text/AST engine. Mutations and bulk operations guard the canonical revision; numbers and string tokens are retained as text. Source formatting and document operations run in the document worker. Pretty-print applies whitespace edits in one join rather than repeatedly copying the whole document; Minify removes only whitespace outside strings. Source visual wrapping does not mutate text. A mapped CodeMirror decoration and gutter marker track the selected value; whole-draft formatting clears the positional marker. Review validation uses a separate worker. Its baseline is read-only, current pane editable; per-hunk restore changes only the draft. Strict review Apply validates again in the canonical worker and creates one undoable document commit. Source can still represent invalid repair drafts. LF/CRLF replacement and cross-pane restoration use CodeMirror Text to avoid doubled carriage returns.
+Each document has its own worker-backed text/AST engine. Mutations and bulk operations guard the canonical revision; numbers and string tokens are retained as text. Source formatting and document operations run in the document worker. Pretty-print applies whitespace edits in one join rather than repeatedly copying the whole document; Compact uses bounded inline candidates and original AST token slices to keep short containers inline without re-serializing values; Minify removes only whitespace outside strings. Source visual wrapping does not mutate text. A mapped CodeMirror decoration and gutter marker track the selected value; whole-draft formatting clears the positional marker. Review validation uses a separate worker. Its baseline is read-only, current pane editable; per-hunk restore changes only the draft. Strict review Apply validates again in the canonical worker and creates one undoable document commit. Source can still represent invalid repair drafts. LF/CRLF replacement and cross-pane restoration use CodeMirror Text to avoid doubled carriage returns.
 
 Reload retains the nearest available nested location, remaps query columns by name and role, locates the previous row once after filtering/sorting, and restores its page/active cell and compatible scroll position. Deleted cells clear selection. Multi-cell ranges collapse to the active cell. Array paths are positional; no heuristic record identity is invented. Reload resets undo/navigation history.
 

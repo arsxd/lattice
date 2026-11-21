@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.0-rc.8 — 2026-11-21
+
+- Add undoable Compact Source formatting: keep short containers inline, pack long primitive lists across lines, and preserve exact numeric/string tokens.
+- Pair JSON quotes, braces and brackets in Source with the standard CodeMirror extension; ordinary cell editing remains literal.
+- Group the formatting buttons with concise hover/focus explanations and no visible title.
+- Replay the selected-cell arrival highlight even when the target is already visible.
+- Keep focused editor Undo/Redo separate from document history so formatting drafts are not unexpectedly reloaded.
+- Soften context-menu and column-menu shadows.
+
 ## 1.0.0-rc.7 — 2026-11-20
 
 - Correct document-tab ownership so close controls stay separate from the tablist while retaining arrow-key switching.
