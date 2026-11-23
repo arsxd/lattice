@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.0 — unreleased
+
+Summary of everything since the first public preview. This entry becomes the 1.0.0 release notes when the stable release is published; until then the release-candidate entries below are the record.
+
+- **Edit JSON as a spreadsheet.** Inline cell editing with Excel-style keys, ranges, copy/paste, fill down, add/duplicate/delete rows and columns, and one undo history per document.
+- **Sort, filter and Find** without changing the saved order, including column value filters, case and whole-word matching, and result navigation.
+- **Nested data.** Bounded inline previews, a contents table in Details, a browse tree, document tabs and back/forward navigation.
+- **Exact data.** Edits patch the source text. Large numbers, string escapes, key order, BOM and line endings are preserved, and absent, `null`, empty and zero values stay distinct.
+- **Source and Review.** A scoped Source editor with live syntax hints, Pretty-print, Compact and Minify, and an editable side-by-side Review diff with per-change restore.
+- **Safe saving.** Linked-file Save refuses to overwrite external changes, a cancelled Save as keeps your edits, and opt-in local recovery restores unsaved drafts.
+- **Three ways to run it.** A hosted PWA, an installable offline app, and a single `Lattice-Offline.html`. No upload endpoint or analytics integration is implemented.
+- **Accessible, themed UI.** Light and dark themes, keyboard operation, labelled controls and reduced-motion support. Automated checks pass; hands-on screen-reader and zoom checks are tracked in the release checklist.
+- **Project health.** 0BSD license with third-party notices, protected main with Windows, Linux and macOS checks, lint checks for React hooks and accessibility, and a [security policy](SECURITY.md).
+- **Not in 1.0.** Formulas, charts, JSON Schema validation, Excel/CSV import, and grouped/merged sheets (experimental).
+
 ## 1.0.0-rc.9 — 2026-11-23
 
 - Open column menus without re-sorting the table first, so a following sort starts sooner on large tables (about 880 ms to 650 ms when re-sorting a 25 MiB file on the measured machine).
