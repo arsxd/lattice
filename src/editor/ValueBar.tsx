@@ -43,6 +43,8 @@ function ValueBarEditor({
 }: Props & { isCurrent: () => boolean }) {
   const [draft, setDraft] = useState(value);
   const [expanded, setExpanded] = useState(false);
+  // Expanding only helps when the value has line breaks or runs past the field.
+  const [expandable, setExpandable] = useState(false);
   const [error, setError] = useState("");
   const textarea = useRef<HTMLTextAreaElement>(null);
   const mounted = useRef(true);
@@ -65,10 +67,19 @@ function ValueBarEditor({
       node.style.height = expanded
         ? `${Math.min(152, window.innerHeight * 0.25, Math.max(32, node.scrollHeight))}px`
         : "30px";
+      measure();
+    };
+    // Measured while collapsed (no wrapping); keep the last answer once expanded.
+    const measure = () => {
+      if (!expanded)
+        setExpandable(
+          draft.includes("\n") || node.scrollWidth > node.clientWidth,
+        );
     };
     resize();
     let width = field.clientWidth;
     const observer = new ResizeObserver(() => {
+      measure();
       if (width === field.clientWidth) return;
       width = field.clientWidth;
       resize();
@@ -169,18 +180,20 @@ function ValueBarEditor({
             }
           }}
         />
-        <button
-          type="button"
-          className="value-bar-expand"
-          title={expanded ? "Collapse value bar" : "Expand value bar"}
-          aria-label={expanded ? "Collapse value bar" : "Expand value bar"}
-          aria-expanded={expanded}
-          aria-controls="cell-value"
-          onPointerDown={(event) => event.preventDefault()}
-          onClick={() => setExpanded(!expanded)}
-        >
-          <ColumnMenuChevron />
-        </button>
+        {(expanded || expandable) && (
+          <button
+            type="button"
+            className="value-bar-expand"
+            title={expanded ? "Collapse value bar" : "Expand value bar"}
+            aria-label={expanded ? "Collapse value bar" : "Expand value bar"}
+            aria-expanded={expanded}
+            aria-controls="cell-value"
+            onPointerDown={(event) => event.preventDefault()}
+            onClick={() => setExpanded(!expanded)}
+          >
+            <ColumnMenuChevron />
+          </button>
+        )}
       </div>
       {onOpenTable && (
         <button

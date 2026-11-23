@@ -2667,7 +2667,8 @@ export default function App() {
             <button
               disabled={
                 busy ||
-                (mode !== "review" && (sourceDirty || !!doc?.reviewUnavailable))
+                (mode !== "review" &&
+                  (sourceDirty || !!doc?.reviewUnavailable || !dirty))
               }
               aria-pressed={mode === "review"}
               onClick={() => void toggleReview()}
@@ -2676,7 +2677,9 @@ export default function App() {
                   ? "Return to the previous view"
                   : doc?.reviewUnavailable
                     ? "Comparison unavailable: local recovery contains the draft but not the original file. A confirmed save establishes a new baseline."
-                    : "Compare with the opened or saved version"
+                    : !dirty
+                      ? "No changes to review yet"
+                      : "Compare with the opened or saved version"
               }
             >
               {mode === "review" ? "Close review" : "Review changes"}

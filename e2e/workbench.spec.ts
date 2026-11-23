@@ -14,6 +14,13 @@ test.beforeEach(async ({ page }) => {
   );
   await page.goto("/");
 });
+// Review is only available once something has changed.
+async function editFirstName(page: Page, value = "Edited") {
+  await cell(page, 0, 1).dblclick();
+  const editor = page.getByRole("textbox", { name: "Edit name (string)" });
+  await editor.fill(value);
+  await editor.press("Enter");
+}
 async function open(page: Page, text: string, name = "smoke.json") {
   const chooser = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: "Open…", exact: true }).click();
@@ -235,6 +242,7 @@ test("keeps a review draft through document switches and prevents silent Source 
   await open(page, '[{"name":"First"}]', "first.json");
   await open(page, '[{"name":"Second"}]', "second.json");
   await page.getByRole("tab", { name: /^first\.json/ }).click();
+  await editFirstName(page);
   await page
     .getByRole("button", { name: "Review changes", exact: true })
     .click();
@@ -636,6 +644,7 @@ test("Review toggles back to its previous view and confirms discarding a dirty d
   page,
 }) => {
   await open(page, '[{"name":"Original"}]');
+  await editFirstName(page, "Original v2");
   await page
     .getByRole("button", { name: "Review changes", exact: true })
     .click();
@@ -858,6 +867,7 @@ test("minimum-width toolbar retains all controls and confirmation traps focus", 
   }));
   expect(bounds.scrollWidth).toBeLessThanOrEqual(bounds.width);
   expect(bounds.right).toBeLessThanOrEqual(718);
+  await editFirstName(page);
   await page
     .getByRole("button", { name: "Review changes", exact: true })
     .click();
@@ -981,4 +991,45 @@ test("Wrap text shows long text in full when there is room", async ({
     .toBeGreaterThan(200);
   await page.getByRole("button", { name: "Wrap text", exact: true }).click();
   await expect(cell(page, 0, 1)).toContainText("…");
+});
+
+test("Review changes is available only when there is something to review", async ({
+  page,
+}) => {
+  await open(page, '[{"name":"Alpha"}]');
+  const review = page.getByRole("button", {
+    name: "Review changes",
+    exact: true,
+  });
+  await expect(review).toBeDisabled();
+  await cell(page, 0, 1).dblclick();
+  const editor = page.getByRole("textbox", { name: "Edit name (string)" });
+  await editor.fill("Beta");
+  await editor.press("Enter");
+  await expect(review).toBeEnabled();
+});
+
+test("the value bar offers Expand only when the value needs more room", async ({
+  page,
+}) => {
+  await open(
+    page,
+    JSON.stringify([{ short: "Alpha", long: "word ".repeat(400) }]),
+  );
+  const expand = page.getByRole("button", { name: "Expand value bar" });
+  await cell(page, 0, 1).click();
+  await expect(
+    page.getByRole("textbox", { name: "Selected cell value" }),
+  ).toHaveValue('"Alpha"');
+  await expect(expand).toHaveCount(0);
+  await cell(page, 0, 2).click();
+  await expect(expand).toBeVisible();
+  await expand.click();
+  await expect
+    .poll(() =>
+      page
+        .getByRole("textbox", { name: "Selected cell value" })
+        .evaluate((e) => e.getBoundingClientRect().height),
+    )
+    .toBeGreaterThan(60);
 });
