@@ -34,7 +34,7 @@ The file input uses an on-disk fixture path. Passing a large in-memory buffer th
 
 ## rc.8 measurements
 
-Re-measured 2026-11-23 on Apple M4, macOS arm64, Chromium 158.0.8127.18 (Playwright), production preview of rc.8 plus unreleased cleanup and the column-menu fix below. Same fixtures as above, three runs per size. The script was updated for the current grid (hidden Index column, lettered column buttons, JSON-form value bar). Slow steps now wait on a per-frame check instead of Playwright's assertion retries, which poll at 100 to 1,000 ms steps and inflated earlier sort figures by up to about 350 ms. Sort and Re-sort include opening the column menu, its short fade and loading its value list.
+Re-measured 2026-11-23 on Apple M4, macOS arm64, Chromium 158.0.8127.18 (Playwright), production preview of the code released as rc.9, including the column-menu fix below. Same fixtures as above, three runs per size. The script was updated for the current grid (hidden Index column, lettered column buttons, JSON-form value bar). Slow steps now wait on a per-frame check instead of Playwright's assertion retries, which poll at 100 to 1,000 ms steps and inflated earlier sort figures by up to about 350 ms. Sort and Re-sort include opening the column menu, its short fade and loading its value list.
 
 | Fixture |   Rows |          Open |      Navigate |        Select |          Edit |          Sort |       Re-sort |
 | ------- | -----: | ------------: | ------------: | ------------: | ------------: | ------------: | ------------: |

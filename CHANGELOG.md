@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.0-rc.9 — 2026-11-23
+
+- Open column menus without re-sorting the table first, so a following sort starts sooner on large tables (about 880 ms to 650 ms when re-sorting a 25 MiB file on the measured machine).
+- Remove unused desktop (Tauri) code and its dependency from the web app.
+- Add oxlint checks for React hooks and accessibility to CI.
+- Re-measure browser performance for rc.9 and fix the benchmark script for the current grid; slow steps are now timed per frame.
+- Use neutral fictional names in test fixtures.
+
 ## 1.0.0-rc.8 — 2026-11-21
 
 - Add undoable Compact Source formatting: keep short containers inline, pack long primitive lists across lines, and preserve exact numeric/string tokens.

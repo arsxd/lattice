@@ -1,6 +1,6 @@
 # Using Lattice
 
-[Open the app](https://arsxd.github.io/lattice/) · [Download rc.8 HTML](https://github.com/arsxd/lattice/releases/download/v1.0.0-rc.8/Lattice-Offline.html) · [Documentation](README.md)
+[Open the app](https://arsxd.github.io/lattice/) · [Download rc.9 HTML](https://github.com/arsxd/lattice/releases/download/v1.0.0-rc.9/Lattice-Offline.html) · [Documentation](README.md)
 
 ## Open your first document
 
