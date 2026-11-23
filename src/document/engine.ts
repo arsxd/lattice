@@ -724,12 +724,14 @@ export class DocumentEngine {
     this.guard(revision);
     if (this.diagnostics.length)
       throw new Error("Repair JSON before copying or pasting.");
-    return this.project(query, selection).selectedCells ?? [];
+    // Only the selected cells are needed: skip building the visible page.
+    return this.project(query, selection, undefined, true).selectedCells ?? [];
   }
   project(
     query: Query,
     selection?: SheetSelection,
     locateRowPath?: Path,
+    selectionOnly = false,
   ): Projection & { selectedCells?: SelectedCell[][] } {
     let path = query.path;
     let n: Node | undefined;
@@ -1067,7 +1069,7 @@ export class DocumentEngine {
     let searchMatchCount = 0;
     let searchSelection: { row: number; column: number } | undefined;
     let searchIndex: number | undefined;
-    if (search) {
+    if (search && !selectionOnly) {
       for (let row = 0; row < filtered.length; row++) {
         for (let column = 0; column < headers.length; column++) {
           if (!matchesCell(filtered[row], column)) continue;
@@ -1132,6 +1134,8 @@ export class DocumentEngine {
           )
         : [];
     }
+    // Callers that only need the selected cells never use the rest.
+    if (selectionOnly) return { selectedCells } as never;
     const matched = filtered.length,
       pages = Math.max(1, Math.ceil(matched / PAGE_SIZE)),
       page = Math.max(
