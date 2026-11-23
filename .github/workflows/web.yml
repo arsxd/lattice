@@ -20,6 +20,7 @@ jobs:
       - run: npm audit --omit=dev --audit-level=high
       - run: npm run notices
       - run: git diff --exit-code -- public/third-party-notices.txt public/license.txt
+      - run: npm run lint
       - run: npm test
       - run: npm run offline:build
       - run: node scripts/build-pwa.mjs

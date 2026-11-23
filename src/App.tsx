@@ -84,7 +84,6 @@ import {
 } from "./platform/files";
 import { SourceEditor } from "./editor/SourceEditor";
 import {
-  scalarText,
   cellInputKind,
   valueBarRaw,
   cellEntryText,

@@ -1,6 +1,6 @@
 # Performance and limits
 
-**Historical measurements:** the runs below were recorded before rc.4 and have not been re-measured for rc.4. They describe one synthetic shape on one machine, not a current-version benchmark or supported maximum.
+**Historical measurements:** the first two tables below were recorded before rc.4. The [rc.8 measurements](#rc8-measurements) section re-measures the same workflows. They describe one synthetic shape on one machine, not a current-version benchmark or supported maximum.
 
 Measured 2026-11-13 on Apple M4, macOS arm64, Chromium 158.0.8127.18. Production build, 1440 × 900 viewport, no CPU throttling. Three runs per size; fresh page per run in a reused browser. Generic product records include strings, numbers, booleans, arrays and nested objects.
 
@@ -31,6 +31,20 @@ Wall-clock medians in milliseconds (minimum–maximum). Measurements include Pla
 All nine runs completed without page errors. Each measured view rendered 216 data cells despite the larger collection sizes. No main-thread tasks over 50 ms were recorded by the observer during these runs; this does not measure worker CPU or guarantee smoothness on other hardware. Browser/process memory was not measured.
 
 The file input uses an on-disk fixture path. Passing a large in-memory buffer through automation injected an artificial file-transfer long task; those preliminary timings were excluded.
+
+## rc.8 measurements
+
+Re-measured 2026-11-23 on Apple M4, macOS arm64, Chromium 158.0.8127.18 (Playwright), production preview of rc.8 plus unreleased cleanup (removal of unused desktop code, lint setup). Same fixtures, method and caveats as above, three runs per size. The benchmark script was updated for the current grid (hidden Index column, lettered column buttons, JSON-form value bar).
+
+| Fixture |   Rows |          Open |      Navigate |        Select |          Edit |                Sort |
+| ------- | -----: | ------------: | ------------: | ------------: | ------------: | ------------------: |
+| ~1 MiB  |  3,785 | 175 (159–179) | 150 (150–151) | 116 (100–117) | 104 (104–119) |       329 (328–331) |
+| ~5 MiB  | 18,927 | 274 (264–279) | 150 (150–150) | 117 (116–117) | 100 (100–101) |       383 (382–383) |
+| ~25 MiB | 94,636 | 872 (871–874) | 250 (249–250) | 183 (167–183) | 167 (150–167) | 1,150 (1,149–1,150) |
+
+All nine runs completed without page errors or recorded long tasks; each view rendered 175 data cells. Open, navigate, select and edit match the earlier numbers within a frame or two. **Sort is about 2.4 to 2.8 times slower than the earlier measurement** (for example 483 ms to 1,150 ms at 25 MiB). The cause has not been investigated, and the earlier run was on a pre-rc.4 build with the same Chromium version, so treat this as an unexplained difference, not a confirmed regression.
+
+Node engine only (`npm run bench`, same machine): 5,000 rows opened in 28 ms and projected in 16 ms; 100,000 rows opened in 448 ms and projected in 65 ms with about 678 MiB process RSS. This does not include browser memory.
 
 ## Findings
 
