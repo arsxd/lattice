@@ -1,34 +1,117 @@
 import { sourceLineSeparator, sourceTextMatches } from "./sourceText";
 import { sourceRawRangeToDocument } from "./sourceScope";
 import { useEffect, useRef } from "react";
-import { EditorState } from "@codemirror/state";
+import { EditorState, StateEffect, StateField, Compartment } from "@codemirror/state";
 import {
   EditorView,
-  lineNumbers,
+  Decoration,
+  GutterMarker,
+  gutter,
   drawSelection,
-  highlightActiveLine,
+  highlightActiveLineGutter,
   keymap,
 } from "@codemirror/view";
-import { defaultKeymap, indentWithTab } from "@codemirror/commands";
+import { history, historyKeymap, isolateHistory, defaultKeymap, indentWithTab } from "@codemirror/commands";
 import {
   syntaxHighlighting,
   defaultHighlightStyle,
 } from "@codemirror/language";
 import { json } from "@codemirror/lang-json";
+const sourceLocation = StateEffect.define<{ from: number; to: number } | null>();
+const sourceLocationField = StateField.define<{ from: number; to: number } | null>({
+  create: () => null,
+  update(location, transaction) {
+    if (transaction.docChanged && location) {
+      const from = transaction.changes.mapPos(location.from, -1);
+      const to = transaction.changes.mapPos(location.to, 1);
+      location = from < to ? { from, to } : null;
+    }
+    for (const effect of transaction.effects)
+      if (effect.is(sourceLocation)) location = effect.value;
+    return location;
+  },
+  provide: field => EditorView.decorations.compute([field], state => {
+    const location = state.field(field);
+    if (!location || location.from >= location.to) return Decoration.none;
+    const startLine = state.doc.lineAt(location.from);
+    const marks = [Decoration.line({ class: "source-cell-arrival" }).range(startLine.from)];
+    marks.push(Decoration.mark({ class: "source-cell-location" }).range(location.from, location.to));
+    return Decoration.set(marks, true);
+  }),
+});
+class SourceLocationMarker extends GutterMarker {
+  toDOM() {
+    const marker = document.createElement("span");
+    marker.className = "source-cell-marker";
+    marker.title = "Current table cell";
+    marker.setAttribute("aria-label", "Current table cell");
+    return marker;
+  }
+}
+const sourceLocationMarker = new SourceLocationMarker();
+const sourceLocationGutter = gutter({
+  class: "source-location-gutter",
+  lineMarker: (view, line) => {
+    const location = view.state.field(sourceLocationField);
+    if (!location) return null;
+    const start = view.state.doc.lineAt(location.from).from;
+    const end = view.state.doc.lineAt(Math.max(location.from, location.to - 1)).from;
+    return line.from >= start && line.from <= end ? sourceLocationMarker : null;
+  },
+  lineMarkerChange: update => update.startState.field(sourceLocationField) !== update.state.field(sourceLocationField),
+});
+
+class SourceLineNumberMarker extends GutterMarker {
+  elementClass: string;
+  constructor(readonly number: number, readonly current: boolean) {
+    super();
+    this.elementClass = current ? "source-cell-line-number" : "";
+  }
+  eq(other: SourceLineNumberMarker) { return this.number === other.number && this.current === other.current; }
+  toDOM() { return document.createTextNode(String(this.number)); }
+}
+const sourceLineNumbers = gutter({
+  class: "cm-lineNumbers",
+  lineMarker(view, block) {
+    const line = view.state.doc.lineAt(block.from);
+    const location = view.state.field(sourceLocationField);
+    const current = !!location && line.to >= location.from && line.from < location.to;
+    return new SourceLineNumberMarker(line.number, current);
+  },
+  initialSpacer: view => new SourceLineNumberMarker(view.state.doc.lines, false),
+  updateSpacer: (_spacer, update) => new SourceLineNumberMarker(update.state.doc.lines, false),
+  lineMarkerChange: update => update.docChanged || update.startState.field(sourceLocationField) !== update.state.field(sourceLocationField),
+});
+
 export function SourceEditor({
   value,
   onChange,
   target,
+  onFormatReady,
+  formatSource,
+  wrapLines,
+  onLocateReady,
+  onLocationChange,
 }: {
   value: string;
+  wrapLines: boolean;
+  onLocateReady: (locate: (() => void) | null) => void;
+  onLocationChange: (available: boolean) => void;
+  onFormatReady: (format: ((action: "pretty" | "minify") => Promise<void>) | null) => void;
+  formatSource: (text: string, action: "pretty" | "minify") => Promise<string>;
   target?: { from: number; to: number; id: number } | null;
   onChange: (text: string) => void;
 }) {
   const parent = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView>(null);
   const syncing = useRef(false);
+  const wrapping = useRef(new Compartment());
+  const locationCallback = useRef(onLocationChange);
+  locationCallback.current = onLocationChange;
   const callback = useRef(onChange);
   callback.current = onChange;
+  const formatter = useRef(formatSource);
+  formatter.current = formatSource;
   useEffect(() => {
     if (!parent.current) return;
     const editor = new EditorView({
@@ -37,13 +120,20 @@ export function SourceEditor({
         doc: value,
         extensions: [
           EditorState.lineSeparator.of(sourceLineSeparator(value)),
-          lineNumbers(),
+          history(),
+          wrapping.current.of(wrapLines ? EditorView.lineWrapping : []),
+          sourceLocationField,
+          sourceLocationGutter,
+          sourceLineNumbers,
+
           drawSelection(),
-          highlightActiveLine(),
+          highlightActiveLineGutter(),
           json(),
           syntaxHighlighting(defaultHighlightStyle),
-          keymap.of([...defaultKeymap, indentWithTab]),
+          keymap.of([...historyKeymap, ...defaultKeymap, indentWithTab]),
           EditorView.updateListener.of((update) => {
+            if (update.startState.field(sourceLocationField) !== update.state.field(sourceLocationField))
+              locationCallback.current(!!update.state.field(sourceLocationField));
             if (update.docChanged && !syncing.current)
               callback.current(update.state.sliceDoc());
           }),
@@ -67,8 +157,30 @@ export function SourceEditor({
       }),
     });
     view.current = editor;
-    return () => editor.destroy();
+    onLocateReady(() => {
+      const location = editor.state.field(sourceLocationField);
+      if (location) editor.dispatch({ effects: EditorView.scrollIntoView(location.from, { y: "center" }) });
+    });
+    let alive = true;
+    onFormatReady(async (action) => {
+      const original = editor.state.doc;
+      const text = editor.state.sliceDoc();
+      const formatted = await formatter.current(text, action);
+      if (!alive) return;
+      if (!editor.state.doc.eq(original))
+        throw new Error("The draft changed while formatting. Try again; your latest edits have been kept.");
+      if (formatted !== text) editor.dispatch({
+        changes: { from: 0, to: editor.state.doc.length, insert: formatted },
+        annotations: isolateHistory.of("full"),
+        effects: sourceLocation.of(null),
+      });
+      editor.focus();
+    });
+    return () => { alive = false; onFormatReady(null); onLocateReady(null); locationCallback.current(false); editor.destroy(); };
   }, []);
+  useEffect(() => {
+    view.current?.dispatch({ effects: wrapping.current.reconfigure(wrapLines ? EditorView.lineWrapping : []) });
+  }, [wrapLines]);
   useEffect(() => {
     const editor = view.current;
     if (editor && !sourceTextMatches(editor.state, value)) {
@@ -76,6 +188,7 @@ export function SourceEditor({
       try {
         editor.dispatch({
           changes: { from: 0, to: editor.state.doc.length, insert: value },
+          effects: sourceLocation.of(null),
         });
       } finally {
         syncing.current = false;
@@ -84,14 +197,13 @@ export function SourceEditor({
   }, [value]);
   useEffect(() => {
     const editor = view.current;
-    if (!editor || !target) return;
+    if (!editor) return;
+    if (!target) { editor.dispatch({ effects: sourceLocation.of(null) }); return; }
     const selection = sourceRawRangeToDocument(value, target);
     if (!selection || selection.to > editor.state.doc.length) return;
     editor.dispatch({
-      selection: { anchor: selection.from, head: selection.to },
-      effects: EditorView.scrollIntoView(selection.from, { y: "center" }),
+      effects: [sourceLocation.of(selection), EditorView.scrollIntoView(selection.from, { y: "center" })],
     });
-    editor.focus();
   }, [target]);
   return <div className="source-editor" ref={parent} />;
 }

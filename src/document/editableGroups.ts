@@ -252,6 +252,7 @@ export function expandedRows(
   sort: ExpandedSort | undefined,
   filters: Record<string, string[]>,
   compare: (a: string, b: string) => number,
+  matchText?: (text: string) => boolean,
 ) {
   const p = section.parentHeaders.length,
     term = search.toLocaleLowerCase();
@@ -262,9 +263,9 @@ export function expandedRows(
         filters[String(i + offset)].includes(cell.cell.type + ":" + cell.value),
     );
   const matches = (cells: ExpandedCell[]) =>
-    cells.some((c) => c.value.toLocaleLowerCase().includes(term));
+    cells.some((c) => matchText ? matchText(c.value) : c.value.toLocaleLowerCase().includes(term));
   if (section.dictionaryBands)
-    return dictionaryRows(section, search, sort, filters, compare);
+    return dictionaryRows(section, search, sort, filters, compare, matchText);
   const groups = section.groups.flatMap((group) => {
     if (!accepts(group.parent, 0)) return [];
     const children = group.children.filter(

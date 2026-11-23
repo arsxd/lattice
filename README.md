@@ -77,3 +77,5 @@ npm run web:dev
 Read [CONTRIBUTING.md](CONTRIBUTING.md), [the web guide](docs/WEB.md), [keyboard checks](docs/ACCESSIBILITY.md) and [CHANGELOG.md](CHANGELOG.md). Report issues through the [bug report form](https://github.com/arsxd/lattice/issues/new?template=bug_report.md).
 
 Lattice project code uses [0BSD](LICENSE): reuse does not require attribution or preservation of its license notice. Bundled dependencies retain their own licenses; [third-party notices](public/third-party-notices.txt) are included in the distribution and embedded in the standalone HTML.
+
+If Lattice is useful to you, you can [buy me a coffee](https://buymeacoffee.com/arshaaad).

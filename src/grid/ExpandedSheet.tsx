@@ -1,3 +1,7 @@
+import { FindBar } from "./FindBar";
+import { textMatcher } from "../document/search";
+import { FindHighlight } from "./FindHighlight";
+import { CellPreview } from "./CellPreview";
 import { createPortal } from "react-dom";
 import { columnLetter } from "./columnAddress";
 import { ColumnMenuChevron } from "./SheetIcons";
@@ -33,7 +37,7 @@ import {
   selectionContains,
   type SheetSelection,
 } from "../document/sheetSelection";
-import { scalarText, cellInputKind } from "../editor/scalar";
+import { scalarText, cellInputKind, cellEntryText, gridStringDraft } from "../editor/scalar";
 import { compactJson } from "../document/compactJson";
 import { blankState } from "./cellPresentation";
 import { parseTSV, toTSV } from "./clipboard";
@@ -61,6 +65,8 @@ type Props = {
 };
 type SavedTable = {
   search: string;
+  searchCase?: boolean;
+  searchWord?: boolean;
   sort?: ExpandedSort;
   filters: Record<string, string[]>;
   selection: SheetSelection | null;
@@ -195,6 +201,9 @@ function ExpandedTable({
   saved?: SavedTable;
   onRemember: (value: SavedTable) => void;
 }) {
+  const [searchCase, setSearchCase] = useState(saved?.searchCase ?? false);
+  const [searchWord, setSearchWord] = useState(saved?.searchWord ?? false);
+  const [searchIndex, setSearchIndex] = useState<number | undefined>();
   const [search, setSearch] = useState(saved?.search ?? ""),
     [sort, setSort] = useState<ExpandedSort | undefined>(saved?.sort),
     [filters, setFilters] = useState<Record<string, string[]>>(
@@ -235,8 +244,8 @@ function ExpandedTable({
     root = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const rows = useMemo(
-    () => expandedRows(section, search, sort, filters, compareNumbers),
-    [section, search, sort, filters],
+    () => expandedRows(section, search, sort, filters, compareNumbers, textMatcher(search, { caseSensitive: searchCase, wholeWord: searchWord })),
+    [section, search, sort, filters, searchCase, searchWord],
   );
   const headers = [...section.parentHeaders, ...section.childHeaders],
     parents = section.parentHeaders.length;
@@ -293,6 +302,14 @@ function ExpandedTable({
   }, [section, viewportWidth, measureText]);
   const busy = props.busy || working;
   const selected = selection?.anchor;
+  const focusedCell = selection?.mode === "cells" &&
+    selection.anchor.r === selection.end.r && selection.anchor.c === selection.end.c &&
+    !rows[selection.anchor.r]?.cells[selection.anchor.c]?.layoutGap
+      ? selection.anchor : null;
+  const focusedItem = focusedCell ? rows[focusedCell.r]?.cells[focusedCell.c] : undefined;
+  const focusedSpan = focusedCell && focusedItem
+    ? focusedCell.c < parents ? rows[focusedCell.r].count : focusedItem.rowSpan ?? 1 : 0;
+
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -358,6 +375,8 @@ function ExpandedTable({
   useEffect(() => {
     onRemember({
       search,
+      searchCase,
+      searchWord,
       sort,
       filters,
       selection,
@@ -366,7 +385,7 @@ function ExpandedTable({
       widths,
       path: selectedPath.current,
     });
-  }, [search, sort, filters, selection, wrap, freeze, widths]);
+  }, [search, searchCase, searchWord, sort, filters, selection, wrap, freeze, widths]);
   useEffect(() => {
     if (!active) {
       selectedPath.current = null;
@@ -397,6 +416,21 @@ function ExpandedTable({
     setMessage("");
     props.onSelect(rows[r]?.cells[c]?.cell ?? null, { row: r, column: c });
   };
+  const searchHits = useMemo(() => {
+    if (!search) return [];
+    const matches = textMatcher(search, { caseSensitive: searchCase, wholeWord: searchWord });
+    const seen = new Set<string>();
+    const hits: { r: number; c: number }[] = [];
+    rows.forEach((row, r) => row.cells.forEach((item, c) => {
+      if (item.layoutGap || (item.rowOffset ?? 0) < 0 || (c < parents && row.index > 0)) return;
+      const key = JSON.stringify([item.cell.path, item.identifier !== undefined]);
+      if (seen.has(key) || !(matches(item.cell.display) || matches(item.value))) return;
+      seen.add(key);
+      hits.push({ r, c });
+    }));
+    return hits;
+  }, [rows, search, searchCase, searchWord, parents]);
+  useEffect(() => setSearchIndex(undefined), [searchHits]);
   const focus = (r: number, c: number) =>
     requestAnimationFrame(() =>
       root.current
@@ -426,10 +460,6 @@ function ExpandedTable({
       (item.cell.writable === false && item.identifier === undefined)
     )
       return;
-    if (item.cell.container) {
-      props.onNavigate(item.cell.path);
-      return;
-    }
     if (initial !== undefined) {
       setDraft({
         item,
@@ -459,8 +489,8 @@ function ExpandedTable({
         value:
           initial ??
           (kind === "string" && raw
-            ? JSON.parse(raw)
-            : kind === "array"
+            ? item.identifier !== undefined ? JSON.parse(raw) : gridStringDraft(raw)
+            : (kind === "array" || kind === "object")
               ? compactJson(raw)
               : raw),
         revision: props.revision,
@@ -483,7 +513,7 @@ function ExpandedTable({
         raw =
           edit.value === "" && kind !== "string"
             ? "null"
-            : scalarText(kind, edit.value);
+            : cellEntryText(kind, edit.value);
       await props.onMutate(
         edit.item.identifier !== undefined
           ? [{ action: "rename", path: edit.item.cell.path, key: edit.value }]
@@ -589,14 +619,15 @@ function ExpandedTable({
       ? rows[Math.min(freeze.rows, rows.length) - 1].end
       : 0;
   const rowHeight = wrap ? 72 : 34;
+  const editingExtra = draft ? Math.max(0, 52 - rowHeight) : 0;
   const frozenAllowed =
-    frozenRows * rowHeight <= (root.current?.clientHeight ?? 500) * 0.4;
+    frozenRows * rowHeight + (draft && draft.r < frozenRows ? editingExtra : 0) <= (root.current?.clientHeight ?? 500) * 0.4;
   function sticky(r: number, c: number): CSSProperties {
     const rowFrozen = frozenAllowed && r < frozenRows,
       colFrozen = c < freeze.columns;
     return {
       position: rowFrozen || colFrozen ? "sticky" : undefined,
-      top: rowFrozen ? headerHeight + r * rowHeight : undefined,
+      top: rowFrozen ? headerHeight + r * rowHeight + (draft && draft.r < r ? editingExtra : 0) : undefined,
       left: colFrozen
         ? 40 +
           Array.from({ length: c }, (_, i) => width(i)).reduce(
@@ -637,6 +668,7 @@ function ExpandedTable({
       key={c}
       rowSpan={rowSpan}
       scope="col"
+      className={focusedCell?.c === c ? "active-cell-header" : undefined}
       aria-selected={
         selection?.mode === "columns" &&
         selection.spans.some(([a, b]) => c >= a && c <= b)
@@ -674,8 +706,7 @@ function ExpandedTable({
           aria-label={`Sort and filter ${section.key} ${header}`}
           onClick={(e) => setMenu({ column: c, anchor: e.currentTarget })}
         >
-          <ColumnMenuChevron />
-          {filters[String(c)] && <span className="filter-dot" />}
+          <ColumnMenuChevron filtered={!!filters[String(c)]} />
         </button>
       </div>
       <span
@@ -974,9 +1005,9 @@ function ExpandedTable({
             {rows.map((row, r) => (
               <tr
                 key={JSON.stringify(row.groupPath) + ":" + r}
-                style={{ height: rowHeight }}
+                style={{ height: rowHeight + (draft?.r === r ? editingExtra : 0) }}
               >
-                <th className="expanded-row-number" scope="row">
+                <th className={`expanded-row-number ${focusedCell?.r === r && focusedSpan === 1 ? "active-cell-header" : ""}`} scope="row">
                   <button
                     disabled={busy || !!draft}
                     aria-label={`Select row ${r + 1} in ${section.key}`}
@@ -1029,11 +1060,19 @@ function ExpandedTable({
                       aria-hidden={item.layoutGap || undefined}
                       colSpan={item.layoutGap ? 2 : 1}
                       rowSpan={c < parents ? row.count : (item.rowSpan ?? 1)}
-                      className={`${item.layoutGap ? "expanded-layout-gap" : ""} ${highlighted ? "expanded-selected" : ""} ${selection?.mode === "cells" && selection.anchor.r === r && selection.anchor.c === c && selection.end.r === r && selection.end.c === c ? "expanded-active-cell" : ""} ${item.cell.container ? "container-value" : ""}`}
+                      className={`${item.cell.type === "missing" && !item.layoutGap ? "missing-property-cell" : ""} ${item.layoutGap ? "expanded-layout-gap" : ""} ${highlighted ? "expanded-selected" : ""} ${selection?.mode === "cells" && selection.anchor.r === r && selection.anchor.c === c && selection.end.r === r && selection.end.c === c ? "expanded-active-cell" : ""} ${item.cell.container ? "container-value" : ""}`}
                       style={sticky(r, c)}
-                      title={JSON.stringify(item.cell.path)}
+                      title={item.cell.type === "missing" && !item.layoutGap && item.cell.writable !== false
+                        ? "Property not set — double-click or press F2 to add a value."
+                        : JSON.stringify(item.cell.path)}
                       onClick={(e) => {
-                        if (!draft && !busy) choose(r, c, e.shiftKey);
+                        if (!draft && !busy) {
+                          if ((e.ctrlKey || e.metaKey) && (item.cell.container || item.cell.type === "array")) {
+                            props.onNavigate(item.cell.path);
+                            return;
+                          }
+                          choose(r, c, e.shiftKey);
+                        }
                       }}
                       onDoubleClick={() => void begin(r, c)}
                       onContextMenu={(event) => {
@@ -1181,9 +1220,9 @@ function ExpandedTable({
                           }}
                         />
                       ) : (
-                        <span className="expanded-cell-value">
-                          {blankState(item.cell) ? "" : item.cell.display}
-                        </span>
+                        <CellPreview className={`expanded-cell-value ${item.cell.container || item.cell.type === "array" ? "nested-inline-value" : ""}`}>
+                          <FindHighlight search={search} caseSensitive={searchCase} wholeWord={searchWord} text={blankState(item.cell) ? "" : item.cell.display} />
+                        </CellPreview>
                       )}
                     </td>
                   );
@@ -1389,14 +1428,22 @@ function ExpandedTable({
               </button>
             )}
             <div className="spacer" />
-            <input
-              aria-label={`Find in ${section.key}`}
-              type="search"
-              placeholder="Find in this table…"
-              disabled={!!draft}
-              value={search}
-              onChange={(e) => changeView(() => setSearch(e.target.value))}
-            />
+            <FindBar id={active ? "find" : undefined} label={`Find in ${section.key}`} value={search}
+              disabled={!!draft || busy} inputDisabled={!!draft} count={searchHits.length} index={searchIndex}
+              caseSensitive={searchCase} wholeWord={searchWord}
+              onChange={value => changeView(() => setSearch(value))}
+              onCase={() => changeView(() => setSearchCase(!searchCase))}
+              onWord={() => changeView(() => setSearchWord(!searchWord))}
+              onNavigate={direction => {
+                if (!searchHits.length || draft || busy) return;
+                const index = searchIndex === undefined ? direction > 0 ? 0 : searchHits.length - 1
+                  : (searchIndex + direction + searchHits.length) % searchHits.length;
+                const hit = searchHits[index];
+                choose(hit.r, hit.c);
+                setSearchIndex(index);
+                root.current?.querySelector<HTMLElement>(`[data-r="${hit.r}"][data-c="${hit.c}"]`)
+                  ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+              }} />
           </div>,
           toolbarHost,
         )}

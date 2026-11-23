@@ -1,6 +1,6 @@
 import DocumentWorker from "./document.worker?worker&inline";
 export class DocumentClient {
-  private worker = new DocumentWorker();
+  private worker: Worker;
   private sequence = 0;
   private closed = false;
   private pending = new Map<
@@ -12,6 +12,10 @@ export class DocumentClient {
     }
   >();
   constructor() {
+    try { this.worker = new DocumentWorker(); }
+    catch {
+      throw new Error("Lattice could not start its document reader. Reload the app and try opening the file again.");
+    }
     this.worker.onmessage = ({ data }) => {
       const p = this.pending.get(data.id);
       if (!p) return;
@@ -24,6 +28,8 @@ export class DocumentClient {
       this.dispose(
         "Document worker failed. Reopen the original file; unsaved changes may be unavailable.",
       );
+    this.worker.onmessageerror = () =>
+      this.dispose("Lattice could not receive the document data. Reopen the file to restart its reader.");
   }
   call<T = void>(action: string, args: unknown = {}): Promise<T> {
     if (this.closed)
@@ -40,7 +46,12 @@ export class DocumentClient {
         30000,
       );
       this.pending.set(id, { resolve, reject, timer });
-      this.worker.postMessage({ id, action, args });
+      try { this.worker.postMessage({ id, action, args }); }
+      catch (error) {
+        clearTimeout(timer);
+        this.pending.delete(id);
+        reject(error instanceof Error ? error : new Error(String(error)));
+      }
     });
   }
   dispose(message = "Document closed") {

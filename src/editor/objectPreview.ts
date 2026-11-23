@@ -21,21 +21,12 @@ export function objectPreview(
   }
   if (!withinDepth(root, 0)) return null;
   function display(node: Node): string {
-    if (node.type === "object")
-      return node.children?.length ? `{${node.children.length} fields}` : "{}";
-    if (
-      node.type === "array" &&
-      node.children?.some(
-        (child) => child.type === "object" || child.type === "array",
-      )
-    )
-      return `[${node.children.length} items]`;
     const token = raw.slice(
       node.offset,
       node.offset + Math.min(node.length, 240),
     );
     return (
-      (node.type === "array" ? compactJson(token) : token) +
+      (node.type === "array" || node.type === "object" ? compactJson(token) : token) +
       (node.length > 240 ? "…" : "")
     );
   }

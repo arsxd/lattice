@@ -1,3 +1,4 @@
+import { format, parseTree, type ParseError } from "jsonc-parser";
 import {
   copySelection,
   pasteSelection,
@@ -21,6 +22,29 @@ self.onmessage = (event: MessageEvent) => {
     } else {
       if (!engine) throw new Error("Open a document first.");
       switch (action) {
+        case "format-source": {
+          const text: string = args.text;
+          const bom = text.startsWith("\uFEFF") ? "\uFEFF" : "";
+          const body = text.slice(bom.length);
+          const errors: ParseError[] = [];
+          if (!parseTree(body, errors, { disallowComments: true, allowTrailingComma: false }) || errors.length)
+            throw new Error("Correct the JSON before formatting. Your draft has been kept.");
+          if (args.action === "minify") {
+            value = bom + body.replace(/"(?:[^"\\]|\\[\s\S])*"|\s+/g, token => token.startsWith('"') ? token : "");
+          } else {
+            const edits = format(body, undefined, { tabSize: 2, insertSpaces: true, eol: text.includes("\r\n") ? "\r\n" : "\n" });
+            // Join once; repeatedly splicing the full document is costly on large files.
+            const parts = [bom];
+            let offset = 0;
+            for (const edit of edits.sort((a, b) => a.offset - b.offset)) {
+              parts.push(body.slice(offset, edit.offset), edit.content);
+              offset = edit.offset + edit.length;
+            }
+            parts.push(body.slice(offset));
+            value = parts.join("");
+          }
+          break;
+        }
         case "copy":
           value = copySelection(
             engine,

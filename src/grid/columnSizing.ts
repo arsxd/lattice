@@ -27,6 +27,26 @@ export function contentColumnWidths(
     }
     return Math.ceil(Math.min(cap, width));
   });
+  if (
+    count === 2 &&
+    (projection.columnKinds[0] === "key" || projection.columnKinds[0] === "index") &&
+    (projection.columnKinds[1] === "value" || projection.columnKinds[1] === "mixed")
+  ) {
+    // Use spare space only as far as the visible sample needs; do not stretch
+    // short values across the entire window or override manually sized columns.
+    const available = Math.max(88, Math.floor(viewportWidth) - 44 - widths[0] - 2);
+    let desired = widths[1];
+    for (const row of projection.rows.slice(0, 50)) {
+      const cell = row.cells[1];
+      const text = (cell?.display ?? "").slice(0, 4096);
+      for (const line of text.split(/\r\n|\r|\n/))
+        desired = Math.max(
+          desired,
+          measureText(cell?.type === "number" ? line.replace(/\d/g, "0") : line) + 24,
+        );
+    }
+    widths[1] = Math.ceil(Math.max(widths[1], Math.min(available, desired)));
+  }
   return widths;
 }
 

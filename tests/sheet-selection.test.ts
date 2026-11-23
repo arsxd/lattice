@@ -74,6 +74,13 @@ it("pastes across a page boundary atomically and preserves arbitrary numeric tok
   engine.undo();
   expect(engine.raw([499, "value"])).toBe("499");
 });
+it("pastes blank text into string cells as an empty string, not null", () => {
+  const engine = new DocumentEngine('[{"name":"a","n":1}]');
+  pasteSelection(engine, q, selectCell(null, { r: 0, c: 1 }), "", 0);
+  expect(engine.raw([0, "name"])).toBe('""');
+  pasteSelection(engine, q, selectCell(null, { r: 0, c: 2 }), "", 1);
+  expect(engine.raw([0, "n"])).toBe("null");
+});
 it("rejects stale, oversized and ambiguous multi-area operations without changing data", () => {
   const engine = new DocumentEngine('[{"v":1},{"v":2},{"v":3}]');
   let selection = selectHeader(null, "rows", { r: 0, c: 0 });

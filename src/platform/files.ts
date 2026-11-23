@@ -28,6 +28,7 @@ if (!desktop)
 export const browserSave =
   !desktop && typeof pickers.showSaveFilePicker === "function";
 export type Opened = {
+  reviewUnavailable?: boolean;
   name: string;
   text: string;
   token?: string;
@@ -39,7 +40,18 @@ export async function readJsonFile(file: File): Promise<string> {
     throw new Error(
       `"${file.name}" is too large. Lattice opens files up to 64 MiB.`,
     );
-  const bytes = await file.arrayBuffer();
+  const bytes = await new Promise<ArrayBuffer>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(
+      `Reading "${file.name}" took too long. Try opening it again. If it is stored online, download a local copy first.`,
+    )), 30000);
+    Promise.resolve().then(() => file.arrayBuffer()).then(
+      bytes => { clearTimeout(timer); resolve(bytes); },
+      () => {
+        clearTimeout(timer);
+        reject(new Error(`"${file.name}" could not be read. Try opening it again or choose a local copy.`));
+      },
+    );
+  });
   try {
     return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(
       bytes,
@@ -51,7 +63,16 @@ export async function readJsonFile(file: File): Promise<string> {
   }
 }
 async function readBrowserFile(handle: BrowserHandle) {
-  return readJsonFile(await handle.getFile());
+  const file = await new Promise<File>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(
+      "Accessing the source file took too long. Use Open to choose it again, or try a local copy.",
+    )), 30000);
+    Promise.resolve().then(() => handle.getFile()).then(
+      file => { clearTimeout(timer); resolve(file); },
+      error => { clearTimeout(timer); reject(error); },
+    );
+  });
+  return readJsonFile(file);
 }
 export async function droppedJsonFile(
   file: File,
@@ -113,18 +134,45 @@ export async function openFile(): Promise<Opened | null> {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".json,application/json";
-    input.oncancel = () => resolve(null);
-    input.onchange = async () => {
-      const f = input.files?.[0];
-      if (!f) return resolve(null);
-      try {
-        const text = await readJsonFile(f);
-        resolve({ name: f.name, text });
-      } catch (e) {
-        reject(e);
-      }
+    input.hidden = true;
+    let reading = false, settled = false;
+    let resumeTimer: ReturnType<typeof setTimeout> | undefined;
+    const cleanup = () => {
+      clearTimeout(resumeTimer);
+      window.removeEventListener("focus", resume);
+      document.removeEventListener("visibilitychange", resume);
+      input.onchange = input.oninput = input.oncancel = null;
+      input.remove();
     };
-    input.click();
+    const finish = (opened: Opened | null, error?: unknown) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      if (error !== undefined) reject(error);
+      else resolve(opened);
+    };
+    const readSelection = async () => {
+      if (settled || reading) return;
+      const file = input.files?.[0];
+      if (!file) return;
+      reading = true;
+      try {
+        finish({ name: file.name, text: await readJsonFile(file) });
+      } catch (error) { finish(null, error); }
+    };
+    const resume = () => {
+      if (document.visibilityState === "hidden") return;
+      clearTimeout(resumeTimer);
+      resumeTimer = setTimeout(() => { void readSelection(); }, 0);
+    };
+    input.oncancel = () => { if (!reading) finish(null); };
+    input.onchange = input.oninput = () => { void readSelection(); };
+    window.addEventListener("focus", resume);
+    document.addEventListener("visibilitychange", resume);
+    // Retain the input until its selected file has finished reading.
+    document.body.append(input);
+    try { input.click(); }
+    catch (error) { finish(null, error); }
   });
 }
 export async function saveFile(

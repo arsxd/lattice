@@ -73,3 +73,10 @@
     flex: 1 1 auto;
   }
 }
+
+.home-screen-footer .home-footer-link { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+.home-footer-link svg { flex-shrink: 0; }
+.home-footer-link:hover span { text-decoration: underline; text-underline-offset: 3px; }
+.home-footer-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 2px; }
+
+.home-footer-links { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px 20px; }

@@ -106,7 +106,11 @@ export function pasteSelection(
       commands.push(
         replacement(
           item,
-          values[r][c] === "" ? "null" : scalarText(kind, values[r][c]),
+          values[r][c] === ""
+            ? item.cell.type === "string"
+              ? '""'
+              : "null"
+            : scalarText(kind, values[r][c]),
         ),
       );
     }

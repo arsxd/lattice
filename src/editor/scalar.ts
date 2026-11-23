@@ -1,23 +1,19 @@
 import { parseTree, type ParseError } from "jsonc-parser";
 import type { Kind, Cell } from "../document/engine";
 export function scalarText(kind: Kind, value: string): string {
-  if (kind === "array") {
+  if (kind !== "string" && value.trim().startsWith('"')) {
+    const errors: ParseError[] = [];
+    const node = parseTree(value, errors, { disallowComments: true, allowTrailingComma: false });
+    if (!errors.length && node?.type === "string") return value;
+  }
+  if (kind === "array" || kind === "object") {
     const errors: ParseError[] = [];
     const node = parseTree(value, errors, {
       disallowComments: true,
       allowTrailingComma: false,
     });
-    if (
-      !errors.length &&
-      node?.type === "array" &&
-      (node.children ?? []).every(
-        (c) => c.type !== "object" && c.type !== "array",
-      )
-    )
-      return value;
-    throw new Error(
-      "Enter a simple JSON array, for example [1, 2, 3]. Nested data uses the expanded editor.",
-    );
+    if (!errors.length && node?.type === kind) return value;
+    throw new Error(`Enter a valid JSON ${kind}, or use Change type in Details.`);
   }
   if (kind === "string") return JSON.stringify(value);
   if (
@@ -29,15 +25,46 @@ export function scalarText(kind: Kind, value: string): string {
     return value;
   if (kind === "null" && value === "null") return value;
   throw new Error(
-    `Enter a valid JSON ${kind}. Use the inspector to change its type.`,
+    kind === "number" ? "Enter a number, or use Change type in Details."
+      : kind === "boolean" ? "Enter true or false, or use Change type in Details."
+      : "Enter null, or use Change type in Details.",
   );
 }
 
 export function cellInputKind(cell: Cell): Kind {
   if (cell.type !== "null" && cell.type !== "missing") return cell.type;
-  return cell.inputKind === "number" ||
-    cell.inputKind === "boolean" ||
-    cell.inputKind === "string"
-    ? cell.inputKind
-    : "string";
+  return cell.inputKind ?? "string";
+}
+
+/** The value bar shows JSON, while grid string editors accept literal text. */
+export function valueBarRaw(kind: Kind, value: string): string {
+  if (kind === "string" && value.trim().startsWith('"')) {
+    const errors: ParseError[] = [];
+    const node = parseTree(value, errors, { disallowComments: true, allowTrailingComma: false });
+    if (!errors.length && node?.type === "string") return value;
+    throw new Error('Enter a complete quoted string, for example "0".');
+  }
+  if (value === "" && kind !== "string") return "null";
+  return scalarText(kind, value);
+}
+
+/** Explicit quoted JSON is supported only for direct entry, not clipboard text. */
+export function cellEntryText(kind: Kind, value: string): string {
+  if (value.trim().startsWith('"')) {
+    const errors: ParseError[] = [];
+    const node = parseTree(value, errors, { disallowComments: true, allowTrailingComma: false });
+    if (!errors.length && node?.type === "string") return value;
+  }
+  return scalarText(kind, value);
+}
+
+/** Protect existing strings that themselves look like quoted JSON notation. */
+export function gridStringDraft(raw: string): string {
+  const text = JSON.parse(raw) as string;
+  if (text.trim().startsWith('"')) {
+    const errors: ParseError[] = [];
+    const node = parseTree(text, errors, { disallowComments: true, allowTrailingComma: false });
+    if (!errors.length && node?.type === "string") return raw;
+  }
+  return text;
 }

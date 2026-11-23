@@ -45,6 +45,7 @@ export function dictionaryRows(
   sort: ExpandedSort | undefined,
   filters: Record<string, string[]>,
   compare: (a: string, b: string) => number,
+  matchText?: (text: string) => boolean,
 ) {
   const p = section.parentHeaders.length,
     descriptors = section.dictionaryBands!;
@@ -56,7 +57,7 @@ export function dictionaryRows(
     );
   const matches = (cells: ExpandedCell[]) =>
     cells.some((c) =>
-      c.value.toLocaleLowerCase().includes(search.toLocaleLowerCase()),
+      matchText ? matchText(c.value) : c.value.toLocaleLowerCase().includes(search.toLocaleLowerCase()),
     );
   const scopeSort = (key: string, owns: (column: number) => boolean) =>
     sort?.scopes

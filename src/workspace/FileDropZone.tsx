@@ -13,6 +13,7 @@ export function FileDropZone({
   onFiles: (files: DroppedFile[]) => Promise<void>;
   onError: (message: string) => void;
 }) {
+  const root = useRef<HTMLDivElement>(null);
   const current = useRef({ blocked, onBlocked, onFiles });
   current.current = { blocked, onBlocked, onFiles };
   const depth = useRef(0);
@@ -32,6 +33,19 @@ export function FileDropZone({
     expiry.current = setTimeout(reset, 1500);
   };
   useEffect(() => {
+    const toolbar = root.current?.querySelector<HTMLElement>(".toolbar");
+    const positionOverlay = () => {
+      if (!toolbar) return;
+      root.current?.style.setProperty(
+        "--file-drop-top",
+        `${Math.ceil(toolbar.getBoundingClientRect().bottom) + 8}px`,
+      );
+    };
+    positionOverlay();
+    const observer = new ResizeObserver(positionOverlay);
+    if (toolbar) observer.observe(toolbar);
+    window.addEventListener("resize", positionOverlay);
+    window.addEventListener("scroll", positionOverlay, true);
     const escape = (event: KeyboardEvent) => {
       if (event.key === "Escape") reset();
     };
@@ -41,6 +55,9 @@ export function FileDropZone({
     window.addEventListener("dragend", reset);
     window.addEventListener("keydown", escape);
     return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", positionOverlay);
+      window.removeEventListener("scroll", positionOverlay, true);
       clearTimeout(expiry.current);
       window.removeEventListener("pointerdown", reset);
       window.removeEventListener("drop", reset);
@@ -51,6 +68,7 @@ export function FileDropZone({
   }, []);
   return (
     <div
+      ref={root}
       className="file-drop-root"
       onDragEnter={(event) => {
         if (!files(event)) return;

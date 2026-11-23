@@ -1,3 +1,4 @@
+import { textMatcher } from "./search";
 import { expandRecords } from "./editableGroups";
 import { compactJson } from "./compactJson";
 import { selectedCellCount, type SheetSelection } from "./sheetSelection";
@@ -41,6 +42,9 @@ export type Query = {
   path: Path;
   records: boolean;
   search: string;
+  searchCaseSensitive?: boolean;
+  searchWholeWord?: boolean;
+  searchResult?: number;
   filters?: Record<string, string>;
   valueFilters?: Record<string, string[]>;
   optionsColumn?: number;
@@ -51,10 +55,14 @@ export type SelectedCell = { cell: Cell; identifier?: string };
 export type ColumnKind = "index" | "key" | "field" | "value" | "mixed";
 export type Projection = {
   sheets?: { label: string; path: Path; kind: Kind }[];
+  sheetsTruncated?: boolean;
   filterOptions?: { key: string; label: string }[];
   filterOptionsTruncated?: boolean;
   revision: number;
   locatedRow?: number;
+  searchMatchCount?: number;
+  searchIndex?: number;
+  searchSelection?: { row: number; column: number };
   dirty: boolean;
   undo: boolean;
   redo: boolean;
@@ -300,6 +308,23 @@ export class DocumentEngine {
       this.revision,
       (node, at) => this.cell(node, at),
     );
+    // Infer before applying filters so hidden records do not change entry types.
+    for (const section of result.sections) {
+      if (section.dictionaryBands || (section.mapping && !section.columnPaths)) continue;
+      const samples = section.groups.flatMap(group => group.children.map(row => [...group.parent, ...row]));
+      const columns = section.parentHeaders.length + section.childHeaders.length;
+      for (let column = 0; column < columns; column++) {
+        const cells = samples.flatMap(row => {
+          const item = row[column];
+          return !item || item.layoutGap || item.identifier !== undefined ? [] : [item.cell];
+        });
+        const kinds = new Set(cells.flatMap(cell =>
+          cell.type === "missing" || cell.type === "null" || cell.empty ? [] : [cell.type]));
+        const inferred = kinds.size === 1 ? [...kinds][0] : "string";
+        for (const cell of cells)
+          if (cell.type === "missing" || cell.type === "null") cell.inputKind = inferred;
+      }
+    }
     if (
       query &&
       (this.node(path).type === "array" ||
@@ -735,52 +760,15 @@ export class DocumentEngine {
     const empty =
       (n.type === "string" && n.value === "") ||
       ((n.type === "object" || n.type === "array") && !n.children?.length);
-    const describe = (value: Node): string => {
-      if (value.type === "object")
-        return `{${value.children?.length ?? 0} fields}`;
-      if (value.type === "array") {
-        if (
-          value.length <= 120 &&
-          (value.children ?? []).every(
-            (child) => child.type !== "object" && child.type !== "array",
-          )
-        )
-          return compactJson(
-            this.text.slice(value.offset, value.offset + value.length),
-          );
-        return `[${value.children?.length ?? 0} items]`;
-      }
-      const raw = this.text.slice(
-        value.offset,
-        value.offset + Math.min(value.length, 40),
-      );
-      return raw + (value.length > 40 ? "…" : "");
-    };
-    const objectPreview =
-      n.type === "object" && n.children?.length
-        ? n.children
-            .slice(0, 3)
-            .map(
-              (property) =>
-                `${property.children![0].value}: ${describe(property.children![1])}`,
-            )
-            .join(", ") + (n.children.length > 3 ? ", …" : "")
-        : "{}";
-    let display =
-      n.type === "object"
-        ? objectPreview
-        : primitiveArray
-          ? compactJson(
-              this.text.slice(n.offset, n.offset + Math.min(n.length, 1024)),
-            ) + (n.length > 1024 ? "…" : "")
-          : container
-            ? `Array · ${n.children?.length ?? 0}`
-            : n.type === "string"
-              ? n.value === ""
-                ? '""'
-                : String(n.value)
-              : this.text.slice(n.offset, n.offset + n.length);
-    if (display.length > 240) display = display.slice(0, 237) + "…";
+    // Bound work before copying or formatting large nested values.
+    let display = container || primitiveArray
+      ? compactJson(this.text.slice(n.offset, n.offset + Math.min(n.length, 4096))) +
+        (n.length > 4096 ? "…" : "")
+      : n.type === "string"
+        ? n.value === "" ? '""' : String(n.value)
+        : this.text.slice(n.offset, n.offset + n.length);
+    if (display.length > (container || primitiveArray ? 4096 : 240))
+      display = display.slice(0, container || primitiveArray ? 4093 : 237) + "…";
     return { path, type: n.type as Kind, display, container, empty };
   }
   selection(
@@ -808,24 +796,25 @@ export class DocumentEngine {
     }
     let sheetRoot = this.diagnostics.length ? undefined : this.root,
       sheetPath: Path = [];
-    while (sheetRoot?.type === "object") {
-      const values = entries(sheetRoot);
-      if (values.length !== 1 || values[0][1].type !== "object") break;
-      sheetPath = [...sheetPath, values[0][0]];
-      sheetRoot = values[0][1];
+    while (sheetRoot?.type === "object" && sheetRoot.children?.length === 1) {
+      const property = sheetRoot.children[0];
+      const value = property.children?.[1];
+      if (value?.type !== "object") break;
+      sheetPath = [...sheetPath, String(property.children![0].value)];
+      sheetRoot = value;
     }
-    const sheets = sheetRoot
-      ? entries(sheetRoot)
-          .filter(([, v]) => v.type === "object" || v.type === "array")
-          .slice(0, 200)
-          .map(([key, v]) => ({
-            label: String(key),
-            path: [...sheetPath, key],
-            kind: v.type as Kind,
-          }))
-      : [];
+    const sheets: NonNullable<Projection["sheets"]> = [];
+    let sheetsTruncated = false;
+    for (const [index, item] of (sheetRoot?.children ?? []).entries()) {
+      const value = sheetRoot?.type === "object" ? item.children?.[1] : item;
+      if (!value || (value.type !== "object" && value.type !== "array")) continue;
+      if (sheets.length === 200) { sheetsTruncated = true; break; }
+      const key = sheetRoot?.type === "object" ? String(item.children![0].value) : index;
+      sheets.push({ label: String(key), path: [...sheetPath, key], kind: value.type as Kind });
+    }
     const common = {
       sheets,
+      sheetsTruncated,
       revision: this.revision,
       dirty: this.text !== this.saved,
       undo: !!this.past.length,
@@ -865,7 +854,7 @@ export class DocumentEngine {
         if (value.type !== "object") continue;
         for (const [key, cell] of entries(value)) {
           discovered.add(String(key));
-          if (cell.type !== "null") {
+          if (cell.type !== "null" && !(cell.type === "string" && cell.value === "")) {
             const set = kinds.get(String(key)) ?? new Set<Kind>();
             set.add(cell.type as Kind);
             kinds.set(String(key), set);
@@ -898,6 +887,12 @@ export class DocumentEngine {
           : n.type === "array"
             ? ["Index", "Value"]
             : ["Value"];
+    if (!records && n.type === "array") {
+      const kinds = new Set(items.flatMap(([, value]) =>
+        value.type === "null" || (value.type === "string" && value.value === "")
+          ? [] : [value.type as Kind]));
+      if (kinds.size === 1) inputKinds.set("$value", [...kinds][0]);
+    }
     const hideIndex = n.type === "array" && query.showIndex === false;
     let columnKinds: ColumnKind[] = records
       ? [
@@ -956,6 +951,8 @@ export class DocumentEngine {
         }
         return result;
       }
+      if (!records && n!.type === "array" && (c.type === "null" || c.type === "missing"))
+        c.inputKind = inputKinds.get("$value") ?? "string";
       return column === headers.length - 1 ? c : { ...c, display: String(key) };
     };
     const total = all.length;
@@ -1001,19 +998,14 @@ export class DocumentEngine {
       filterOptions = [...choices].map(([key, label]) => ({ key, label }));
     }
     let filtered = all;
-    const search = query.search.toLocaleLowerCase();
-    if (search)
-      filtered = all.filter((item) =>
-        headers.some((_, i) => {
-          const c = getCell(item, i);
-          if (c.display.toLocaleLowerCase().includes(search)) return true;
-          if (c.type === "string") {
-            const node = this.node(c.path);
-            return String(node.value).toLocaleLowerCase().includes(search);
-          }
-          return false;
-        }),
-      );
+    const search = query.search;
+    const matchesText = textMatcher(search, { caseSensitive: query.searchCaseSensitive, wholeWord: query.searchWholeWord });
+    const matchesCell = (item: [string | number, Node], column: number) => {
+      const cell = getCell(item, column);
+      return matchesText(metadataColumn(column) ? cell.display : cell.type === "string"
+        ? String(this.node(cell.path).value) : cell.display);
+    };
+    if (search) filtered = all.filter(item => headers.some((_, i) => matchesCell(item, i)));
     for (const [column, term] of Object.entries(query.filters ?? {})) {
       const index = Number(column);
       if (
@@ -1075,6 +1067,21 @@ export class DocumentEngine {
       });
       filtered = indexed.map((x) => x.item);
     }
+    let searchMatchCount = 0;
+    let searchSelection: { row: number; column: number } | undefined;
+    let searchIndex: number | undefined;
+    if (search) {
+      for (let row = 0; row < filtered.length; row++) {
+        for (let column = 0; column < headers.length; column++) {
+          if (!matchesCell(filtered[row], column)) continue;
+          if (query.searchResult !== undefined && searchMatchCount === query.searchResult) {
+            searchSelection = { row, column };
+            searchIndex = searchMatchCount;
+          }
+          searchMatchCount++;
+        }
+      }
+    }
     const locatedIndex =
       locateRowPath === undefined
         ? -1
@@ -1127,7 +1134,7 @@ export class DocumentEngine {
     }
     const matched = filtered.length,
       pages = Math.max(1, Math.ceil(matched / PAGE_SIZE)),
-      page = Math.max(0, Math.min(query.page, pages - 1));
+      page = Math.max(0, Math.min(searchSelection ? Math.floor(searchSelection.row / PAGE_SIZE) : query.page, pages - 1));
     const rows = filtered
       .slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
       .map((item) => {
@@ -1148,6 +1155,9 @@ export class DocumentEngine {
       columnKinds,
       selectedCells,
       locatedRow,
+      searchMatchCount,
+      searchIndex,
+      searchSelection,
       filterOptions,
       filterOptionsTruncated,
       rows,
