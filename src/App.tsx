@@ -374,6 +374,24 @@ export default function App() {
   }
   const [tabVersion, setTabVersion] = useState(0);
   const [sheets, setSheets] = useState<Projection["children"]>([]);
+  // Overlay scrollbars (macOS trackpads) float over the sheet tabs instead of
+  // taking space below them, so the strip reserves room when it overflows.
+  const sheetStrip = useRef<HTMLElement>(null);
+  const [overlayTabBar, setOverlayTabBar] = useState(false);
+  useEffect(() => {
+    const strip = sheetStrip.current;
+    if (!strip) return;
+    const measure = () => {
+      const border = parseFloat(getComputedStyle(strip).borderTopWidth) || 0;
+      const bar = strip.offsetHeight - strip.clientHeight - border;
+      setOverlayTabBar(strip.scrollWidth > strip.clientWidth + 1 && bar < 2);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(strip);
+    return () => observer.disconnect();
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- measure again when the document or its sheet list changes
+  }, [doc, sheets]);
   const [truncatedSheets, setTruncatedSheets] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -3875,7 +3893,12 @@ export default function App() {
               </aside>
             )}
           </main>
-          <nav className="sheet-tabs" aria-label="Document sheets">
+          <nav
+            ref={sheetStrip}
+            className="sheet-tabs"
+            aria-label="Document sheets"
+            data-overlay-scrollbar={overlayTabBar || undefined}
+          >
             <button
               aria-current={query.path.length === 0 ? "page" : undefined}
               disabled={busy || sourceDirty}

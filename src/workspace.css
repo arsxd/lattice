@@ -228,6 +228,10 @@
 .sheet-tabs button[aria-current="page"] {
   box-shadow: none;
 }
+/* Overlay scrollbars float over content; keep them clear of the tab names. */
+.sheet-tabs[data-overlay-scrollbar] {
+  padding-bottom: 10px;
+}
 .sheet-tabs button[aria-current="page"]::after {
   content: "";
   position: absolute;
@@ -1017,7 +1021,8 @@
 
 /* Nested value previews use the Source palette (dark values come from the editor theme). */
 :root {
-  --json-string: #a11;
+  /* Slightly softer than Source's #a11: strings repeat down whole columns. */
+  --json-string: #9c3d3d;
   --json-number: #164;
   --json-literal: #219;
 }
