@@ -477,8 +477,8 @@ test("array inline editing stays compact with readable selection and bounded val
     JSON.stringify(
       [
         {
-          signals: ["PWMHBR"],
-          list: Array.from({ length: 20 }, (_, i) => `signal-${i}`),
+          tags: ["alpha"],
+          list: Array.from({ length: 20 }, (_, i) => `item-${i}`),
         },
       ],
       null,
@@ -486,8 +486,8 @@ test("array inline editing stays compact with readable selection and bounded val
     ),
   );
   await cell(page, 0, 1).dblclick();
-  const editor = page.getByRole("textbox", { name: "Edit signals (array)" });
-  await expect(editor).toHaveValue('["PWMHBR"]');
+  const editor = page.getByRole("textbox", { name: "Edit tags (array)" });
+  await expect(editor).toHaveValue('["alpha"]');
   await expect(editor).toHaveAttribute("wrap", "off");
   expect(
     await editor.evaluate((e) => getComputedStyle(e, "::selection").color),
@@ -495,12 +495,12 @@ test("array inline editing stays compact with readable selection and bounded val
   await editor.press("Escape");
   await page.getByRole("button", { name: "Wrap text", exact: true }).click();
   await cell(page, 0, 1).dblclick();
-  await expect(editor).toHaveValue('["PWMHBR"]');
+  await expect(editor).toHaveValue('["alpha"]');
   await expect(editor).toHaveAttribute("wrap", "soft");
   await editor.press("Escape");
   await cell(page, 0, 2).click();
   const bar = page.getByRole("textbox", { name: "Selected cell value" });
-  await expect(bar).toHaveValue(/signal-19/);
+  await expect(bar).toHaveValue(/item-19/);
   expect(
     await bar.evaluate((e) => e.getBoundingClientRect().height),
   ).toBeLessThanOrEqual(74);
