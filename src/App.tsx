@@ -354,7 +354,7 @@ export default function App() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   useEffect(() => {
-    if (notice !== "Source reloaded.") return;
+    if (notice !== "File reloaded.") return;
     const timer = setTimeout(() => setNotice(""), 3500);
     return () => clearTimeout(timer);
   }, [notice]);
@@ -712,7 +712,7 @@ export default function App() {
       if (
         dirty &&
         !(await discard(
-          "Reload source and discard this document's unsaved changes? Other tabs stay open.",
+          "Reload the file and discard this document's unsaved changes? Other tabs stay open.",
         ))
       )
         return;
@@ -801,7 +801,7 @@ export default function App() {
                   : 0;
           }),
         );
-        setNotice("Source reloaded.");
+        setNotice("File reloaded.");
       } finally {
         if (!adopted) {
           next.client.dispose();
@@ -2388,11 +2388,11 @@ export default function App() {
           onClick={() => void reloadSource()}
           title={
             doc?.handle
-              ? "Read the latest source file"
-              : "Choose the source file again to reload it"
+              ? "Read the latest version of the file from disk"
+              : "Choose the file again to reload it"
           }
         >
-          {doc?.handle ? "Reload source" : "Reload source…"}
+          {doc?.handle ? "Reload file" : "Reload file…"}
         </button>
         <ThemePicker value={theme} onChange={setTheme} />
       </header>
@@ -2605,15 +2605,15 @@ export default function App() {
             >
               {mode === "review" ? "Close review" : "Review changes"}
             </button>
-            {mode === "table" && (
-              <button
-                aria-label="Details — toggle value inspector"
-                aria-pressed={inspector}
-                onClick={() => setInspector(!inspector)}
-              >
-                <NavigationIcon name="details" /> Details
-              </button>
-            )}
+            <button
+              aria-label="Details — toggle value inspector"
+              aria-pressed={inspector}
+              onClick={() => setInspector(!inspector)}
+              // Keep the slot in Source and Review so "Review changes" does not move.
+              style={mode === "table" ? undefined : { visibility: "hidden" }}
+            >
+              <NavigationIcon name="details" /> Details
+            </button>
           </div>
           <main className="workspace">
             <aside

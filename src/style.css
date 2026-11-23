@@ -1108,8 +1108,11 @@ select optgroup {
   font-weight: 600;
 }
 .welcome-install p {
-  margin: 6px 0 12px;
-  font-size: 13px;
+  max-width: 440px;
+  margin: 6px auto 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
 }
 .welcome-install-actions {
   display: flex;

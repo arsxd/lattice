@@ -116,7 +116,7 @@ Review compares with the stored baseline, not a newly modified disk file; it is 
 | Save          | Write back through a retained file handle where the browser supports and permits it.             |
 | Save as…      | Choose a destination through a supported browser picker.                                         |
 | Download      | Export an edited copy. The app cannot confirm it reached disk, so the document remains unsaved.  |
-| Reload source | Read the retained source again, or ask you to select it again when direct access is unavailable. |
+| Reload file | Read the retained source again, or ask you to select it again when direct access is unavailable. |
 
 Cancelled or failed writes do not mark a document saved. Save compares the decoded disk contents with its baseline and blocks a detected external change. It provides conflict detection, not an exclusive file lock or automatic watcher.
 
