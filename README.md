@@ -58,6 +58,17 @@ Compare the saved/opened version with the current draft. Navigate changes, colla
 
 [Full limits and historical measurements](docs/PERFORMANCE.md) · [File access and recovery](docs/USER-GUIDE.md#save-download-and-reload) · [Browser verification](docs/WINDOWS.md)
 
+## Browser support
+
+| Status          | Environment                                                                                                                                                                                                        |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Release target  | Current desktop **Chrome and Edge** on macOS and Windows.                                                                                                                                                          |
+| Automated tests | Playwright with headless Chromium on Linux, Windows and macOS, on every change. This does not cover native file dialogs, installed-PWA windows or assistive technology.                                            |
+| Hands-on checks | Tracked in the [release checklist](docs/RELEASE-CANDIDATE.md). A check is only counted once its result is recorded there.                                                                                          |
+| Not verified    | Safari, Firefox, mobile browsers, screen readers beyond the [documented checks](docs/ACCESSIBILITY.md), and managed or locked-down corporate browsers. Lattice may work there, but this project has not tested it. |
+
+Browsers without the file-save picker use **Download** instead of **Save**. Keep a separate copy of important files while you evaluate Lattice.
+
 ## Examples and documentation
 
 The bundled fictional bookshop covers keyed records, orders, arrays, nested details, empty values and precise numbers. Try **Explore sample workspace**, or [download an example JSON](examples/README.md).
@@ -66,6 +77,7 @@ The bundled fictional bookshop covers keyed records, orders, arrays, nested deta
 - [Documentation index](docs/README.md): architecture, browser checks, accessibility and performance.
 - [Release-candidate checklist](docs/RELEASE-CANDIDATE.md): what is tested and what still needs manual validation.
 - [Report a bug](https://github.com/arsxd/lattice/issues/new?template=bug_report.md): include the version, browser and a small synthetic example.
+- [Security policy](SECURITY.md): report a vulnerability privately.
 
 ## Develop
 
