@@ -34,17 +34,19 @@ The file input uses an on-disk fixture path. Passing a large in-memory buffer th
 
 ## rc.8 measurements
 
-Re-measured 2026-11-23 on Apple M4, macOS arm64, Chromium 158.0.8127.18 (Playwright), production preview of rc.8 plus unreleased cleanup (removal of unused desktop code, lint setup). Same fixtures, method and caveats as above, three runs per size. The benchmark script was updated for the current grid (hidden Index column, lettered column buttons, JSON-form value bar).
+Re-measured 2026-11-23 on Apple M4, macOS arm64, Chromium 158.0.8127.18 (Playwright), production preview of rc.8 plus unreleased cleanup and the column-menu fix below. Same fixtures as above, three runs per size. The script was updated for the current grid (hidden Index column, lettered column buttons, JSON-form value bar). Slow steps now wait on a per-frame check instead of Playwright's assertion retries, which poll at 100 to 1,000 ms steps and inflated earlier sort figures by up to about 350 ms. Sort and Re-sort include opening the column menu, its short fade and loading its value list.
 
-| Fixture |   Rows |          Open |      Navigate |        Select |          Edit |                Sort |
-| ------- | -----: | ------------: | ------------: | ------------: | ------------: | ------------------: |
-| ~1 MiB  |  3,785 | 175 (159–179) | 150 (150–151) | 116 (100–117) | 104 (104–119) |       329 (328–331) |
-| ~5 MiB  | 18,927 | 274 (264–279) | 150 (150–150) | 117 (116–117) | 100 (100–101) |       383 (382–383) |
-| ~25 MiB | 94,636 | 872 (871–874) | 250 (249–250) | 183 (167–183) | 167 (150–167) | 1,150 (1,149–1,150) |
+| Fixture |   Rows |          Open |      Navigate |        Select |          Edit |          Sort |       Re-sort |
+| ------- | -----: | ------------: | ------------: | ------------: | ------------: | ------------: | ------------: |
+| ~1 MiB  |  3,785 | 191 (173–277) |  149 (99–150) | 116 (100–117) | 117 (100–118) | 350 (349–350) | 350 (334–350) |
+| ~5 MiB  | 18,927 | 288 (271–326) | 150 (150–150) | 117 (116–117) | 100 (100–120) | 383 (380–383) | 383 (383–383) |
+| ~25 MiB | 94,636 | 874 (873–876) | 250 (249–250) | 166 (165–183) | 151 (150–168) | 800 (766–833) | 650 (633–667) |
 
-All nine runs completed without page errors or recorded long tasks; each view rendered 175 data cells. Open, navigate, select and edit match the earlier numbers within a frame or two. **Sort is about 2.4 to 2.8 times slower than the earlier measurement** (for example 483 ms to 1,150 ms at 25 MiB). The cause has not been investigated, and the earlier run was on a pre-rc.4 build with the same Chromium version, so treat this as an unexplained difference, not a confirmed regression.
+All nine runs completed without page errors or recorded long tasks; each view rendered 175 data cells. The earlier table's sort timings came from a different menu and measurement method and are not directly comparable.
 
-Node engine only (`npm run bench`, same machine): 5,000 rows opened in 28 ms and projected in 16 ms; 100,000 rows opened in 448 ms and projected in 65 ms with about 678 MiB process RSS. This does not include browser memory.
+**Fix found while measuring:** opening a column menu asked the worker for a full sorted and filtered projection just to list filter values. Because the worker handles one request at a time, a following sort waited for it. The value-list request now skips sort, filters and search (the list is always built from every row). At 25 MiB re-sorting dropped from about 880 ms to about 650 ms on this machine.
+
+Node engine only (`npm run bench`, same machine): 5,000 rows opened in 28 ms and projected in 16 ms; 100,000 rows opened in 448 ms and projected in 65 ms with about 678 MiB process RSS. Sorting 94,636 rows in the engine takes about 430 ms. This does not include browser memory.
 
 ## Findings
 

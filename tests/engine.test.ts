@@ -279,3 +279,22 @@ it("projects incomplete recovery/source drafts without traversing partial proper
     expect(engine.text).toBe(text);
   }
 });
+it("column value options ignore sort, filters and search", () => {
+  const d = new DocumentEngine(
+    '[{"s":"b","n":2},{"s":"a","n":1},{"s":"c","n":3}]',
+  );
+  const base = { path: [], records: true, search: "", page: 0 };
+  const headers = d.project(base).headers;
+  const s = headers.indexOf("s"),
+    n = headers.indexOf("n");
+  const plain = d.project({ ...base, optionsColumn: s }).filterOptions;
+  const narrowed = d.project({
+    ...base,
+    search: "a",
+    sort: { column: n, direction: "DESC" },
+    valueFilters: { [String(s)]: [plain![0].key] },
+    optionsColumn: s,
+  }).filterOptions;
+  expect(plain?.map((o) => o.label)).toEqual(["b", "a", "c"]);
+  expect(narrowed).toEqual(plain);
+});

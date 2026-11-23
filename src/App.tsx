@@ -3001,7 +3001,16 @@ export default function App() {
                         load={async () => {
                           const p = await client.current!.call<Projection>(
                             "project",
-                            { ...query, optionsColumn: headerMenu },
+                            {
+                              ...query,
+                              optionsColumn: headerMenu,
+                              // Options are built from every row, so sorting and
+                              // filtering them again here would only cost time.
+                              sort: undefined,
+                              filters: undefined,
+                              valueFilters: undefined,
+                              search: "",
+                            },
                           );
                           return {
                             options: p.filterOptions ?? [],
