@@ -139,7 +139,9 @@ function ValueBarEditor({
                 ? "Read-only value. Open its table or Source to edit."
                 : "Click here to edit. Enter to apply; Shift+Enter for a new line; Escape to cancel."
           }
-          placeholder={placeholder ?? (readOnly ? "Empty value" : "Type a value…")}
+          placeholder={
+            placeholder ?? (readOnly ? "Empty value" : "Type a value…")
+          }
           aria-describedby="value-bar-help"
           rows={1}
           wrap={expanded ? "soft" : "off"}
@@ -220,9 +222,13 @@ function ValueBarEditor({
 export function ValueBarPlaceholder({
   address,
   value,
+  caption = "Key",
+  hint = "Double-click the key in the table to rename it.",
 }: {
   address?: string;
   value?: string;
+  caption?: string;
+  hint?: string;
 }) {
   const selected = value !== undefined;
   return (
@@ -236,16 +242,12 @@ export function ValueBarPlaceholder({
         <span className="value-bar-address value-bar-address-idle" />
       )}
       <span className="value-bar-caption sr-only">
-        {selected ? "Key" : "Value"}
+        {selected ? caption : "Value"}
       </span>
       <span
         className="value-bar-empty-field"
-        aria-label={selected ? "Selected key" : undefined}
-        title={
-          selected
-            ? "Double-click the key in the table to rename it."
-            : undefined
-        }
+        aria-label={selected ? `Selected ${caption.toLowerCase()}` : undefined}
+        title={selected ? hint : undefined}
       >
         {selected ? value : "Select a cell"}
       </span>

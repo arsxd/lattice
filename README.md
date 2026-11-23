@@ -14,7 +14,7 @@
 
 **A browser app, an installable PWA, or one HTML file you can keep.** Lattice processes JSON locally; no document-upload endpoint or analytics integration is implemented. No account is required.
 
-Current release: **[v1.0.0-rc.10](https://github.com/arsxd/lattice/releases/tag/v1.0.0-rc.10)**. This is a release candidate. Experimental grouped/merged sheets are excluded.
+Current release: **[v1.0.0-rc.10](https://github.com/arsxd/lattice/releases/tag/v1.0.0-rc.10)**. This is a release candidate.
 
 ## Start in seconds
 

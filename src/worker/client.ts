@@ -3,6 +3,8 @@ export class DocumentClient {
   private worker: Worker;
   private sequence = 0;
   private closed = false;
+  /** Longer cell text previews requested by the grid (for example with Wrap text on). */
+  previewChars: number | undefined;
   private pending = new Map<
     number,
     {
@@ -41,6 +43,8 @@ export class DocumentClient {
       return Promise.reject(
         new Error("Document worker is closed. Reopen the file."),
       );
+    if (action === "project" && this.previewChars && typeof args === "object")
+      args = { previewChars: this.previewChars, ...args };
     return new Promise((resolve, reject) => {
       const id = ++this.sequence;
       const timer = setTimeout(

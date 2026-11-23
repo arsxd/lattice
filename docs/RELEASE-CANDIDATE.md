@@ -1,6 +1,6 @@
 # v1.0.0-rc.10 validation
 
-This is a release candidate, **not the stable release**. This round clears all lint warnings, adds a security policy and browser-support table, and polishes naming and toolbar layout. It changes how the grid passes cell handlers (so they always use current state) but has no other intended change to editing, saving or file handling. Grouped child-row layouts remain experimental and are excluded from this candidate.
+This is a release candidate, **not the stable release**. This round clears all lint warnings, adds a security policy and browser-support table, and polishes naming and toolbar layout. It changes how the grid passes cell handlers (so they always use current state) but has no other intended change to editing, saving or file handling.
 
 Download `Lattice-Offline.html` and `SHA256SUMS.txt` from [v1.0.0-rc.10](https://github.com/arsxd/lattice/releases/tag/v1.0.0-rc.10). The HTML runs by itself. The checksum is optional for use and lets testers identify the exact artifact. The [hosted app](https://arsxd.github.io/lattice/) follows main; its contents may change after this candidate. Use the versioned HTML for a repeatable candidate test.
 

@@ -13,7 +13,7 @@ Summary of everything since the first public preview. This entry becomes the 1.0
 - **Three ways to run it.** A hosted PWA, an installable offline app, and a single `Lattice-Offline.html`. No upload endpoint or analytics integration is implemented.
 - **Accessible, themed UI.** Light and dark themes, keyboard operation, labelled controls and reduced-motion support. Automated checks pass; hands-on screen-reader and zoom checks are tracked in the release checklist.
 - **Project health.** 0BSD license with third-party notices, protected main with Windows, Linux and macOS checks, lint checks for React hooks and accessibility, and a [security policy](SECURITY.md).
-- **Not in 1.0.** Formulas, charts, JSON Schema validation, Excel/CSV import, and grouped/merged sheets (experimental).
+- **Not in 1.0.** Formulas, charts, JSON Schema validation, and Excel/CSV import.
 
 ## 1.0.0-rc.10 — 2026-11-23
 

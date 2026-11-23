@@ -9,16 +9,18 @@ export function blankState(cell: Cell): string | null {
   if (cell.type === "array") return "Empty array";
   return null;
 }
+export const DEFAULT_LINE_LIMITS = { plain: 3, nested: 5 };
 export function wrappedHeight(
   cells: { text: string; width: number; nested?: boolean }[],
   measure: (text: string) => number,
+  limits = DEFAULT_LINE_LIMITS,
 ): number {
   let maxLines = 1;
   for (const cell of cells) {
     if (!cell.text) continue;
     // Match cell padding and the preview’s reserved overflow-indicator gutter.
     const width = Math.max(20, cell.width - 16 - 18);
-    const limit = cell.nested ? 5 : 3;
+    const limit = cell.nested ? limits.nested : limits.plain;
     let lines = 0;
     for (const paragraph of cell.text
       .replace(/\t/g, "    ")

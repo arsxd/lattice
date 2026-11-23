@@ -40,11 +40,9 @@ test("opens a local JSON file, edits inline, and selects full rows and columns",
   await editor.fill("Changed");
   await editor.press("Enter");
   await expect(cell(page, 0, 1)).toContainText("Changed");
-  await page
-    .getByRole("button", { name: "Select array index 0", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Select row 1", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "Select array index 0", exact: true }),
+    page.getByRole("button", { name: "Select row 1", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   await page
     .getByRole("button", { name: /^Select column [A-Z]+ count$/, exact: true })
@@ -118,7 +116,7 @@ test("keeps a resized frozen first row visible during scrolling", async ({
     ),
   );
   const resizer = page.getByRole("separator", {
-    name: "Resize row 0",
+    name: "Resize row 1",
     exact: true,
   });
   await resizer.focus();
@@ -130,7 +128,7 @@ test("keeps a resized frozen first row visible during scrolling", async ({
     .getByRole("button", { name: "Freeze first row", exact: true })
     .click();
   const first = page.getByRole("button", {
-    name: "Select array index 0",
+    name: "Select row 1",
     exact: true,
   });
   const before = await first.boundingBox();
@@ -151,7 +149,7 @@ test("keeps a resized frozen first row visible during scrolling", async ({
     .poll(async () => Math.abs((await first.boundingBox())!.y - before!.y))
     .toBeLessThan(2);
   await expect(
-    page.getByRole("button", { name: "Select array index 39", exact: true }),
+    page.getByRole("button", { name: "Select row 40", exact: true }),
   ).toBeVisible();
 });
 test("recovers an opt-in invalid raw draft after refresh", async ({ page }) => {
@@ -586,9 +584,7 @@ test("freeze menu offers selected-header actions with prefix semantics", async (
       Array.from({ length: 20 }, (_, i) => ({ name: `row-${i}`, count: i })),
     ),
   );
-  await page
-    .getByRole("button", { name: "Select array index 2", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Select row 3", exact: true }).click();
   await page.locator(".freeze-menu summary").click();
   await page
     .getByRole("button", { name: "Freeze selected row", exact: true })
@@ -920,4 +916,69 @@ test("Details contents fill a wide pane and retain readable widths in a narrow p
   const narrow = await dimensions();
   expect(narrow.table).toBeGreaterThanOrEqual(424);
   expect(narrow.scroll).toBeGreaterThan(narrow.viewport);
+});
+
+test("selecting a column header shows its name in the value bar and can copy it", async ({
+  page,
+}) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await open(page, '[{"name":"Alpha","count":1},{"name":"Beta","count":2}]');
+  const header = page.getByRole("button", {
+    name: /^Select column [A-Z]+ count$/,
+    exact: true,
+  });
+  await header.click();
+  await expect(
+    page.getByLabel("Selected column name", { exact: true }),
+  ).toHaveText("count");
+  await header.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Copy column name" }).click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    "count",
+  );
+});
+
+test("rows are numbered from 1 in every kind of table", async ({ page }) => {
+  await open(page, '[{"a":1},{"a":2}]');
+  await expect(
+    page.getByRole("button", { name: "Select row 1", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Select row 2", exact: true }),
+  ).toBeVisible();
+  await open(page, '{"x":{"a":1},"y":{"a":2}}');
+  await expect(
+    page.getByRole("button", { name: "Select row 1", exact: true }),
+  ).toBeVisible();
+});
+
+test("Find highlights matching column names and counts them", async ({
+  page,
+}) => {
+  await open(page, '[{"price":1,"stock":2},{"price":3,"stock":4}]');
+  await page.locator("#find").fill("pri");
+  await expect(
+    page.locator(".sheet-column-heading mark.find-match"),
+  ).toHaveText("pri");
+  await expect(page.locator(".find-count")).toContainText("1 column name");
+  await expect(page.locator(".empty-table")).toContainText(
+    "matches a column name",
+  );
+});
+
+test("Wrap text shows long text in full when there is room", async ({
+  page,
+}) => {
+  const note = "word ".repeat(300).trim();
+  await open(page, JSON.stringify([{ note }]));
+  await expect(cell(page, 0, 1)).toContainText("…");
+  await page.getByRole("button", { name: "Wrap text", exact: true }).click();
+  await expect(cell(page, 0, 1)).toContainText(note.slice(-200));
+  await expect
+    .poll(() =>
+      cell(page, 0, 1).evaluate((e) => e.getBoundingClientRect().height),
+    )
+    .toBeGreaterThan(200);
+  await page.getByRole("button", { name: "Wrap text", exact: true }).click();
+  await expect(cell(page, 0, 1)).toContainText("…");
 });
