@@ -1,8 +1,4 @@
 import { it, expect, vi } from "vitest";
-vi.mock("@tauri-apps/api/core", () => ({
-  isTauri: () => false,
-  invoke: vi.fn(),
-}));
 import { readJsonFile } from "../src/platform/files";
 it("preserves BOM, CRLF and precise numeric spelling when reading a file", async () => {
   const text = '\ufeff{\r\n"n":9007199254740993\r\n}';
