@@ -291,9 +291,11 @@ export default function App() {
     const saved =
       rowHeights[heightKey(row)] ?? automaticHeights.get(row.id) ?? 28;
     if (!inline || view?.rows[inline.row]?.id !== row.id) return saved;
+    // One line fits the row as it is; only extra lines make it taller.
+    const lines = inline.value.split(/\r\n|\r|\n/).length;
     return Math.max(
       saved,
-      52,
+      lines > 1 ? 28 + (Math.min(lines, 8) - 1) * 20 + 12 : 28,
       wrapText
         ? wrappedHeight(
             [
