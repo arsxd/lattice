@@ -48,6 +48,7 @@ function Branch({ item, ...props }: Props & { item: OutlineEntry }) {
     return () => {
       cancelled = true;
     };
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- pathKey stands for item.path; props.load is recreated every render
   }, [expanded, props.visible, props.revision, pathKey, item.expandable]);
   return (
     <li>

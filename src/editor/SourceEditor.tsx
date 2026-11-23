@@ -232,6 +232,7 @@ export function SourceEditor({
       locationCallback.current(false);
       editor.destroy();
     };
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- editor is created once; theme, wrapping and value update via their own effects
   }, []);
   useEffect(() => {
     view.current?.dispatch({
@@ -274,6 +275,7 @@ export function SourceEditor({
         EditorView.scrollIntoView(selection.from, { y: "center" }),
       ],
     });
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- jump only when the target changes, not on every keystroke
   }, [target]);
   return <div className="source-editor" ref={parent} />;
 }

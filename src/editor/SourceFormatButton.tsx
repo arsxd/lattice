@@ -34,6 +34,7 @@ export function SourceFormatButton({
     });
   };
   return (
+    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- wrapper only shows the tooltip for the inner button
     <span
       className="source-format-option"
       onMouseEnter={(event) => show(event.currentTarget)}

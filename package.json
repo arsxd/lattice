@@ -7,7 +7,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "npm run notices && tsc -b && vite build",
     "test": "vitest run",
-    "lint": "oxlint src tests e2e scripts",
+    "lint": "oxlint --deny-warnings src tests e2e scripts",
     "bench": "tsx scripts/benchmark.ts",
     "web:dev": "vite --host 127.0.0.1",
     "web:build": "npm run notices && tsc -b && vite build --base=./",

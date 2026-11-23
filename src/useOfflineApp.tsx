@@ -65,6 +65,7 @@ export function useOfflineApp() {
       window.removeEventListener("beforeinstallprompt", capture);
       window.removeEventListener("appinstalled", installed);
     };
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- hosted comes from the page URL and cannot change while mounted
   }, []);
   async function install() {
     if (!offer || pending) return;

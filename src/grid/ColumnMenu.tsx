@@ -55,6 +55,7 @@ export function ColumnMenu({
       window.removeEventListener("scroll", place, true);
       document.removeEventListener("pointerdown", outside);
     };
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- onClose only closes the menu; listeners attach once per anchor
   }, [anchor]);
   const [options, setOptions] = useState<{ key: string; label: string }[]>([]),
     [chosen, setChosen] = useState(new Set(selected)),
@@ -82,11 +83,13 @@ export function ColumnMenu({
     return () => {
       live = false;
     };
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- load once per mount; the parent remounts the menu per column
   }, []);
   const visible = options.filter((v) =>
     v.label.toLocaleLowerCase().includes(search.toLocaleLowerCase()),
   );
   return (
+    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- dialog handles Escape and Tab for its own controls
     <section
       ref={panel}
       style={{ left: position.left, top: position.top }}

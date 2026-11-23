@@ -290,6 +290,7 @@ export default function ReviewDiff({
       view.destroy();
       merge.current = null;
     };
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- MergeView is built once; before, theme and collapse update via their own effects
   }, []);
   useEffect(() => {
     const editor = merge.current?.a;

@@ -255,6 +255,7 @@ export default function App() {
         ),
       ]),
     );
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- columnWidth() reads the width state listed here
   }, [
     view,
     wrapText,
@@ -309,6 +310,7 @@ export default function App() {
   });
   const frozenRenderers = useMemo(
     () => frozenRowRenderers<Row>(frozenLayout),
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- frozenLayout is a new object every render; its JSON is the key
     [JSON.stringify(frozenLayout)],
   );
   const frozenWidth =
@@ -380,6 +382,7 @@ export default function App() {
   useEffect(() => {
     setSheetSelection(null);
     setHeaderMenu(null);
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- reset only when the tab or table path changes
   }, [activeId, query.path.join("\0")]);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [editing, setEditing] = useState<Editing | null>(null);
@@ -413,6 +416,7 @@ export default function App() {
     measure();
     observer.observe(element);
     return () => observer.disconnect();
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- re-measure only when a view appears or disappears
   }, [mode, tableHeightKey, !!view]);
   const [theme, setTheme] = useState(
     localStorage.getItem("json-workbench-theme") ?? "system",
@@ -434,6 +438,7 @@ export default function App() {
   const [outlineVisible, setOutlineVisible] = useState(false);
   useEffect(() => {
     setFindDraft(query.search);
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- stable key for the path array
   }, [activeId, JSON.stringify(query.path), query.search]);
   useEffect(() => {
     if (mode !== "table" || busy || findDraft === query.search) return;
@@ -448,6 +453,7 @@ export default function App() {
       150,
     );
     return () => clearTimeout(timer);
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- changeQuery is recreated every render; query is already listed
   }, [findDraft, query, mode, busy]);
   useEffect(() => {
     if (mode !== "table" || inline || busy) return;
@@ -458,6 +464,7 @@ export default function App() {
     }
     const cell = view?.rows[activeCell.row]?.cells[activeCell.column];
     if (cell) void select(cell);
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- select is recreated every render; activeCell is tracked by row and column
   }, [
     activeCell?.row,
     activeCell?.column,
@@ -1302,6 +1309,7 @@ export default function App() {
       setAddedColumn(null);
     });
     return () => cancelAnimationFrame(frame);
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- select is recreated every render
   }, [addedColumn, view, busy, tableHeightKey]);
   async function addColumn() {
     if (!view || columnName === null) return;
@@ -1442,6 +1450,7 @@ export default function App() {
   }
   const activeFilters = useMemo(
     () => columnFilterSummaries(query, view),
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- columnFilterSummaries reads only filters and valueFilters
     [query.filters, query.valueFilters, view],
   );
   function clearColumnFilter(column?: number) {
@@ -1465,6 +1474,16 @@ export default function App() {
           : valueFilters,
     });
   }
+  // The memoized grid columns below keep closures until their dependencies
+  // change. Event handlers go through this ref so they always see current state.
+  const handlers = useRef({
+    commitInline,
+    save,
+    cancelInline,
+    navigate,
+    resizeRow,
+  });
+  handlers.current = { commitInline, save, cancelInline, navigate, resizeRow };
   const columns = useMemo<Column<Row>[]>(
     () =>
       view
@@ -1529,8 +1548,10 @@ export default function App() {
                   <RowHeightHandle
                     number={rowLabel(row, rowIdx)}
                     height={rowHeight(row)}
-                    onChange={(height) => resizeRow(row, height)}
-                    onReset={() => resizeRow(row)}
+                    onChange={(height) =>
+                      handlers.current.resizeRow(row, height)
+                    }
+                    onReset={() => handlers.current.resizeRow(row)}
                   />
                 </div>
               ),
@@ -1545,6 +1566,7 @@ export default function App() {
                   : "sheet-header",
               frozen: i < columnsFrozen,
               renderHeaderCell: () => (
+                // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- pointer shortcut; keyboard uses the Select column button inside
                 <div
                   className="sheet-column-heading"
                   onClick={(event) => {
@@ -1619,6 +1641,7 @@ export default function App() {
                         ? `${columnLabel(view, i)}: ${activeFilters.find((filter) => filter.column === i)!.description}`
                         : `Sort and filter ${columnLabel(view, i)}`
                     }
+                    // oxlint-disable-next-line jsx-a11y/role-supports-aria-props -- aria-description (ARIA 1.3) adds the filter summary; title carries it too
                     aria-description={
                       activeFilters.find((filter) => filter.column === i)
                         ?.description
@@ -1660,6 +1683,7 @@ export default function App() {
                       aria-label={`Edit ${name} (${inline.kind})`}
                       aria-invalid={!!inline.error}
                       aria-describedby={inline.error ? "cell-error" : undefined}
+                      // oxlint-disable-next-line jsx-a11y/no-autofocus -- in-cell editor must take focus when opened
                       autoFocus
                       value={inline.value}
                       onFocus={(e) => {
@@ -1667,7 +1691,7 @@ export default function App() {
                       }}
                       onBlur={() => {
                         if (!suppressBlur.current && !committingCell.current)
-                          void commitInline();
+                          void handlers.current.commitInline();
                       }}
                       onChange={(e) =>
                         setInline({
@@ -1685,14 +1709,14 @@ export default function App() {
                           e.key.toLowerCase() === "s"
                         ) {
                           e.preventDefault();
-                          void commitInline().then((ok) => {
-                            if (ok) void save(e.shiftKey);
+                          void handlers.current.commitInline().then((ok) => {
+                            if (ok) void handlers.current.save(e.shiftKey);
                           });
                           return;
                         }
                         if (e.key === "Escape") {
                           e.preventDefault();
-                          cancelInline();
+                          handlers.current.cancelInline();
                         }
                         if (
                           e.key === "Enter" &&
@@ -1720,7 +1744,7 @@ export default function App() {
                         }
                         if (e.key === "Enter" || e.key === "Tab") {
                           e.preventDefault();
-                          void commitInline(
+                          void handlers.current.commitInline(
                             e.key === "Tab"
                               ? e.shiftKey
                                 ? "previous"
@@ -1744,7 +1768,7 @@ export default function App() {
                         ? (event) => {
                             if (event.ctrlKey || event.metaKey) {
                               event.stopPropagation();
-                              void navigate(c.path);
+                              void handlers.current.navigate(c.path);
                             }
                           }
                         : undefined
@@ -1785,6 +1809,7 @@ export default function App() {
             })),
           ]
         : [],
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- cells read derived state through helpers; handlers go through handlers.current
     [
       view,
       inline,
@@ -1896,6 +1921,7 @@ export default function App() {
       cancelled = true;
       clearTimeout(timer);
     };
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- snapshot is recreated every render; the state it reads is listed
   }, [
     view?.revision,
     doc?.name,
@@ -1943,6 +1969,7 @@ export default function App() {
       document.removeEventListener("keydown", trap);
       previous?.focus();
     };
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- trap focus only while a dialog is open, not on every edit
   }, [!!editing, discardPrompt]);
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
@@ -1962,6 +1989,7 @@ export default function App() {
     window.addEventListener("beforeunload", before);
     return () => {
       window.removeEventListener("beforeunload", before);
+      // oxlint-disable-next-line react-hooks/exhaustive-deps -- dispose the sessions open at unmount, not those at mount
       for (const session of sessions.current.values()) session.client.dispose();
     };
   }, []);
@@ -2026,6 +2054,7 @@ export default function App() {
       }));
     });
     return () => cancelAnimationFrame(frame);
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- select is recreated every render
   }, [view, query.searchResult, busy]);
   const selectedIdentifier =
     activeCell &&
@@ -3053,6 +3082,7 @@ export default function App() {
                         <label>
                           Column name{" "}
                           <input
+                            // oxlint-disable-next-line jsx-a11y/no-autofocus -- dialog opens to type the column name
                             autoFocus
                             value={columnName}
                             disabled={operationBusy}
@@ -3665,20 +3695,24 @@ export default function App() {
                   <>
                     {view?.kind === "array" && activeCell && (
                       <>
+                        {/* oxlint-disable-next-line jsx-a11y/label-has-associated-control -- caption in the Details pane, not a form field */}
                         <label>Original index</label>
                         <code>
                           {String(view.rows[activeCell.row].path.at(-1))}
                         </code>
                       </>
                     )}
+                    {/* oxlint-disable-next-line jsx-a11y/label-has-associated-control -- caption in the Details pane, not a form field */}
                     <label>Path</label>
                     <code className="path">
                       {pointer(selection.cell.path) || "(root)"}
                     </code>
+                    {/* oxlint-disable-next-line jsx-a11y/label-has-associated-control -- caption in the Details pane, not a form field */}
                     <label>JSON type</label>
                     <span className="type-label">{selection.cell.type}</span>
                     {blankState(selection.cell) && (
                       <>
+                        {/* oxlint-disable-next-line jsx-a11y/label-has-associated-control -- caption in the Details pane, not a form field */}
                         <label>Value state</label>
                         <span>{blankState(selection.cell)}</span>
                       </>
@@ -3864,6 +3898,7 @@ export default function App() {
                 Discard changes
               </button>
               <button
+                // oxlint-disable-next-line jsx-a11y/no-autofocus -- safe default: focus Keep editing in a discard prompt
                 autoFocus
                 className="primary"
                 onClick={() => answerDiscard(false)}
