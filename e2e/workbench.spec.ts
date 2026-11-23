@@ -1033,3 +1033,21 @@ test("the value bar offers Expand only when the value needs more room", async ({
     )
     .toBeGreaterThan(60);
 });
+
+test("nested values are coloured like Source and still highlight Find matches", async ({
+  page,
+}) => {
+  await open(
+    page,
+    '[{"name":"A","details":{"edition":3,"lang":"en","ok":true,"n":null}}]',
+  );
+  const nested = cell(page, 0, 2);
+  await expect(nested.locator(".json-number")).toHaveText("3");
+  await expect(nested.locator(".json-string")).toHaveText('"en"');
+  await expect(nested.locator(".json-literal")).toHaveText(["true", "null"]);
+  // Plain values stay uncoloured.
+  await expect(cell(page, 0, 1).locator(".json-string")).toHaveCount(0);
+  await page.locator("#find").fill("edition");
+  await expect(nested.locator("mark.find-match")).toHaveText("edition");
+  await expect(nested).toContainText('"edition": 3');
+});

@@ -4,6 +4,7 @@ import { ActiveFilters, columnFilterSummaries } from "./grid/ActiveFilters";
 import { FindBar } from "./grid/FindBar";
 import { ThemePicker } from "./ThemePicker";
 import { FindHighlight } from "./grid/FindHighlight";
+import { JsonPreview } from "./grid/JsonPreview";
 import { CellPreview } from "./grid/CellPreview";
 import { columnLetter } from "./grid/columnAddress";
 import { ColumnMenuChevron } from "./grid/SheetIcons";
@@ -1807,6 +1808,11 @@ export default function App() {
                 const c = row.cells[i];
                 const originalIndex = view.columnKinds[i] === "index";
                 const blank = valueColumn(i) ? blankState(c) : null;
+                // Nested values get Source-style colours; plain values stay plain.
+                const PreviewText =
+                  !blank && (c.type === "array" || c.type === "object")
+                    ? JsonPreview
+                    : FindHighlight;
                 return (
                   <CellPreview
                     className={`cell-value ${blank ? "empty-value" : ""} ${c.container && !originalIndex ? "container-value" : ""} ${c.type === "array" && !originalIndex ? "array-value" : ""} ${c.type === "number" ? "numeric" : ""}`}
@@ -1833,7 +1839,7 @@ export default function App() {
                         : undefined
                     }
                   >
-                    <FindHighlight
+                    <PreviewText
                       search={query.search}
                       caseSensitive={query.searchCaseSensitive}
                       wholeWord={query.searchWholeWord}
