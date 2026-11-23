@@ -235,3 +235,25 @@ test("Source pairs JSON characters and retains typing through Undo/Redo", async 
   await page.keyboard.press("ControlOrMeta+Shift+z");
   await expect(editor).toHaveText('{"name": ["value"]}');
 });
+
+test("Ctrl+Shift+Z redoes Source typing on non-Mac platforms", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    Object.defineProperty(navigator, "platform", {
+      value: "Win32",
+      configurable: true,
+    }),
+  );
+  await page.goto("/");
+  await open(page, '{"name":"Alpha"}');
+  await page.getByRole("button", { name: "Source", exact: true }).click();
+  const editor = page.getByRole("textbox", { name: "JSON source draft" });
+  await editor.fill("");
+  await page.keyboard.type('{"b": [1]}');
+  await expect(editor).toHaveText('{"b": [1]}');
+  await page.keyboard.press("Control+z");
+  await expect(editor).not.toHaveText('{"b": [1]}');
+  await page.keyboard.press("Control+Shift+z");
+  await expect(editor).toHaveText('{"b": [1]}');
+});

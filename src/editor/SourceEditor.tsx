@@ -24,6 +24,7 @@ import {
   history,
   historyKeymap,
   isolateHistory,
+  redo,
   defaultKeymap,
   indentWithTab,
 } from "@codemirror/commands";
@@ -155,6 +156,8 @@ export function SourceEditor({
           keymap.of([
             ...closeBracketsKeymap,
             ...historyKeymap,
+            // CodeMirror binds Ctrl-Y (and Ctrl-Shift-Z only on Linux); Windows users expect both.
+            { key: "Mod-Shift-z", run: redo, preventDefault: true },
             ...defaultKeymap,
             indentWithTab,
           ]),
