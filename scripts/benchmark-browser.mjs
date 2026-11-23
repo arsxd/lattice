@@ -89,23 +89,25 @@ try {
         });
         if (await records.count()) await records.dblclick();
         await page
-          .getByRole("button", { name: "Select column price", exact: true })
+          .getByRole("button", {
+            name: /^Select column [A-Z]+ price$/,
+          })
           .waitFor();
       });
       await measure("selectMs", async () => {
-        await cell(0, 1).click();
+        await cell(0, 0).click();
         await expect(
           page.getByRole("textbox", { name: "Selected cell value" }),
-        ).toHaveValue("Sample product");
+        ).toHaveValue('"Sample product"');
       });
       await measure("editMs", async () => {
-        await cell(0, 2).dblclick();
+        await cell(0, 1).dblclick();
         const editor = page.getByRole("textbox", {
           name: "Edit price (number)",
         });
         await editor.fill("19.75");
         await editor.press("Enter");
-        await expect(cell(0, 2)).toHaveText("19.75");
+        await expect(cell(0, 1)).toHaveText("19.75");
       });
       await measure("sortMs", async () => {
         await page
@@ -114,7 +116,7 @@ try {
         await page
           .getByRole("button", { name: "Sort ascending ↑", exact: true })
           .click();
-        await expect(cell(0, 2)).toHaveText("12.5", { timeout: 30000 });
+        await expect(cell(0, 1)).toHaveText("12.5", { timeout: 30000 });
       });
       const tasks = await page.evaluate(() => window.benchmarkTasks);
       results.push({
