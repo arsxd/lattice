@@ -1,6 +1,6 @@
 # Lattice documentation
 
-[Open Lattice](https://arsxd.github.io/lattice/) · [Download rc.8 HTML](https://github.com/arsxd/lattice/releases/download/v1.0.0-rc.8/Lattice-Offline.html)
+[Open Lattice](https://arsxd.github.io/lattice/) · [Download rc.9 HTML](https://github.com/arsxd/lattice/releases/download/v1.0.0-rc.9/Lattice-Offline.html)
 
 | Guide                                                | What you will find                                                                            |
 | ---------------------------------------------------- | --------------------------------------------------------------------------------------------- |
