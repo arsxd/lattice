@@ -40,7 +40,24 @@ test("source locator marks exact text without selecting it and wrapping leaves J
   );
   await expect(editor).toHaveText(original);
   await expect(page.locator(".source-actions")).toHaveCount(0);
-  await page.getByRole("button", { name: /^Selected cell/ }).click();
+  const cue = page.locator(".source-cell-arrival");
+  for (let repeat = 0; repeat < 2; repeat++) {
+    await cue.evaluate((element) =>
+      element.getAnimations().forEach((animation) => animation.finish()),
+    );
+    await page.getByRole("button", { name: /^Selected cell/ }).click();
+    await expect
+      .poll(() =>
+        cue.evaluate((element) =>
+          element
+            .getAnimations()
+            .some((animation) => animation.playState === "running"),
+        ),
+      )
+      .toBe(true);
+  }
+  await expect(editor).toHaveText(original);
+  expect(await page.evaluate(() => window.getSelection()?.toString())).toBe("");
   await editor.click();
   await page.keyboard.press("End");
   await page.keyboard.type(" ");
@@ -146,4 +163,97 @@ test("array previews wrap only overflowing rows and Find counts matching cells",
     .getByRole("button", { name: "Match whole word", exact: true })
     .click();
   await expect(page.locator(".find-count")).toHaveText("1 cell");
+});
+
+test("compact formatting keeps short records inline, stays undoable and rejects invalid drafts", async ({
+  page,
+}) => {
+  const raw =
+    '{ "record": { "n":9007199254740993,"huge":1e400,"s":"\\u0061" }, "enabled":true }';
+  await open(page, raw);
+  await page.getByRole("button", { name: "Source", exact: true }).click();
+  const editor = page.getByRole("textbox", { name: "JSON source draft" });
+  await page.getByRole("button", { name: "Compact", exact: true }).click();
+  await expect(editor).toContainText(
+    '"record": { "n": 9007199254740993, "huge": 1e400, "s": "\\u0061" }',
+  );
+  const formatted = await editor.innerText();
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect(editor).toHaveText(raw);
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  await expect.poll(() => editor.innerText()).toBe(formatted);
+  await expect(page.locator(".source-actions")).toBeVisible();
+  await editor.fill('{"unfinished":');
+  await expect(editor).toHaveText('{"unfinished":');
+  await page.getByRole("button", { name: "Compact", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText(
+    "Correct the JSON before formatting",
+  );
+  await expect(editor).toHaveText('{"unfinished":');
+});
+
+test("format labels have keyboard and hover explanations without changing focus", async ({
+  page,
+}) => {
+  await open(page, '{"value":1}');
+  await page.getByRole("button", { name: "Source", exact: true }).click();
+  const formats = page.getByRole("group", { name: "Format", exact: true });
+  const expanded = formats.getByRole("button", {
+    name: "Pretty-print",
+    exact: true,
+  });
+  await expanded.focus();
+  await expect(page.getByRole("tooltip")).toContainText("separate lines");
+  await expanded.press("Escape");
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
+  await expect(expanded).toBeFocused();
+  await formats.getByRole("button", { name: "Compact", exact: true }).hover();
+  await expect(page.getByRole("tooltip")).toContainText(
+    "short objects and arrays inline",
+  );
+  await page.mouse.move(0, 0);
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
+  await expect(
+    formats.getByRole("button", { name: "Minify", exact: true }),
+  ).not.toHaveAttribute("aria-pressed");
+});
+
+test("Source pairs JSON characters and retains typing through Undo/Redo", async ({
+  page,
+}) => {
+  await open(page, '{"name":"Alpha"}');
+  await page.getByRole("button", { name: "Source", exact: true }).click();
+  const editor = page.getByRole("textbox", { name: "JSON source draft" });
+  await editor.fill("");
+  await page.keyboard.type('"');
+  await expect(editor).toHaveText('""');
+  await page.keyboard.press("Backspace");
+  await expect(editor).toHaveText("");
+  await page.keyboard.type('{"name": ["value"]}');
+  await expect(editor).toHaveText('{"name": ["value"]}');
+  await page.keyboard.press("ControlOrMeta+z");
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  await expect(editor).toHaveText('{"name": ["value"]}');
+});
+
+test("Ctrl+Shift+Z redoes Source typing on non-Mac platforms", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    Object.defineProperty(navigator, "platform", {
+      value: "Win32",
+      configurable: true,
+    }),
+  );
+  await page.goto("/");
+  await open(page, '{"name":"Alpha"}');
+  await page.getByRole("button", { name: "Source", exact: true }).click();
+  const editor = page.getByRole("textbox", { name: "JSON source draft" });
+  await editor.fill("");
+  await page.keyboard.type('{"b": [1]}');
+  await expect(editor).toHaveText('{"b": [1]}');
+  await page.keyboard.press("Control+z");
+  await expect(editor).not.toHaveText('{"b": [1]}');
+  await page.keyboard.press("Control+Shift+z");
+  await expect(editor).toHaveText('{"b": [1]}');
 });
