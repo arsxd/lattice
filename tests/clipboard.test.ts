@@ -155,12 +155,12 @@ it("shows primitive arrays inline and removes generated type columns", () => {
 });
 it("exposes array groups inside a single wrapper as sheets", () => {
   const d = new DocumentEngine(
-    '{"swc_interface":{"Feature_params":[{"key":"val"}],"phy_params":[{"pin":1}]}}',
+    '{"library":{"books":[{"title":"Dune"}],"members":[{"id":1}]}}',
   );
   const p = d.project({ path: [], records: true, search: "", page: 0 });
   expect(p.sheets?.map((s) => s.path)).toEqual([
-    ["swc_interface", "Feature_params"],
-    ["swc_interface", "phy_params"],
+    ["library", "books"],
+    ["library", "members"],
   ]);
 });
 it("keeps established columns when filling a field missing from the first row", () => {
@@ -194,12 +194,12 @@ it("retains the renamed column position through batch and Undo", () => {
 it("renames a newly added object row without changing values and rejects duplicate keys", () => {
   const d = new DocumentEngine('{"1":{"v":9007199254740993}}');
   d.mutate({ action: "add-row", path: [] }, 0);
-  d.mutate({ action: "rename", path: ["2"], key: "SignalName" }, d.revision);
-  expect(d.raw(["SignalName"])).toBe('{"v": null}');
+  d.mutate({ action: "rename", path: ["2"], key: "BookTitle" }, d.revision);
+  expect(d.raw(["BookTitle"])).toBe('{"v": null}');
   expect(d.raw(["1", "v"])).toBe("9007199254740993");
   const before = d.text;
   expect(() =>
-    d.mutate({ action: "rename", path: ["SignalName"], key: "1" }, d.revision),
+    d.mutate({ action: "rename", path: ["BookTitle"], key: "1" }, d.revision),
   ).toThrow();
   expect(d.text).toBe(before);
   d.undo();
