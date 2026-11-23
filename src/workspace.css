@@ -203,6 +203,10 @@
   color: var(--muted);
   padding: 0 8px;
 }
+/* Add row and Add column are primary editing actions; toggles stay quiet. */
+.pagination .table-actions > button:not([aria-pressed]) {
+  color: var(--text);
+}
 .pagination button[aria-pressed="true"] {
   color: var(--accent);
   background: var(--selection);

@@ -99,7 +99,7 @@ test("external changes block linked Save and Reload adopts the external file", a
   expect(await page.evaluate(() => (window as any).fileModel.writes)).toBe(0);
   await expect(page.locator(".status")).toContainText("Unsaved changes");
   await page
-    .getByRole("button", { name: /^Reload source…?$/, exact: true })
+    .getByRole("button", { name: /^Reload file…?$/, exact: true })
     .click();
   await page
     .getByRole("button", { name: "Discard changes", exact: true })

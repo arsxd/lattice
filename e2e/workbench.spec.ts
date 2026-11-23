@@ -346,9 +346,7 @@ test("reload retains selected property page and scroll after external column reo
       })),
     );
   });
-  await page
-    .getByRole("button", { name: "Reload source", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Reload file", exact: true }).click();
   await expect(page.locator(".pagination")).toContainText("Page 2 / 2");
   await expect(
     page.getByRole("textbox", { name: "Selected cell value" }),

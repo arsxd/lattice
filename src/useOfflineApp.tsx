@@ -116,13 +116,11 @@ export function useOfflineApp() {
     window.matchMedia("(display-mode: standalone)").matches ? null : (
       <section className="welcome-install" aria-label="Install Lattice">
         <strong>Use Lattice as an app</strong>
-        <p>Open in its own window, with offline access.</p>
-        {!offer && (
-          <p>
-            Open this page in Chrome or Edge and use the browser’s install menu.
-            Installation depends on browser support and policy.
-          </p>
-        )}
+        <p>
+          Its own window, with offline access.
+          {!offer &&
+            " In Chrome or Edge, use the browser’s install menu; availability depends on browser support and policy."}
+        </p>
         <div className="welcome-install-actions">
           {offer && (
             <button disabled={pending} onClick={() => void install()}>
