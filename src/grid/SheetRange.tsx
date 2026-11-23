@@ -158,6 +158,7 @@ export function SheetRange({
     return () => {
       cancelled = true;
     };
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- key identifies the selection; copy is recreated every render
   }, [key, view]);
   function point(target: EventTarget | null): SheetPoint | null {
     if (!(target instanceof Element)) return null;
@@ -438,6 +439,7 @@ export function SheetRange({
           ref={menuElement}
           className="sheet-menu"
           role="menu"
+          tabIndex={-1}
           style={menuPosition}
           onKeyDown={(e) => {
             if (e.key === "Escape") {

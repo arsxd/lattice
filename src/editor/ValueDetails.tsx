@@ -5,6 +5,7 @@ export function ValueDetails({ raw }: { raw: string }) {
   if (!preview) return null;
   return (
     <div className="details-preview">
+      {/* oxlint-disable-next-line jsx-a11y/label-has-associated-control -- caption for the preview table, not a form field */}
       <label>Contents</label>
       {preview.total ? (
         <>
@@ -12,6 +13,7 @@ export function ValueDetails({ raw }: { raw: string }) {
             className="details-table-scroll"
             role="region"
             aria-label="Contents preview"
+            // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- scrollable region must be keyboard-focusable
             tabIndex={0}
           >
             <table
