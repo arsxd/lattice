@@ -1,19 +1,11 @@
 // Remove formatting whitespace only outside strings. Exact numeric and string tokens survive.
+const PIECE = /"(?:[^"\\]|\\[\s\S])*"?|[^"]+/g;
 export function compactJson(raw: string): string {
-  let result = "",
-    quoted = false,
-    escaped = false;
-  for (const char of raw) {
-    if (quoted) {
-      result += char;
-      if (escaped) escaped = false;
-      else if (char === "\\") escaped = true;
-      else if (char === '"') quoted = false;
-    } else if (char === '"') {
-      quoted = true;
-      result += char;
-    } else if (!/\s/u.test(char))
-      result += char === "," ? ", " : char === ":" ? ": " : char;
-  }
+  let result = "";
+  for (const [piece] of raw.matchAll(PIECE))
+    result +=
+      piece.charCodeAt(0) === 34
+        ? piece
+        : piece.replace(/\s+/g, "").replace(/[,:]/g, "$& ");
   return result;
 }

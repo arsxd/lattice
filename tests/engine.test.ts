@@ -344,3 +344,42 @@ it("shows more of long text only when asked and only within a size budget", () =
   expect(shown).toBeGreaterThanOrEqual(238);
   expect(shown).toBeLessThan(500);
 });
+it("finds text deep inside a large nested value", () => {
+  const d = new DocumentEngine(
+    JSON.stringify([
+      { id: 1, obj: { pad: "y".repeat(6000), late: "NEEDLE" } },
+      { id: 2, obj: { pad: "z".repeat(10) } },
+    ]),
+  );
+  const found = d.project({
+    path: [],
+    records: true,
+    search: "NEEDLE",
+    page: 0,
+  });
+  expect(found.matched).toBe(1);
+  expect(found.searchMatchCount).toBe(1);
+});
+it("shows the neighbourhood of a match that lies beyond the cell preview", () => {
+  const note = "x".repeat(600) + " NEEDLE " + "y".repeat(600);
+  const obj = { pad: "p".repeat(5000), late: "NEEDLE here" };
+  const d = new DocumentEngine(JSON.stringify([{ note, obj }]));
+  const base = { path: [], records: true, page: 0 };
+  const shown = (search: string, name: string, data = d) => {
+    const p = data.project({ ...base, search });
+    return p.rows[0].cells[p.headers.indexOf(name)].display;
+  };
+  const noteDisplay = shown("NEEDLE", "note");
+  expect(noteDisplay).toContain("NEEDLE");
+  expect(noteDisplay.startsWith("…")).toBe(true);
+  expect(noteDisplay.length).toBeLessThanOrEqual(240);
+  const objDisplay = shown("NEEDLE", "obj");
+  expect(objDisplay).toContain("NEEDLE");
+  expect(objDisplay.length).toBeLessThanOrEqual(4096);
+  // Without a search, or when the match is already visible, nothing changes.
+  expect(shown("", "note").startsWith("xxx")).toBe(true);
+  const near = new DocumentEngine(
+    JSON.stringify([{ note: "abc NEEDLE " + "x".repeat(600) }]),
+  );
+  expect(shown("NEEDLE", "note", near)).toBe(shown("", "note", near));
+});

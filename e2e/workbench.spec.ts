@@ -1051,3 +1051,17 @@ test("nested values are coloured like Source and still highlight Find matches", 
   await expect(nested.locator("mark.find-match")).toHaveText("edition");
   await expect(nested).toContainText('"edition": 3');
 });
+
+test("Find highlights a match that lies beyond the cell preview", async ({
+  page,
+}) => {
+  const note = "x".repeat(600) + " NEEDLE " + "y".repeat(100);
+  await open(page, JSON.stringify([{ id: 1, note }]));
+  await page.locator("#find").fill("NEEDLE");
+  await expect(page.locator(".find-count")).toContainText("1 cell");
+  await expect(cell(page, 0, 2).locator("mark.find-match")).toHaveText(
+    "NEEDLE",
+  );
+  await page.locator("#find").fill("");
+  await expect(cell(page, 0, 2).locator("mark.find-match")).toHaveCount(0);
+});

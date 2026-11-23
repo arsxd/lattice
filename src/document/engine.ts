@@ -1,4 +1,4 @@
-import { textMatcher } from "./search";
+import { textMatcher, searchPattern } from "./search";
 import { compactJson } from "./compactJson";
 import { selectedCellCount, type SheetSelection } from "./sheetSelection";
 import {
@@ -656,7 +656,12 @@ export class DocumentEngine {
         multiline ? eol + indent + "  " + content : content,
       );
   }
-  private cell(n: Node | undefined, path: Path, textLimit = 240): Cell {
+  private cell(
+    n: Node | undefined,
+    path: Path,
+    textLimit = 240,
+    focus?: RegExp,
+  ): Cell {
     if (!n)
       return { path, type: "missing", display: "missing", container: false };
     const primitiveArray =
@@ -681,7 +686,34 @@ export class DocumentEngine {
             : String(n.value)
           : this.text.slice(n.offset, n.offset + n.length);
     const limit = container || primitiveArray ? 4096 : textLimit;
+    const nested = container || primitiveArray;
+    const truncated = display.length > limit || (nested && n.length > 4096);
     if (display.length > limit) display = display.slice(0, limit - 3) + "…";
+    if (focus && truncated) {
+      // A match that already shows in the preview needs no help.
+      focus.lastIndex = 0;
+      const seen = focus.exec(display);
+      const visible = !!seen && seen.index + seen[0].length < display.length;
+      if (!visible) {
+        // A Find match beyond the preview would be counted but invisible, so show
+        // the text around the first match instead of the start of the value.
+        const full = nested
+          ? compactJson(this.text.slice(n.offset, n.offset + n.length))
+          : n.type === "string"
+            ? String(n.value)
+            : this.text.slice(n.offset, n.offset + n.length);
+        focus.lastIndex = 0;
+        const m = focus.exec(full);
+        if (m && m.index + m[0].length > limit - 3) {
+          const start = m.index - Math.min(80, m.index);
+          const end = Math.min(full.length, start + limit - 2);
+          display =
+            (start > 0 ? "…" : "") +
+            full.slice(start, end) +
+            (end < full.length ? "…" : "");
+        }
+      }
+    }
     return { path, type: n.type as Kind, display, container, empty };
   }
   selection(
@@ -851,10 +883,12 @@ export class DocumentEngine {
       n!.type === "object" || n!.type === "array" ? [...path, key] : path;
     // Raised after paging, once the number of cells to send is known.
     let textLimit = 240;
+    // Set only while building the visible page; filtering and sorting use plain cells.
+    let focus: RegExp | undefined;
     const getCell = (item: [string | number, Node], column: number): Cell => {
       const [key, value] = item,
         p = pathOf(key),
-        c = this.cell(value, p, textLimit);
+        c = this.cell(value, p, textLimit, focus);
       if (records) {
         column += hideIndex ? 1 : 0;
         if (column === 0) return { ...c, display: String(key) };
@@ -877,7 +911,12 @@ export class DocumentEngine {
             writable: false,
           };
         const field = keys[column - 1];
-        const result = this.cell(child(value, field), [...p, field], textLimit);
+        const result = this.cell(
+          child(value, field),
+          [...p, field],
+          textLimit,
+          focus,
+        );
         if (result.type === "missing" || result.type === "null") {
           result.inputKind = inputKinds.get(field) ?? "string";
         }
@@ -941,12 +980,18 @@ export class DocumentEngine {
     });
     const matchesCell = (item: [string | number, Node], column: number) => {
       const cell = getCell(item, column);
-      return matchesText(
-        metadataColumn(column)
-          ? cell.display
-          : cell.type === "string"
-            ? String(this.node(cell.path).value)
-            : cell.display,
+      if (metadataColumn(column)) return matchesText(cell.display);
+      if (cell.type === "string")
+        return matchesText(String(this.node(cell.path).value));
+      if (matchesText(cell.display)) return true;
+      if (cell.type !== "object" && cell.type !== "array") return false;
+      // Nested values are previewed up to 4,096 characters; search the rest too.
+      const node = this.node(cell.path);
+      return (
+        node.length > 4096 &&
+        matchesText(
+          compactJson(this.text.slice(node.offset, node.offset + node.length)),
+        )
       );
     };
     if (search)
@@ -1105,6 +1150,11 @@ export class DocumentEngine {
       const budget = Math.floor(PREVIEW_BUDGET / Math.max(1, pageCells));
       textLimit = Math.max(240, Math.min(4096, query.previewChars, budget));
     }
+    if (search)
+      focus = searchPattern(search, {
+        caseSensitive: query.searchCaseSensitive,
+        wholeWord: query.searchWholeWord,
+      });
     const rows = filtered
       .slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
       .map((item) => {
@@ -1116,6 +1166,7 @@ export class DocumentEngine {
           cells: headers.map((_, i) => getCell(item, i)),
         };
       });
+    focus = undefined;
     const containers = items.filter(
       ([, v]) => v.type === "object" || v.type === "array",
     );
