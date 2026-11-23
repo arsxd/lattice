@@ -60,16 +60,21 @@ async function withScrollbars(
   }
 }
 
-test("overlay scrollbars do not cover the sheet tab names", async () => {
-  await withScrollbars("overlay", async (page) => {
-    await openManySheets(page);
-    await expect
-      .poll(async () => (await geometry(page)).overflowing)
-      .toBe(true);
-    const g = await geometry(page);
-    expect(g.scrollbar).toBeLessThan(2); // overlay bars take no space
-    expect(g.gapBelowTabs).toBeGreaterThanOrEqual(8);
+test("a scrollbar that takes no space does not cover the sheet tab names", async ({
+  page,
+}) => {
+  // Overlay scrollbars (macOS trackpads) are drawn over content and add no
+  // height. CI browsers cannot be forced into that mode, so emulate it.
+  await openManySheets(page);
+  await page.addStyleTag({
+    content: ".sheet-tabs { scrollbar-width: none; }",
   });
+  await expect
+    .poll(async () => (await geometry(page)).gapBelowTabs)
+    .toBeGreaterThanOrEqual(8);
+  const g = await geometry(page);
+  expect(g.overflowing).toBe(true);
+  expect(g.scrollbar).toBeLessThan(2);
 });
 
 test("classic scrollbars sit below the tabs without extra spacing", async () => {
