@@ -6,7 +6,7 @@
 <p align="center">Sort, filter and edit your data. Explore nested values. Review every change.</p>
 <p align="center">
   <a href="https://arsxd.github.io/lattice/"><strong>Open the app</strong></a> ·
-  <a href="https://github.com/arsxd/lattice/releases/download/v1.0.0-rc.9/Lattice-Offline.html"><strong>Download HTML</strong></a> ·
+  <a href="https://github.com/arsxd/lattice/releases/download/v1.0.0-rc.10/Lattice-Offline.html"><strong>Download HTML</strong></a> ·
   <a href="docs/USER-GUIDE.md">User guide</a>
 </p>
 
@@ -14,14 +14,14 @@
 
 **A browser app, an installable PWA, or one HTML file you can keep.** Lattice processes JSON locally; no document-upload endpoint or analytics integration is implemented. No account is required.
 
-Current release: **[v1.0.0-rc.9](https://github.com/arsxd/lattice/releases/tag/v1.0.0-rc.9)**. This is a release candidate. Experimental grouped/merged sheets are excluded.
+Current release: **[v1.0.0-rc.10](https://github.com/arsxd/lattice/releases/tag/v1.0.0-rc.10)**. This is a release candidate. Experimental grouped/merged sheets are excluded.
 
 ## Start in seconds
 
 | Use it your way     | How                                                                                                                                                                                        |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | In your browser     | [Open Lattice](https://arsxd.github.io/lattice/), then open a JSON file or try **Explore sample workspace**.                                                                               |
-| As a single file    | [Download Lattice-Offline.html](https://github.com/arsxd/lattice/releases/download/v1.0.0-rc.9/Lattice-Offline.html) and open it in a desktop browser. No Node.js, server or installation. |
+| As a single file    | [Download Lattice-Offline.html](https://github.com/arsxd/lattice/releases/download/v1.0.0-rc.10/Lattice-Offline.html) and open it in a desktop browser. No Node.js, server or installation. |
 | As an installed app | Open the hosted app and use the browser's install option when available. Load it online once so the app can be cached for offline use.                                                     |
 
 Open or drag in a JSON file, edit it, then **Save** where supported or **Download** an edited copy. File access and installation depend on the browser. [Installation, saving and updates](docs/USER-GUIDE.md#save-download-and-reload)

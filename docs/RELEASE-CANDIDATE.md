@@ -1,14 +1,14 @@
-# v1.0.0-rc.9 validation
+# v1.0.0-rc.10 validation
 
-This is a release candidate, **not the stable release**. This round removes unused desktop code, adds lint checks, makes column-menu sorting faster on large tables and re-measures performance. It contains no intended change to editing, saving or file handling. Grouped child-row layouts remain experimental and are excluded from this candidate.
+This is a release candidate, **not the stable release**. This round clears all lint warnings, adds a security policy and browser-support table, and polishes naming and toolbar layout. It changes how the grid passes cell handlers (so they always use current state) but has no other intended change to editing, saving or file handling. Grouped child-row layouts remain experimental and are excluded from this candidate.
 
-Download `Lattice-Offline.html` and `SHA256SUMS.txt` from [v1.0.0-rc.9](https://github.com/arsxd/lattice/releases/tag/v1.0.0-rc.9). The HTML runs by itself. The checksum is optional for use and lets testers identify the exact artifact. The [hosted app](https://arsxd.github.io/lattice/) follows main; its contents may change after this candidate. Use the versioned HTML for a repeatable candidate test.
+Download `Lattice-Offline.html` and `SHA256SUMS.txt` from [v1.0.0-rc.10](https://github.com/arsxd/lattice/releases/tag/v1.0.0-rc.10). The HTML runs by itself. The checksum is optional for use and lets testers identify the exact artifact. The [hosted app](https://arsxd.github.io/lattice/) follows main; its contents may change after this candidate. Use the versioned HTML for a repeatable candidate test.
 
 ## Automated gates
 
 | Gate                     | Evidence                                                                                                                                                           |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Lint                     | `npm run lint` (oxlint): React hook rules and accessibility checks; errors block CI, warnings are reported                                                         |
+| Lint                     | `npm run lint` (oxlint): React hook rules and accessibility checks; errors and warnings block CI                                                                   |
 | Unit/engine safety       | `npm test`: revision guards, atomic edits, exact number/string tokens, undo and invalid drafts                                                                     |
 | Browser workflows        | `npm run test:browser`, Chromium on Windows, Linux and macOS; see the candidate commit's [Actions run](https://github.com/arsxd/lattice/actions/workflows/web.yml) |
 | Save contract            | Controlled browser-handle tests: successful Save, cancelled Save as, failed close/abort and external changes; these do not test native permission dialogs          |
