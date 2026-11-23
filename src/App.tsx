@@ -56,7 +56,6 @@ import { ColumnMenu } from "./grid/ColumnMenu";
 import { ValueBar, ValueBarPlaceholder } from "./editor/ValueBar";
 import { SheetRange } from "./grid/SheetRange";
 import ReviewDiff from "./editor/ReviewDiff";
-import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   DataGrid,
@@ -81,8 +80,6 @@ import {
   reloadFile,
   openFile,
   saveFile,
-  desktop,
-  release,
   type Opened,
 } from "./platform/files";
 import { SourceEditor } from "./editor/SourceEditor";
@@ -185,7 +182,6 @@ export default function App() {
     setDiscardPrompt(false);
     resolve?.(answer);
   }
-  const recoveryEpoch = useRef(0);
   const [recoveryReady, setRecoveryReady] = useState(false);
   const browserRecovery = useRef<BrowserRecovery | null>(null);
   const recoveredIds = useRef<string[]>([]);
@@ -194,9 +190,7 @@ export default function App() {
     text: string;
   } | null>(null);
   const [recoveryEnabled, setRecoveryEnabled] = useState(
-    desktop
-      ? localStorage.getItem("json-workbench-recovery") !== "off"
-      : localStorage.getItem("lattice-browser-recovery") === "on",
+    localStorage.getItem("lattice-browser-recovery") === "on",
   );
   const client = useRef<DocumentClient | null>(null);
   const request = useRef(0);
@@ -575,7 +569,6 @@ export default function App() {
           )))
       )
         return;
-      if (target.doc.token) await release(target.doc.token);
       target.client.dispose();
       sessions.current.delete(id);
       navigationHistory.current.delete(id);
@@ -676,7 +669,6 @@ export default function App() {
       };
     } catch (e) {
       next?.dispose();
-      if (opened.token) await release(opened.token).catch(() => {});
       throw e;
     }
   }
@@ -785,7 +777,6 @@ export default function App() {
         );
         next.id = activeId;
         navigationHistory.current.delete(activeId);
-        if (doc.token) await release(doc.token);
         client.current?.dispose();
         sessions.current.set(activeId, next);
         activate(next);
@@ -815,8 +806,6 @@ export default function App() {
       } finally {
         if (!adopted) {
           next.client.dispose();
-          if (next.doc.token && next.doc.token !== doc.token)
-            await release(next.doc.token).catch(() => {});
         }
       }
     });
@@ -834,9 +823,9 @@ export default function App() {
         text: string;
         revision: number;
       }>("text");
-      const saved = await saveFile(target, text, as);
+      const saved = await saveFile(target, text);
       if (saved) {
-        if (desktop || saved.confirmed) {
+        if (saved.confirmed) {
           setDoc({ ...doc, ...saved, text, reviewUnavailable: false });
           if (mode === "review") setReview({ before: text, after: text });
           await client.current.call("saved", { text });
@@ -1823,56 +1812,36 @@ export default function App() {
       ]
     : [];
   async function checkpoint(text?: string) {
-    if (!desktop) {
-      if (!browserRecovery.current)
-        throw new Error("Local recovery storage is not ready.");
-      await browserRecovery.current.write(
-        text === undefined
-          ? []
-          : unpackRecovery({ name: packRecovery([]).name, text }),
-      );
-      return;
-    }
-    const epoch = ++recoveryEpoch.current;
-    await invoke("checkpoint", {
-      epoch,
-      name: text === undefined ? null : packRecovery([]).name,
-      text: text ?? null,
-    });
+    if (!browserRecovery.current)
+      throw new Error("Local recovery storage is not ready.");
+    await browserRecovery.current.write(
+      text === undefined
+        ? []
+        : unpackRecovery({ name: packRecovery([]).name, text }),
+    );
   }
   useEffect(() => {
     let cancelled = false;
-    if (desktop)
-      invoke<RecoveryDocument | null>("read_recovery")
-        .then((draft) => {
-          if (!cancelled) {
-            setRecovered(draft);
-            setRecoveryReady(true);
+    const storage = new BrowserRecovery();
+    browserRecovery.current = storage;
+    void (async () => {
+      try {
+        if (localStorage.getItem("lattice-browser-recovery") === "on") {
+          const candidates = await storage.listRecoverable();
+          if (!cancelled && candidates.length) {
+            recoveredIds.current = candidates.map((item) => item.id);
+            setRecovered(
+              packRecovery(candidates.flatMap((item) => item.documents)),
+            );
           }
-        })
-        .catch((e) => setError("Recovery checkpoint retained: " + String(e)));
-    else {
-      const storage = new BrowserRecovery();
-      browserRecovery.current = storage;
-      void (async () => {
-        try {
-          if (localStorage.getItem("lattice-browser-recovery") === "on") {
-            const candidates = await storage.listRecoverable();
-            if (!cancelled && candidates.length) {
-              recoveredIds.current = candidates.map((item) => item.id);
-              setRecovered(
-                packRecovery(candidates.flatMap((item) => item.documents)),
-              );
-            }
-          }
-        } catch (error) {
-          if (!cancelled)
-            setError("Local recovery unavailable: " + String(error));
-        } finally {
-          if (!cancelled) setRecoveryReady(true);
         }
-      })();
-    }
+      } catch (error) {
+        if (!cancelled)
+          setError("Local recovery unavailable: " + String(error));
+      } finally {
+        if (!cancelled) setRecoveryReady(true);
+      }
+    })();
     const preference = (event: StorageEvent) => {
       if (event.key === "lattice-browser-recovery")
         setRecoveryEnabled(event.newValue === "on");
@@ -1886,15 +1855,10 @@ export default function App() {
   }, []);
   useEffect(() => {
     localStorage.setItem(
-      desktop ? "json-workbench-recovery" : "lattice-browser-recovery",
+      "lattice-browser-recovery",
       recoveryEnabled ? "on" : "off",
     );
-    if (
-      !recoveryReady ||
-      operationBusy ||
-      recovered ||
-      (!desktop && !recoveryEnabled)
-    )
+    if (!recoveryReady || operationBusy || recovered || !recoveryEnabled)
       return;
     let cancelled = false;
     const timer = setTimeout(
@@ -1947,30 +1911,6 @@ export default function App() {
     recoveryReady,
   ]);
   useEffect(() => {
-    if (desktop)
-      void invoke("set_guard", { blocked: anyDirty || operationBusy }).catch(
-        (e) => setError(String(e)),
-      );
-  }, [anyDirty, operationBusy]);
-  useEffect(() => {
-    if (!desktop) return;
-    let unlisten: (() => void) | undefined;
-    import("@tauri-apps/api/event").then(async ({ listen }) => {
-      unlisten = await listen("request-quit", async () => {
-        if (latest.current.busy) return;
-        if (!latest.current.dirty || (await discard())) {
-          await invoke("checkpoint", {
-            epoch: ++recoveryEpoch.current,
-            name: null,
-            text: null,
-          });
-          await invoke("quit_app");
-        }
-      });
-    });
-    return () => unlisten?.();
-  }, []);
-  useEffect(() => {
     if (!editing && !discardPrompt) return;
     const dialog = document.querySelector<HTMLElement>(".edit-dialog");
     const previous = document.activeElement as HTMLElement | null;
@@ -2014,50 +1954,18 @@ export default function App() {
       if (
         latest.current.dirty ||
         latest.current.busy ||
-        (!desktop && client.current !== null)
+        client.current !== null
       ) {
         e.preventDefault();
         e.returnValue = "";
       }
     };
     window.addEventListener("beforeunload", before);
-    let unlisten: (() => void) | undefined;
-    if (desktop)
-      import("@tauri-apps/api/window").then(async ({ getCurrentWindow }) => {
-        unlisten = await getCurrentWindow().onCloseRequested(async (event) => {
-          if (latest.current.busy) {
-            event.preventDefault();
-            return;
-          }
-          if (latest.current.dirty) {
-            event.preventDefault();
-            if (await discard()) {
-              await invoke("checkpoint", {
-                epoch: ++recoveryEpoch.current,
-                name: null,
-                text: null,
-              });
-              await invoke("quit_app");
-            }
-          }
-        });
-      });
     return () => {
       window.removeEventListener("beforeunload", before);
-      unlisten?.();
       for (const session of sessions.current.values()) session.client.dispose();
     };
   }, []);
-  useEffect(() => {
-    if (desktop)
-      import("@tauri-apps/api/window")
-        .then(({ getCurrentWindow }) =>
-          getCurrentWindow().setTitle(
-            `${dirty ? "● " : ""}${doc?.name ?? "Lattice"} — Lattice`,
-          ),
-        )
-        .catch(() => {});
-  }, [dirty, doc?.name]);
   useEffect(() => {
     const handle = (e: KeyboardEvent) => {
       if (discardPrompt) {
@@ -2187,18 +2095,16 @@ export default function App() {
     }
   }
   async function toggleRecovery(enabled: boolean) {
-    if (enabled && !desktop && !navigator.locks)
+    if (enabled && !navigator.locks)
       throw new Error(
         "Safe local recovery requires browser Web Locks support. Use current Chrome or Edge.",
       );
     setRecoveryEnabled(enabled);
-    if (!desktop) {
-      localStorage.setItem("lattice-browser-recovery", enabled ? "on" : "off");
-      if (!enabled) {
-        await browserRecovery.current?.clearAll();
-        recoveredIds.current = [];
-        setRecovered(null);
-      }
+    localStorage.setItem("lattice-browser-recovery", enabled ? "on" : "off");
+    if (!enabled) {
+      await browserRecovery.current?.clearAll();
+      recoveredIds.current = [];
+      setRecovered(null);
     }
   }
   const recoverySetting = (
@@ -2448,9 +2354,9 @@ export default function App() {
           onClick={() => void save()}
           disabled={busy || !doc || !!view?.diagnostics.length || sourceDirty}
         >
-          {desktop || browserSave ? "Save" : "Download"}
+          {browserSave ? "Save" : "Download"}
         </button>
-        {(desktop || browserSave) && (
+        {browserSave && (
           <button
             onClick={() => void save(true)}
             disabled={busy || !doc || !!view?.diagnostics.length || sourceDirty}
@@ -2523,35 +2429,33 @@ export default function App() {
                         true,
                       ),
                     );
-                  if (!desktop) {
-                    if (!browserRecovery.current)
-                      throw new Error(
-                        "Recovery storage is not ready. Original drafts have been retained.",
-                      );
-                    const existing = [...sessions.current.values()].filter(
-                      (s) => s.id !== activeId,
+                  if (!browserRecovery.current)
+                    throw new Error(
+                      "Recovery storage is not ready. Original drafts have been retained.",
                     );
-                    const current = snapshot();
-                    if (current) existing.push(current);
-                    const documents: RecoveryDocument[] = [];
-                    for (const session of [
-                      ...existing.filter(sessionDirty),
-                      ...restored,
-                    ]) {
-                      documents.push({
-                        name: session.doc.name,
-                        text:
-                          session.source !== session.sourceBase
-                            ? session.source
-                            : (
-                                await session.client.call<{ text: string }>(
-                                  "text",
-                                )
-                              ).text,
-                      });
-                    }
-                    await browserRecovery.current.write(documents);
+                  const existing = [...sessions.current.values()].filter(
+                    (s) => s.id !== activeId,
+                  );
+                  const current = snapshot();
+                  if (current) existing.push(current);
+                  const documents: RecoveryDocument[] = [];
+                  for (const session of [
+                    ...existing.filter(sessionDirty),
+                    ...restored,
+                  ]) {
+                    documents.push({
+                      name: session.doc.name,
+                      text:
+                        session.source !== session.sourceBase
+                          ? session.source
+                          : (
+                              await session.client.call<{ text: string }>(
+                                "text",
+                              )
+                            ).text,
+                    });
                   }
+                  await browserRecovery.current.write(documents);
                 } catch (e) {
                   restored.forEach((s) => s.client.dispose());
                   throw e;
@@ -2563,15 +2467,13 @@ export default function App() {
                 const adopted = recoveredIds.current;
                 recoveredIds.current = [];
                 setRecovered(null);
-                if (!desktop) {
-                  try {
-                    await browserRecovery.current?.remove(adopted);
-                  } catch (error) {
-                    setError(
-                      "Drafts restored and checkpointed. Older recovery cleanup failed: " +
-                        String(error),
-                    );
-                  }
+                try {
+                  await browserRecovery.current?.remove(adopted);
+                } catch (error) {
+                  setError(
+                    "Drafts restored and checkpointed. Older recovery cleanup failed: " +
+                      String(error),
+                  );
                 }
               })
             }
@@ -2582,9 +2484,7 @@ export default function App() {
             disabled={busy}
             onClick={() =>
               void run(async () => {
-                if (!desktop)
-                  await browserRecovery.current?.remove(recoveredIds.current);
-                else await checkpoint();
+                await browserRecovery.current?.remove(recoveredIds.current);
                 recoveredIds.current = [];
                 setRecovered(null);
               })
@@ -2596,7 +2496,7 @@ export default function App() {
       )}
       {!doc ? (
         <HomeScreen
-          webClient={!desktop}
+          webClient
           busy={busy}
           onOpen={() => void open()}
           onNew={() =>
@@ -2611,7 +2511,7 @@ export default function App() {
           }
           installPrompt={installPrompt}
           updateStatus={updateStatus}
-          recoverySetting={desktop ? null : recoverySetting}
+          recoverySetting={recoverySetting}
         />
       ) : (
         <>
@@ -3929,7 +3829,7 @@ export default function App() {
             >
               v{__APP_VERSION__}
             </span>
-            {!desktop && <span className="status-client">Web client</span>}
+            <span className="status-client">Web client</span>
             <FileLocation
               key={activeId}
               name={doc.name}

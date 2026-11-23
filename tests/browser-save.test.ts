@@ -1,8 +1,4 @@
 import { it, expect, vi } from "vitest";
-vi.mock("@tauri-apps/api/core", () => ({
-  isTauri: () => false,
-  invoke: vi.fn(),
-}));
 import { saveFile } from "../src/platform/files";
 function fixture(current: string) {
   const stream = {

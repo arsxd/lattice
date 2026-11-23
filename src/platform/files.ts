@@ -1,6 +1,4 @@
 import { readPickerHandle, rememberPickerHandle } from "./pickerMemory";
-import { invoke, isTauri } from "@tauri-apps/api/core";
-export const desktop = isTauri();
 type BrowserHandle = {
   name: string;
   getFile(): Promise<File>;
@@ -16,22 +14,19 @@ type Pickers = {
 };
 const pickers = globalThis as unknown as Pickers;
 let lastOpenHandle: BrowserHandle | undefined;
-if (!desktop)
-  void readPickerHandle().then((handle) => {
-    if (
-      !lastOpenHandle &&
-      handle &&
-      typeof (handle as BrowserHandle).getFile === "function"
-    )
-      lastOpenHandle = handle as BrowserHandle;
-  });
-export const browserSave =
-  !desktop && typeof pickers.showSaveFilePicker === "function";
+void readPickerHandle().then((handle) => {
+  if (
+    !lastOpenHandle &&
+    handle &&
+    typeof (handle as BrowserHandle).getFile === "function"
+  )
+    lastOpenHandle = handle as BrowserHandle;
+});
+export const browserSave = typeof pickers.showSaveFilePicker === "function";
 export type Opened = {
   reviewUnavailable?: boolean;
   name: string;
   text: string;
-  token?: string;
   handle?: BrowserHandle;
   diskText?: string;
 };
@@ -139,7 +134,6 @@ export async function prepareBrowserSave(
   }
 }
 export async function openFile(): Promise<Opened | null> {
-  if (desktop) return invoke("open_document");
   if (pickers.showOpenFilePicker) {
     try {
       const [handle] = await pickers.showOpenFilePicker({
@@ -219,21 +213,12 @@ export async function openFile(): Promise<Opened | null> {
 export async function saveFile(
   doc: Opened,
   text: string,
-  saveAs = false,
 ): Promise<{
   name: string;
-  token?: string;
   handle?: BrowserHandle;
   diskText?: string;
   confirmed?: boolean;
 } | null> {
-  if (desktop)
-    return invoke("save_document", {
-      token: doc.token ?? null,
-      name: doc.name,
-      text,
-      saveAs,
-    });
   if (doc.handle) {
     if ((await readBrowserFile(doc.handle)) !== doc.diskText)
       throw new Error(
@@ -269,12 +254,9 @@ export async function saveFile(
   return { name: doc.name };
 }
 export async function discard() {
-  return desktop
-    ? invoke<boolean>("confirm_discard")
-    : confirm("Discard unsaved changes? Cancel to return and save your work.");
-}
-export async function release(token?: string) {
-  if (desktop && token) await invoke("release_document", { token });
+  return confirm(
+    "Discard unsaved changes? Cancel to return and save your work.",
+  );
 }
 
 export async function reloadFile(doc: Opened): Promise<Opened | null> {
