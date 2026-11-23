@@ -1120,8 +1120,6 @@ test("the column menu button is inset from the header cell edges", async ({
   expect(gap.right).toBeGreaterThanOrEqual(3);
   expect(gap.bottom).toBeGreaterThanOrEqual(3);
 });
-||||||| eca2a38
-
 
 test("editing a cell keeps its row height and font, and only grows for extra lines", async ({
   page,
