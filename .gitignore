@@ -19,6 +19,7 @@ src-tauri/target/
 
 # Private development notes; never publish
 /.local-notes/
+/chat-export.md
 
 # Browser test artifacts
 /playwright-report/
