@@ -1065,3 +1065,46 @@ test("Find highlights a match that lies beyond the cell preview", async ({
   await page.locator("#find").fill("");
   await expect(cell(page, 0, 2).locator("mark.find-match")).toHaveCount(0);
 });
+
+test("editing a cell keeps its row height and font, and only grows for extra lines", async ({
+  page,
+}) => {
+  await open(page, '[{"name":"Alpha"},{"name":"Beta"}]');
+  const row = page.locator('[role="row"][aria-rowindex="2"]');
+  const second = page.locator('[role="row"][aria-rowindex="3"]');
+  const measure = () =>
+    page.evaluate(() => {
+      const r = (i: number) =>
+        document
+          .querySelector(`[role="row"][aria-rowindex="${i}"]`)!
+          .getBoundingClientRect();
+      const font = (el: Element | null) =>
+        el
+          ? getComputedStyle(el).fontFamily + getComputedStyle(el).fontSize
+          : "";
+      return {
+        height: r(2).height,
+        nextTop: r(3).top,
+        cellFont: font(
+          document.querySelector(
+            '[role="row"][aria-rowindex="3"] [role="gridcell"][aria-colindex="3"]',
+          ),
+        ),
+        editorFont: font(document.querySelector(".inline-cell")),
+      };
+    });
+  const before = await measure();
+  await cell(page, 0, 1).dblclick();
+  const editor = page.getByRole("textbox", { name: "Edit name (string)" });
+  await expect(editor).toBeVisible();
+  const editing = await measure();
+  expect(editing.height).toBe(before.height);
+  expect(editing.nextTop).toBe(before.nextTop);
+  expect(editing.editorFont).toBe(editing.cellFont);
+  await editor.press("Alt+Enter");
+  await expect
+    .poll(async () => (await measure()).height)
+    .toBeGreaterThan(before.height);
+  await expect(row).toBeVisible();
+  await expect(second).toBeVisible();
+});

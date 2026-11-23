@@ -379,11 +379,11 @@
 [data-clipped] > .cell-preview-text {
   width: calc(100% - 18px);
 }
-/* Editing reserves a full text line plus room for a native scrollbar. */
+/* The editor keeps the cell's size; extra lines grow the row (see rowHeight). */
 .data-grid .inline-cell {
-  min-height: 52px;
   scrollbar-width: thin;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   box-sizing: border-box;
 }
 
