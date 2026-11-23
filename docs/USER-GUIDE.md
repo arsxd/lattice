@@ -36,7 +36,7 @@ Nested cells show bounded JSON previews. Double-click/F2 edits eligible values; 
 
 **Wrap text** expands only overflowing rows, up to five automatic lines for nested previews and three for ordinary values. Manually increasing row height reveals more of the loaded preview. An ellipsis signals clipped or truncated content. It does not mean the stored JSON has been shortened.
 
-Inline/value-bar previews are bounded at 4,096 characters. Oversized values use a read-only preview so truncated text cannot overwrite the original. Details raw previews stop at 8,192 characters. Source and **Copy JSON** provide complete values. Grouped/merged nested sheets remain experimental and are not part of rc.4.
+Inline/value-bar previews are bounded at 4,096 characters. Oversized values use a read-only preview so truncated text cannot overwrite the original. Details raw previews stop at 8,192 characters. Source and **Copy JSON** provide complete values.
 
 ## Select, copy and paste
 

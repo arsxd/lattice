@@ -298,3 +298,49 @@ it("column value options ignore sort, filters and search", () => {
   expect(plain?.map((o) => o.label)).toEqual(["b", "a", "c"]);
   expect(narrowed).toEqual(plain);
 });
+it("reports which column names match Find without changing row matches", () => {
+  const d = new DocumentEngine(
+    '[{"price":1,"stock":2,"note":"price drop"},{"price":3,"stock":4,"note":"x"}]',
+  );
+  const base = { path: [], records: true, search: "", page: 0 };
+  const headers = d.project(base).headers;
+  const price = headers.indexOf("price");
+  const hit = d.project({ ...base, search: "pri" });
+  expect(hit.searchHeaderMatches).toEqual([price]);
+  expect(hit.searchMatchCount).toBe(1);
+  const wholeWord = d.project({
+    ...base,
+    search: "pric",
+    searchWholeWord: true,
+  });
+  expect(wholeWord.searchHeaderMatches).toEqual([]);
+  const caseSensitive = d.project({
+    ...base,
+    search: "PRICE",
+    searchCaseSensitive: true,
+  });
+  expect(caseSensitive.searchHeaderMatches).toEqual([]);
+  expect(d.project(base).searchHeaderMatches).toBeUndefined();
+  const onlyHeader = d.project({ ...base, search: "stock" });
+  expect(onlyHeader.searchHeaderMatches).toEqual([headers.indexOf("stock")]);
+  expect(onlyHeader.matched).toBe(0);
+});
+it("shows more of long text only when asked and only within a size budget", () => {
+  const long = "word ".repeat(300);
+  const base = { path: [], records: true, search: "", page: 0 };
+  const display = (d: DocumentEngine, extra = {}) => {
+    const p = d.project({ ...base, ...extra });
+    return p.rows[0].cells[p.headers.indexOf("note")].display;
+  };
+  const one = new DocumentEngine(JSON.stringify([{ note: long }]));
+  expect(display(one).length).toBe(238);
+  expect(display(one, { previewChars: 4096 })).toBe(long);
+  const many = new DocumentEngine(
+    JSON.stringify(
+      Array.from({ length: 500 }, () => ({ note: long, other: 1 })),
+    ),
+  );
+  const shown = display(many, { previewChars: 4096 }).length;
+  expect(shown).toBeGreaterThanOrEqual(238);
+  expect(shown).toBeLessThan(500);
+});

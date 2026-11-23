@@ -4,6 +4,7 @@ import { ActiveFilters, columnFilterSummaries } from "./grid/ActiveFilters";
 import { FindBar } from "./grid/FindBar";
 import { ThemePicker } from "./ThemePicker";
 import { FindHighlight } from "./grid/FindHighlight";
+import { JsonPreview } from "./grid/JsonPreview";
 import { CellPreview } from "./grid/CellPreview";
 import { columnLetter } from "./grid/columnAddress";
 import { ColumnMenuChevron } from "./grid/SheetIcons";
@@ -43,6 +44,7 @@ import { NavigationIcon } from "./NavigationIcon";
 import {
   blankState,
   wrappedHeight,
+  DEFAULT_LINE_LIMITS,
   valueBarPresentation,
   jsonSelectionPreview,
   JSON_PREVIEW_LIMIT,
@@ -235,8 +237,26 @@ export default function App() {
   );
   const columnWidth = (index: number) =>
     columnWidths[`${tableHeightKey}:${index}`] ?? automaticWidths[index] ?? 100;
+  // Wrapped cells can show more than the default 240-character preview.
+  const previewCharsFor = (wrap: boolean) => (wrap ? 4096 : undefined);
+  useEffect(() => {
+    const want = previewCharsFor(wrapText);
+    for (const s of sessions.current.values()) s.client.previewChars = want;
+    if (client.current && client.current.previewChars !== want)
+      client.current.previewChars = want;
+    if (view && mode === "table") void run(async () => void (await refresh()));
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- refresh only when Wrap text changes
+  }, [wrapText]);
   const automaticHeights = useMemo(() => {
     if (!wrapText || !view) return new Map<string, number>();
+    // With few rows there is room to show more of each value: let rows grow to
+    // share the viewport, but never below the usual limits.
+    const share = Math.floor((gridSize.height - 64) / (view.rows.length || 1));
+    const fits = Math.min(40, Math.max(0, Math.floor((share - 28) / 20) + 1));
+    const limits = {
+      plain: Math.max(DEFAULT_LINE_LIMITS.plain, fits),
+      nested: Math.max(DEFAULT_LINE_LIMITS.nested, fits),
+    };
     return new Map(
       view.rows.map((row) => [
         row.id,
@@ -252,12 +272,14 @@ export default function App() {
             nested: cell.container || cell.type === "array",
           })),
           textMeasure,
+          limits,
         ),
       ]),
     );
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- columnWidth() reads the width state listed here
   }, [
     view,
+    gridSize.height,
     wrapText,
     columnWidths,
     tableHeightKey,
@@ -367,6 +389,12 @@ export default function App() {
     sheetSelection?.mode === "cells" &&
     sheetSelection.anchor.r === sheetSelection.end.r &&
     sheetSelection.anchor.c === sheetSelection.end.c;
+  const singleColumn =
+    sheetSelection?.mode === "columns" &&
+    sheetSelection.spans.length === 1 &&
+    sheetSelection.spans[0][0] === sheetSelection.spans[0][1]
+      ? sheetSelection.spans[0][0]
+      : null;
   const selectedPoint = sheetSelection?.anchor;
   const activeCell =
     selectedPoint &&
@@ -645,6 +673,7 @@ export default function App() {
     let next: DocumentClient | undefined;
     try {
       next = new DocumentClient();
+      next.previewChars = previewCharsFor(wrapText);
       await next.call("open", { text: opened.text });
       if (recovered) await next.call("saved", { text: "\u0000recovered" });
       const q = { ...initialQuery, path, showIndex };
@@ -781,6 +810,15 @@ export default function App() {
           next.view,
           located?.row,
         );
+        // Stay in the view the user was working in; only Source needs restoring
+        // because a freshly prepared session always opens as a table.
+        if ((mode === "review" ? reviewOrigin : mode) === "source") {
+          next.mode = "source";
+          next.sourceScope =
+            JSON.stringify(path) === JSON.stringify(query.path)
+              ? sourceScope
+              : null;
+        }
         next.id = activeId;
         navigationHistory.current.delete(activeId);
         client.current?.dispose();
@@ -1443,10 +1481,11 @@ export default function App() {
       suppressBlur.current = false;
     });
   }
-  function rowLabel(row: Row, position: number): number {
-    return view?.kind === "array"
-      ? Number(row.label)
-      : (view?.page ?? 0) * 500 + position + 1;
+  // Spreadsheet-style numbers: every table counts rows from 1 by position in
+  // the current view. The zero-based JSON index stays in Details and in the
+  // optional original-index column.
+  function rowLabel(position: number): number {
+    return (view?.page ?? 0) * 500 + position + 1;
   }
   const activeFilters = useMemo(
     () => columnFilterSummaries(query, view),
@@ -1521,7 +1560,7 @@ export default function App() {
                 <div className="row-number-content">
                   <button
                     className="row-select"
-                    aria-label={`Select ${view.kind === "array" ? "array index" : "row"} ${rowLabel(row, rowIdx)}`}
+                    aria-label={`Select row ${rowLabel(rowIdx)}`}
                     aria-pressed={axisSelected(
                       sheetSelection,
                       "rows",
@@ -1543,10 +1582,10 @@ export default function App() {
                       );
                     }}
                   >
-                    {rowLabel(row, rowIdx)}
+                    {rowLabel(rowIdx)}
                   </button>
                   <RowHeightHandle
-                    number={rowLabel(row, rowIdx)}
+                    number={rowLabel(rowIdx)}
                     height={rowHeight(row)}
                     onChange={(height) =>
                       handlers.current.resizeRow(row, height)
@@ -1611,7 +1650,16 @@ export default function App() {
                   >
                     <small>{columnLetter(i)}</small>{" "}
                     <span title={columnLabel(view, i)}>
-                      {columnLabel(view, i)}
+                      {view.searchHeaderMatches?.includes(i) ? (
+                        <FindHighlight
+                          search={query.search}
+                          caseSensitive={query.searchCaseSensitive}
+                          wholeWord={query.searchWholeWord}
+                          text={columnLabel(view, i)}
+                        />
+                      ) : (
+                        columnLabel(view, i)
+                      )}
                       {view.columnKinds[i] === "mixed" && (
                         <small
                           className="generated-column-tag"
@@ -1760,6 +1808,11 @@ export default function App() {
                 const c = row.cells[i];
                 const originalIndex = view.columnKinds[i] === "index";
                 const blank = valueColumn(i) ? blankState(c) : null;
+                // Nested values get Source-style colours; plain values stay plain.
+                const PreviewText =
+                  !blank && (c.type === "array" || c.type === "object")
+                    ? JsonPreview
+                    : FindHighlight;
                 return (
                   <CellPreview
                     className={`cell-value ${blank ? "empty-value" : ""} ${c.container && !originalIndex ? "container-value" : ""} ${c.type === "array" && !originalIndex ? "array-value" : ""} ${c.type === "number" ? "numeric" : ""}`}
@@ -1786,7 +1839,7 @@ export default function App() {
                         : undefined
                     }
                   >
-                    <FindHighlight
+                    <PreviewText
                       search={query.search}
                       caseSensitive={query.searchCaseSensitive}
                       wholeWord={query.searchWholeWord}
@@ -2620,7 +2673,8 @@ export default function App() {
             <button
               disabled={
                 busy ||
-                (mode !== "review" && (sourceDirty || !!doc?.reviewUnavailable))
+                (mode !== "review" &&
+                  (sourceDirty || !!doc?.reviewUnavailable || !dirty))
               }
               aria-pressed={mode === "review"}
               onClick={() => void toggleReview()}
@@ -2629,7 +2683,9 @@ export default function App() {
                   ? "Return to the previous view"
                   : doc?.reviewUnavailable
                     ? "Comparison unavailable: local recovery contains the draft but not the original file. A confirmed save establishes a new baseline."
-                    : "Compare with the opened or saved version"
+                    : !dirty
+                      ? "No changes to review yet"
+                      : "Compare with the opened or saved version"
               }
             >
               {mode === "review" ? "Close review" : "Review changes"}
@@ -2772,7 +2828,7 @@ export default function App() {
                   >
                     Selected cell
                     {activeCell && view?.rows[activeCell.row]
-                      ? ` · ${columnLetter(activeCell.column)}${rowLabel(view.rows[activeCell.row], activeCell.row)}`
+                      ? ` · ${columnLetter(activeCell.column)}${rowLabel(activeCell.row)}`
                       : ""}
                   </button>
                 )}
@@ -2953,7 +3009,7 @@ export default function App() {
                         activeCell &&
                         activeCell.row >= 0 &&
                         activeCell.column >= 0
-                          ? `${columnLetter(activeCell.column)}${view.rows[activeCell.row] ? rowLabel(view.rows[activeCell.row], activeCell.row) : activeCell.row + 1}`
+                          ? `${columnLetter(activeCell.column)}${rowLabel(activeCell.row)}`
                           : ""
                       }
                       value={
@@ -3016,6 +3072,13 @@ export default function App() {
                           selection.revision,
                         );
                       }}
+                    />
+                  ) : singleColumn !== null && view ? (
+                    <ValueBarPlaceholder
+                      address={columnLetter(singleColumn)}
+                      value={columnLabel(view, singleColumn)}
+                      caption="Column name"
+                      hint="Right-click the column to rename it or copy its name."
                     />
                   ) : (
                     <ValueBarPlaceholder address="" />
@@ -3328,7 +3391,9 @@ export default function App() {
                     {view.rows.length === 0 && (
                       <div className="empty-table">
                         {query.search
-                          ? "No matching rows. Clear the search to show all rows."
+                          ? view.searchHeaderMatches?.length
+                            ? "No cell contains this text. It matches a column name (highlighted). Clear the search to show all rows."
+                            : "No matching rows. Clear the search to show all rows."
                           : "This container is empty. Add a property or item to begin."}
                       </div>
                     )}
@@ -3429,6 +3494,7 @@ export default function App() {
                         onChange={setFindDraft}
                         disabled={busy}
                         count={view.searchMatchCount ?? 0}
+                        headerCount={view.searchHeaderMatches?.length}
                         index={view.searchIndex}
                         caseSensitive={!!query.searchCaseSensitive}
                         wholeWord={!!query.searchWholeWord}

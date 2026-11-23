@@ -137,3 +137,19 @@ test("a failed linked Save aborts the writer and keeps the draft retryable", asy
     original.replace("Alpha", "Changed"),
   );
 });
+
+test("Reload file keeps the Source view and shows the reloaded text", async ({
+  page,
+}) => {
+  await linkedFile(page);
+  await page.getByRole("button", { name: "Source", exact: true }).click();
+  await expect(page.locator(".cm-content")).toContainText("Alpha");
+  await page.evaluate((text) => {
+    (window as any).fileModel.disk = text;
+  }, '[{"name":"External","precise":1}]');
+  await page.getByRole("button", { name: "Reload file", exact: true }).click();
+  await expect(page.locator(".cm-content")).toContainText("External");
+  await expect(
+    page.getByRole("button", { name: "Source", exact: true }),
+  ).toBeDisabled();
+});

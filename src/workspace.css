@@ -203,10 +203,6 @@
   color: var(--muted);
   padding: 0 8px;
 }
-/* Add row and Add column are primary editing actions; toggles stay quiet. */
-.pagination .table-actions > button:not([aria-pressed]) {
-  color: var(--text);
-}
 .pagination button[aria-pressed="true"] {
   color: var(--accent);
   background: var(--selection);
@@ -1017,4 +1013,25 @@
   font-size: 12px;
   line-height: 1.5;
   white-space: normal;
+}
+
+/* Nested value previews use the Source palette (dark values come from the editor theme). */
+:root {
+  --json-string: #a11;
+  --json-number: #164;
+  --json-literal: #219;
+}
+:root[data-theme="dark"] {
+  --json-string: var(--syntax-string);
+  --json-number: var(--syntax-number);
+  --json-literal: var(--syntax-keyword);
+}
+.json-string {
+  color: var(--json-string);
+}
+.json-number {
+  color: var(--json-number);
+}
+.json-literal {
+  color: var(--json-literal);
 }

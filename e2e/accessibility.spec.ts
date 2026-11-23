@@ -94,6 +94,13 @@ test("saved Review source is keyboard-focusable, scrollable and read-only", asyn
     buffer: Buffer.from(text),
   });
   await page.getByRole("grid", { name: "JSON data table" }).waitFor();
+  // Review is only available once something has changed.
+  await page
+    .getByRole("gridcell", { name: "Record 0", exact: true })
+    .dblclick();
+  const edit = page.getByRole("textbox", { name: "Edit name (string)" });
+  await edit.fill("Record zero");
+  await edit.press("Enter");
   await page
     .getByRole("button", { name: "Review changes", exact: true })
     .click();

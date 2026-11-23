@@ -33,6 +33,18 @@ it("keeps short and blank rows compact and expands only overflowing text", () =>
     wrappedHeight([{ text: "aaaaaaa aaaaaaa aaaaaaa", width: 100 }], measure),
   ).toBe(68);
 });
+it("lets wrapped rows grow past the default line limits when free space allows", () => {
+  const long = [{ text: "word ".repeat(200), width: 100 }];
+  expect(wrappedHeight(long, measure)).toBe(68);
+  expect(wrappedHeight(long, measure, { plain: 12, nested: 12 })).toBe(
+    28 + 11 * 20,
+  );
+  const nested = [{ text: "word ".repeat(200), width: 100, nested: true }];
+  expect(wrappedHeight(nested, measure)).toBe(28 + 4 * 20);
+  expect(wrappedHeight(nested, measure, { plain: 3, nested: 9 })).toBe(
+    28 + 8 * 20,
+  );
+});
 it("describes blank states without treating zero, false or literal labels as empty", () => {
   const engine = new DocumentEngine(
     '[{"s":"","o":{},"a":[],"n":null,"v":0,"b":false,"label":"missing"},{}]',

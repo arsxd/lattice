@@ -14,6 +14,13 @@ test.beforeEach(async ({ page }) => {
   );
   await page.goto("/");
 });
+// Review is only available once something has changed.
+async function editFirstName(page: Page, value = "Edited") {
+  await cell(page, 0, 1).dblclick();
+  const editor = page.getByRole("textbox", { name: "Edit name (string)" });
+  await editor.fill(value);
+  await editor.press("Enter");
+}
 async function open(page: Page, text: string, name = "smoke.json") {
   const chooser = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: "Open…", exact: true }).click();
@@ -40,11 +47,9 @@ test("opens a local JSON file, edits inline, and selects full rows and columns",
   await editor.fill("Changed");
   await editor.press("Enter");
   await expect(cell(page, 0, 1)).toContainText("Changed");
-  await page
-    .getByRole("button", { name: "Select array index 0", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Select row 1", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "Select array index 0", exact: true }),
+    page.getByRole("button", { name: "Select row 1", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   await page
     .getByRole("button", { name: /^Select column [A-Z]+ count$/, exact: true })
@@ -118,7 +123,7 @@ test("keeps a resized frozen first row visible during scrolling", async ({
     ),
   );
   const resizer = page.getByRole("separator", {
-    name: "Resize row 0",
+    name: "Resize row 1",
     exact: true,
   });
   await resizer.focus();
@@ -130,7 +135,7 @@ test("keeps a resized frozen first row visible during scrolling", async ({
     .getByRole("button", { name: "Freeze first row", exact: true })
     .click();
   const first = page.getByRole("button", {
-    name: "Select array index 0",
+    name: "Select row 1",
     exact: true,
   });
   const before = await first.boundingBox();
@@ -151,7 +156,7 @@ test("keeps a resized frozen first row visible during scrolling", async ({
     .poll(async () => Math.abs((await first.boundingBox())!.y - before!.y))
     .toBeLessThan(2);
   await expect(
-    page.getByRole("button", { name: "Select array index 39", exact: true }),
+    page.getByRole("button", { name: "Select row 40", exact: true }),
   ).toBeVisible();
 });
 test("recovers an opt-in invalid raw draft after refresh", async ({ page }) => {
@@ -237,6 +242,7 @@ test("keeps a review draft through document switches and prevents silent Source 
   await open(page, '[{"name":"First"}]', "first.json");
   await open(page, '[{"name":"Second"}]', "second.json");
   await page.getByRole("tab", { name: /^first\.json/ }).click();
+  await editFirstName(page);
   await page
     .getByRole("button", { name: "Review changes", exact: true })
     .click();
@@ -586,9 +592,7 @@ test("freeze menu offers selected-header actions with prefix semantics", async (
       Array.from({ length: 20 }, (_, i) => ({ name: `row-${i}`, count: i })),
     ),
   );
-  await page
-    .getByRole("button", { name: "Select array index 2", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Select row 3", exact: true }).click();
   await page.locator(".freeze-menu summary").click();
   await page
     .getByRole("button", { name: "Freeze selected row", exact: true })
@@ -640,6 +644,7 @@ test("Review toggles back to its previous view and confirms discarding a dirty d
   page,
 }) => {
   await open(page, '[{"name":"Original"}]');
+  await editFirstName(page, "Original v2");
   await page
     .getByRole("button", { name: "Review changes", exact: true })
     .click();
@@ -862,6 +867,7 @@ test("minimum-width toolbar retains all controls and confirmation traps focus", 
   }));
   expect(bounds.scrollWidth).toBeLessThanOrEqual(bounds.width);
   expect(bounds.right).toBeLessThanOrEqual(718);
+  await editFirstName(page);
   await page
     .getByRole("button", { name: "Review changes", exact: true })
     .click();
@@ -920,4 +926,128 @@ test("Details contents fill a wide pane and retain readable widths in a narrow p
   const narrow = await dimensions();
   expect(narrow.table).toBeGreaterThanOrEqual(424);
   expect(narrow.scroll).toBeGreaterThan(narrow.viewport);
+});
+
+test("selecting a column header shows its name in the value bar and can copy it", async ({
+  page,
+}) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await open(page, '[{"name":"Alpha","count":1},{"name":"Beta","count":2}]');
+  const header = page.getByRole("button", {
+    name: /^Select column [A-Z]+ count$/,
+    exact: true,
+  });
+  await header.click();
+  await expect(
+    page.getByLabel("Selected column name", { exact: true }),
+  ).toHaveText("count");
+  await header.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Copy column name" }).click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    "count",
+  );
+});
+
+test("rows are numbered from 1 in every kind of table", async ({ page }) => {
+  await open(page, '[{"a":1},{"a":2}]');
+  await expect(
+    page.getByRole("button", { name: "Select row 1", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Select row 2", exact: true }),
+  ).toBeVisible();
+  await open(page, '{"x":{"a":1},"y":{"a":2}}');
+  await expect(
+    page.getByRole("button", { name: "Select row 1", exact: true }),
+  ).toBeVisible();
+});
+
+test("Find highlights matching column names and counts them", async ({
+  page,
+}) => {
+  await open(page, '[{"price":1,"stock":2},{"price":3,"stock":4}]');
+  await page.locator("#find").fill("pri");
+  await expect(
+    page.locator(".sheet-column-heading mark.find-match"),
+  ).toHaveText("pri");
+  await expect(page.locator(".find-count")).toContainText("1 column name");
+  await expect(page.locator(".empty-table")).toContainText(
+    "matches a column name",
+  );
+});
+
+test("Wrap text shows long text in full when there is room", async ({
+  page,
+}) => {
+  const note = "word ".repeat(300).trim();
+  await open(page, JSON.stringify([{ note }]));
+  await expect(cell(page, 0, 1)).toContainText("…");
+  await page.getByRole("button", { name: "Wrap text", exact: true }).click();
+  await expect(cell(page, 0, 1)).toContainText(note.slice(-200));
+  await expect
+    .poll(() =>
+      cell(page, 0, 1).evaluate((e) => e.getBoundingClientRect().height),
+    )
+    .toBeGreaterThan(200);
+  await page.getByRole("button", { name: "Wrap text", exact: true }).click();
+  await expect(cell(page, 0, 1)).toContainText("…");
+});
+
+test("Review changes is available only when there is something to review", async ({
+  page,
+}) => {
+  await open(page, '[{"name":"Alpha"}]');
+  const review = page.getByRole("button", {
+    name: "Review changes",
+    exact: true,
+  });
+  await expect(review).toBeDisabled();
+  await cell(page, 0, 1).dblclick();
+  const editor = page.getByRole("textbox", { name: "Edit name (string)" });
+  await editor.fill("Beta");
+  await editor.press("Enter");
+  await expect(review).toBeEnabled();
+});
+
+test("the value bar offers Expand only when the value needs more room", async ({
+  page,
+}) => {
+  await open(
+    page,
+    JSON.stringify([{ short: "Alpha", long: "word ".repeat(400) }]),
+  );
+  const expand = page.getByRole("button", { name: "Expand value bar" });
+  await cell(page, 0, 1).click();
+  await expect(
+    page.getByRole("textbox", { name: "Selected cell value" }),
+  ).toHaveValue('"Alpha"');
+  await expect(expand).toHaveCount(0);
+  await cell(page, 0, 2).click();
+  await expect(expand).toBeVisible();
+  await expand.click();
+  await expect
+    .poll(() =>
+      page
+        .getByRole("textbox", { name: "Selected cell value" })
+        .evaluate((e) => e.getBoundingClientRect().height),
+    )
+    .toBeGreaterThan(60);
+});
+
+test("nested values are coloured like Source and still highlight Find matches", async ({
+  page,
+}) => {
+  await open(
+    page,
+    '[{"name":"A","details":{"edition":3,"lang":"en","ok":true,"n":null}}]',
+  );
+  const nested = cell(page, 0, 2);
+  await expect(nested.locator(".json-number")).toHaveText("3");
+  await expect(nested.locator(".json-string")).toHaveText('"en"');
+  await expect(nested.locator(".json-literal")).toHaveText(["true", "null"]);
+  // Plain values stay uncoloured.
+  await expect(cell(page, 0, 1).locator(".json-string")).toHaveCount(0);
+  await page.locator("#find").fill("edition");
+  await expect(nested.locator("mark.find-match")).toHaveText("edition");
+  await expect(nested).toContainText('"edition": 3');
 });

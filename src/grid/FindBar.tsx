@@ -5,6 +5,7 @@ type Props = {
   disabled?: boolean;
   inputDisabled?: boolean;
   count: number;
+  headerCount?: number;
   index?: number;
   caseSensitive: boolean;
   wholeWord: boolean;
@@ -56,10 +57,13 @@ export function FindBar(p: Props) {
           <output
             className="find-count"
             aria-live="polite"
-            title="Number of matching cells"
+            title="Number of matching cells and column names"
           >
             {p.index !== undefined ? `${p.index + 1} / ` : ""}
             {p.count} {p.count === 1 ? "cell" : "cells"}
+            {p.headerCount
+              ? ` · ${p.headerCount} ${p.headerCount === 1 ? "column name" : "column names"}`
+              : ""}
           </output>
           <button
             type="button"

@@ -16,7 +16,7 @@ import {
   type SheetPoint,
   type SheetSelection,
 } from "../document/sheetSelection";
-import { fieldColumnKey } from "./columnRoles";
+import { fieldColumnKey, columnLabel } from "./columnRoles";
 export function SheetRange({
   view,
   children,
@@ -234,6 +234,19 @@ export function SheetRange({
       setMenu(null);
     } catch (e) {
       setMessage(String(e));
+    }
+  }
+  async function copyColumnName() {
+    if (!menu) return;
+    try {
+      await navigator.clipboard.writeText(columnLabel(view, menu.c));
+      setMenu(null);
+    } catch {
+      setMessage(
+        "Clipboard access is unavailable. Select the name in the value bar and press " +
+          shortcut +
+          "C.",
+      );
     }
   }
   async function relativeRow(where: "before" | "after", duplicate = false) {
@@ -589,6 +602,13 @@ export function SheetRange({
               Delete row
             </button>
           )}
+          <button
+            role="menuitem"
+            tabIndex={-1}
+            onClick={() => void copyColumnName()}
+          >
+            Copy column name
+          </button>
           {view.columnKinds[menu.c] === "field" && (
             <>
               <button

@@ -14,4 +14,4 @@
 | [Contributing](../CONTRIBUTING.md)                   | Local development, focused changes and bug reports                                            |
 | [Changelog](../CHANGELOG.md)                         | Changes by version                                                                            |
 
-The screenshots show the released rc.4 app with the bundled fictional bookshop. Grouped/merged nested sheets remain experimental and are not part of this release.
+The screenshots show the released rc.4 app with the bundled fictional bookshop.

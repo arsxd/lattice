@@ -44,6 +44,8 @@ export type Query = {
   searchCaseSensitive?: boolean;
   searchWholeWord?: boolean;
   searchResult?: number;
+  /** Longest text preview to send per cell; reduced automatically for large pages. */
+  previewChars?: number;
   filters?: Record<string, string>;
   valueFilters?: Record<string, string[]>;
   optionsColumn?: number;
@@ -60,6 +62,8 @@ export type Projection = {
   revision: number;
   locatedRow?: number;
   searchMatchCount?: number;
+  /** Field columns whose names contain the Find text. */
+  searchHeaderMatches?: number[];
   searchIndex?: number;
   searchSelection?: { row: number; column: number };
   dirty: boolean;
@@ -112,6 +116,8 @@ const TYPE_ORDER = [
   "object",
 ];
 export const PAGE_SIZE = 500;
+// Characters of cell text sent per page when a longer preview is requested.
+const PREVIEW_BUDGET = 262144;
 export const pointer = (path: Path) =>
   path.length
     ? "/" +
@@ -650,7 +656,7 @@ export class DocumentEngine {
         multiline ? eol + indent + "  " + content : content,
       );
   }
-  private cell(n: Node | undefined, path: Path): Cell {
+  private cell(n: Node | undefined, path: Path, textLimit = 240): Cell {
     if (!n)
       return { path, type: "missing", display: "missing", container: false };
     const primitiveArray =
@@ -674,9 +680,8 @@ export class DocumentEngine {
             ? '""'
             : String(n.value)
           : this.text.slice(n.offset, n.offset + n.length);
-    if (display.length > (container || primitiveArray ? 4096 : 240))
-      display =
-        display.slice(0, container || primitiveArray ? 4093 : 237) + "…";
+    const limit = container || primitiveArray ? 4096 : textLimit;
+    if (display.length > limit) display = display.slice(0, limit - 3) + "…";
     return { path, type: n.type as Kind, display, container, empty };
   }
   selection(
@@ -844,10 +849,12 @@ export class DocumentEngine {
         : [["", n] as [string, Node]];
     const pathOf = (key: string | number): Path =>
       n!.type === "object" || n!.type === "array" ? [...path, key] : path;
+    // Raised after paging, once the number of cells to send is known.
+    let textLimit = 240;
     const getCell = (item: [string | number, Node], column: number): Cell => {
       const [key, value] = item,
         p = pathOf(key),
-        c = this.cell(value, p);
+        c = this.cell(value, p, textLimit);
       if (records) {
         column += hideIndex ? 1 : 0;
         if (column === 0) return { ...c, display: String(key) };
@@ -870,7 +877,7 @@ export class DocumentEngine {
             writable: false,
           };
         const field = keys[column - 1];
-        const result = this.cell(child(value, field), [...p, field]);
+        const result = this.cell(child(value, field), [...p, field], textLimit);
         if (result.type === "missing" || result.type === "null") {
           result.inputKind = inputKinds.get(field) ?? "string";
         }
@@ -1007,6 +1014,11 @@ export class DocumentEngine {
       });
       filtered = indexed.map((x) => x.item);
     }
+    const searchHeaderMatches = search
+      ? headers.flatMap((name, i) =>
+          !metadataColumn(i) && matchesText(name) ? [i] : [],
+        )
+      : undefined;
     let searchMatchCount = 0;
     let searchSelection: { row: number; column: number } | undefined;
     let searchIndex: number | undefined;
@@ -1086,6 +1098,13 @@ export class DocumentEngine {
           pages - 1,
         ),
       );
+    if (query.previewChars) {
+      const pageCells =
+        Math.min(PAGE_SIZE, Math.max(0, matched - page * PAGE_SIZE)) *
+        Math.max(1, headers.length);
+      const budget = Math.floor(PREVIEW_BUDGET / Math.max(1, pageCells));
+      textLimit = Math.max(240, Math.min(4096, query.previewChars, budget));
+    }
     const rows = filtered
       .slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
       .map((item) => {
@@ -1107,6 +1126,7 @@ export class DocumentEngine {
       selectedCells,
       locatedRow,
       searchMatchCount,
+      searchHeaderMatches,
       searchIndex,
       searchSelection,
       filterOptions,
