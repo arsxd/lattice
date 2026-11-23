@@ -75,6 +75,17 @@ try {
         grid.locator(
           `[role="row"][aria-rowindex="${row + 2}"] [role="gridcell"][aria-colindex="${column + 2}"]`,
         );
+      // Playwright assertions poll at coarse intervals (100/250/500/1000 ms),
+      // which hides real timing. Poll every animation frame for slow steps.
+      const firstRow =
+        '[role="row"][aria-rowindex="2"] [role="gridcell"][aria-colindex="3"]';
+      const untilCell = (text) =>
+        page.waitForFunction(
+          ([selector, expected]) =>
+            document.querySelector(selector)?.textContent?.trim() === expected,
+          [firstRow, text],
+          { polling: "raf", timeout: 30000 },
+        );
       await measure("openMs", async () => {
         const chooser = page.waitForEvent("filechooser");
         await page.getByRole("button", { name: "Open…", exact: true }).click();
@@ -116,7 +127,16 @@ try {
         await page
           .getByRole("button", { name: "Sort ascending ↑", exact: true })
           .click();
-        await expect(cell(0, 1)).toHaveText("12.5", { timeout: 30000 });
+        await untilCell("12.5");
+      });
+      await measure("resortMs", async () => {
+        await page
+          .getByRole("button", { name: "Sort and filter price", exact: true })
+          .click();
+        await page
+          .getByRole("button", { name: "Sort descending ↓", exact: true })
+          .click();
+        await untilCell("19.75");
       });
       const tasks = await page.evaluate(() => window.benchmarkTasks);
       results.push({
