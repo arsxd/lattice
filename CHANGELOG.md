@@ -15,6 +15,15 @@ Summary of everything since the first public preview. This entry becomes the 1.0
 - **Project health.** 0BSD license with third-party notices, protected main with Windows, Linux and macOS checks, lint checks for React hooks and accessibility, and a [security policy](SECURITY.md).
 - **Not in 1.0.** Formulas, charts, JSON Schema validation, Excel/CSV import, and grouped/merged sheets (experimental).
 
+## 1.0.0-rc.10 — 2026-11-23
+
+- Rename the toolbar action to **Reload file** (it re-reads the file on disk; “Source” already names the JSON text view) and label the home footer link **Source code**.
+- Keep **Review changes** in the same place in Table, Source and Review views by reserving the Details slot.
+- Tell new users they can drop a JSON file anywhere on the home page, and quiet the install message there.
+- Show **Add row** and **Add column** in the main text colour; toggles such as Wrap text stay muted.
+- Resolve every lint warning and fail CI on new ones. Grid cell handlers (Save, commit, cancel, open, resize row) are now called through a ref so they always use current state.
+- Add a security policy (`SECURITY.md`, private vulnerability reporting) and a browser-support table to the README.
+
 ## 1.0.0-rc.9 — 2026-11-23
 
 - Open column menus without re-sorting the table first, so a following sort starts sooner on large tables (about 880 ms to 650 ms when re-sorting a 25 MiB file on the measured machine).
