@@ -383,3 +383,29 @@ it("shows the neighbourhood of a match that lies beyond the cell preview", () =>
   );
   expect(shown("NEEDLE", "note", near)).toBe(shown("", "note", near));
 });
+it("selection returns the same cells as a full projection, without building the page", () => {
+  const rows = Array.from({ length: 300 }, (_, i) => ({
+    id: i,
+    name: `Row ${i}`,
+    payload: { deep: { list: [i, i + 1], text: "x".repeat(50) } },
+  }));
+  const d = new DocumentEngine(JSON.stringify(rows));
+  const q = { path: [], records: true, search: "", page: 0 };
+  const sel = {
+    mode: "cells",
+    anchor: { r: 2, c: 1 },
+    end: { r: 4, c: 3 },
+  } as const;
+  const viaSelection = d.selection(q, sel, d.revision);
+  expect(viaSelection).toEqual(d.project(q, sel).selectedCells);
+  expect(viaSelection.length).toBe(3);
+  // Sorted and filtered views index into the same ordering.
+  const sorted = { ...q, sort: { column: 2, direction: "DESC" as const } };
+  expect(d.selection(sorted, sel, d.revision)).toEqual(
+    d.project(sorted, sel).selectedCells,
+  );
+  const searched = { ...q, search: "Row 1" };
+  expect(d.selection(searched, sel, d.revision)).toEqual(
+    d.project(searched, sel).selectedCells,
+  );
+});
