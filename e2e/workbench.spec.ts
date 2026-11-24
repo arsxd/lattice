@@ -1289,3 +1289,33 @@ test("a row clicked while Find is updating stays selected if it is still in the 
   await expect(bar).toHaveValue('"odd 3"');
   await expect(cell(page, 1, 1)).toHaveAttribute("aria-selected", "true");
 });
+
+test("editing long text starts at its beginning and keeps the caret clear of the edge", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 900, height: 420 });
+  const title =
+    "A fairly long title that will not fit inside this narrow column at all";
+  await open(page, JSON.stringify([{ title, n: 1 }]));
+  const editor = page.locator(".inline-cell");
+  await page.getByRole("gridcell", { name: /A fairly long title/ }).dblclick();
+  await expect(editor).toBeVisible();
+  // The start of the value is what you see first, not its end.
+  await expect
+    .poll(() => editor.evaluate((e: HTMLTextAreaElement) => e.scrollLeft))
+    .toBe(0);
+  await page.keyboard.press("End");
+  await page.keyboard.type("!");
+  // At the end of the text the caret is not flush against the cell border.
+  const gap = await editor.evaluate((t: HTMLTextAreaElement) => {
+    const cell = t.closest('[role="gridcell"]')!.getBoundingClientRect();
+    const box = t.getBoundingClientRect();
+    return {
+      textareaRight: box.right,
+      cellRight: cell.right,
+      scrolled: t.scrollLeft,
+    };
+  });
+  expect(gap.scrolled).toBeGreaterThan(0);
+  expect(gap.cellRight - gap.textareaRight).toBeGreaterThanOrEqual(6);
+});
