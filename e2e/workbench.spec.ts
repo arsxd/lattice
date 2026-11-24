@@ -61,6 +61,19 @@ test("opens a local JSON file, edits inline, and selects full rows and columns",
     }),
   ).toHaveAttribute("aria-pressed", "true");
 });
+test("typing into a selected cell preserves character order", async ({
+  page,
+}) => {
+  await open(page, '[{"name":"Original"}]');
+  await cell(page, 0, 1).click();
+  await page.keyboard.press("a");
+  await page.keyboard.press("b");
+  const editor = page.getByRole("textbox", { name: "Edit name (string)" });
+  await expect(editor).toHaveValue("ab");
+  await editor.press("Enter");
+  await expect(cell(page, 0, 1)).toHaveText("ab");
+});
+
 test("review blocks invalid drafts and selectively restores a changed region", async ({
   page,
 }) => {
@@ -654,7 +667,7 @@ test("scoped Source applies only its table and survives document switching", asy
   const editor = page.getByRole("textbox", { name: "JSON source draft" });
   await expect(editor).toHaveText('[{"value":1}]');
   await expect(
-    page.getByRole("button", { name: "This table", exact: true }),
+    page.getByRole("button", { name: "Current sheet", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   await editor.fill('[{"value":2,"note":"new"}]');
   await open(page, '{"other":true}', "other.json");

@@ -9,9 +9,11 @@ import { createPortal } from "react-dom";
 export function InlineError({
   anchor,
   children,
+  onDiscard,
 }: {
   anchor: HTMLElement | null;
   children: string;
+  onDiscard: () => void;
 }) {
   const [box, setBox] = useState<DOMRect | null>(null);
   useLayoutEffect(() => {
@@ -30,7 +32,7 @@ export function InlineError({
     };
   }, [anchor, children]);
   if (!box) return null;
-  const below = box.bottom + 4 + 36 <= window.innerHeight;
+  const below = box.bottom + 4 + 76 <= window.innerHeight;
   return createPortal(
     <div
       role="alert"
@@ -42,7 +44,25 @@ export function InlineError({
         bottom: below ? undefined : window.innerHeight - box.top + 4,
       }}
     >
-      {children}
+      <span>{children.replace(/, or use Change type in Details\.$/, ".")}</span>
+      <button
+        type="button"
+        id="discard-inline-edit"
+        className="inline-error-discard"
+        onClick={onDiscard}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            event.stopPropagation();
+            onDiscard();
+          } else if (event.key === "Tab" && event.shiftKey) {
+            event.preventDefault();
+            anchor?.focus();
+          }
+        }}
+      >
+        Discard edit
+      </button>
     </div>,
     document.body,
   );

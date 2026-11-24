@@ -76,15 +76,15 @@ Select a cell and choose **Source** to locate its exact JSON. Missing properties
 
 ![Source with scope, selected-cell location, wrapping and formatting controls](images/source.png)
 
-| Control                     | Effect                                                                                               |
-| --------------------------- | ---------------------------------------------------------------------------------------------------- |
-| This table / Whole document | Select the source editing scope. The current table is the default when navigating inside a document. |
-| Wrap lines                  | Visually wrap long lines; JSON, logical line numbers and draft status do not change.                 |
-| Pretty-print                | Add two-space indentation in an undoable draft.                                                      |
-| Compact                     | Keep short objects and arrays inline, with a 120-character line target and two-space indentation.    |
-| Minify                      | Remove whitespace outside strings in an undoable draft.                                              |
-| Apply source                | Validate and commit the draft to the document engine.                                                |
-| Discard draft               | Restore the committed text, retaining earlier table edits.                                           |
+| Control                                         | Effect                                                                                                                                     |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Selected value / Current sheet / Whole document | Source opens the selected nested value by default. Choose Current sheet to edit the open table, or Whole document to edit the entire file. |
+| Wrap lines                                      | Visually wrap long lines; JSON, logical line numbers and draft status do not change.                                                       |
+| Pretty-print                                    | Add two-space indentation in an undoable draft.                                                                                            |
+| Compact                                         | Keep short objects and arrays inline, with a 120-character line target and two-space indentation.                                          |
+| Minify                                          | Remove whitespace outside strings in an undoable draft.                                                                                    |
+| Apply source                                    | Validate and commit the draft to the document engine.                                                                                      |
+| Discard draft                                   | Restore the committed text, retaining earlier table edits.                                                                                 |
 
 Formatting preserves exact numeric tokens, string contents and property order. Compact keeps the outer container multiline and expands nested containers when needed. Long primitive arrays pack several values per line; object records stay separate. It does not split long strings to meet its line target. Apply or discard a draft before changing scope, returning to Table or saving. Applying a table draft changes only that subtree, keeping sibling data intact. Applying a draft is distinct from saving the file to disk.
 
@@ -111,11 +111,11 @@ Review compares with the stored baseline, not a newly modified disk file; it is 
 
 ## Save, Download and Reload
 
-| Action        | Behavior                                                                                         |
-| ------------- | ------------------------------------------------------------------------------------------------ |
-| Save          | Write back through a retained file handle where the browser supports and permits it.             |
-| Save as…      | Choose a destination through a supported browser picker.                                         |
-| Download      | Export an edited copy. The app cannot confirm it reached disk, so the document remains unsaved.  |
+| Action      | Behavior                                                                                         |
+| ----------- | ------------------------------------------------------------------------------------------------ |
+| Save        | Write back through a retained file handle where the browser supports and permits it.             |
+| Save as…    | Choose a destination through a supported browser picker.                                         |
+| Download    | Export an edited copy. The app cannot confirm it reached disk, so the document remains unsaved.  |
 | Reload file | Read the retained source again, or ask you to select it again when direct access is unavailable. |
 
 Cancelled or failed writes do not mark a document saved. Save compares the decoded disk contents with its baseline and blocks a detected external change. It provides conflict detection, not an exclusive file lock or automatic watcher.

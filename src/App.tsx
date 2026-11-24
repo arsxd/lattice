@@ -1809,9 +1809,16 @@ export default function App() {
                       autoFocus
                       value={inline.value}
                       onFocus={(e) => {
-                        if (inline.selectAll) e.currentTarget.select();
+                        const input = e.currentTarget;
+                        if (inline.selectAll) input.select();
+                        else if (!inline.error) {
+                          const end = input.value.length;
+                          input.setSelectionRange(end, end);
+                        }
                       }}
-                      onBlur={() => {
+                      onBlur={(event) => {
+                        if (event.relatedTarget?.id === "discard-inline-edit")
+                          return;
                         if (!suppressBlur.current && !committingCell.current)
                           void handlers.current.commitInline();
                       }}
@@ -1863,6 +1870,16 @@ export default function App() {
                             ),
                           );
                           return;
+                        }
+                        if (e.key === "Tab" && !e.shiftKey && inline.error) {
+                          const discard = document.getElementById(
+                            "discard-inline-edit",
+                          );
+                          if (discard) {
+                            e.preventDefault();
+                            discard.focus();
+                            return;
+                          }
                         }
                         if (e.key === "Enter" || e.key === "Tab") {
                           e.preventDefault();
@@ -2204,6 +2221,11 @@ export default function App() {
     singleCellSelected && activeCell && activeCell.column >= 0
       ? view?.rows[activeCell.row]?.cells[activeCell.column]
       : undefined;
+  const selectedSourceValue =
+    currentCell?.container && !selectedIdentifier ? currentCell : undefined;
+  const sourceIsSelectedValue =
+    !!sourceScope &&
+    pointer(sourceScope.path) !== pointer(view?.path ?? query.path);
   function changeQuery(next: Query) {
     if (busyRef.current) return;
     ++selectionRequest.current;
@@ -2307,6 +2329,7 @@ export default function App() {
           return;
         }
         const backgroundTarget = e.target instanceof Element ? e.target : null;
+        if (backgroundTarget?.closest(".inline-error")) return;
         const blankSheet =
           backgroundTarget &&
           (backgroundTarget.matches(".workspace,.range-sheet,.data-grid") ||
@@ -2547,7 +2570,7 @@ export default function App() {
           onClick={() => void reloadSource()}
           title={
             doc?.handle
-              ? "Read the latest version of the file from disk"
+              ? "Read the open JSON file again to pick up changes made outside Lattice."
               : "Choose the file again to reload it"
           }
         >
@@ -2871,7 +2894,25 @@ export default function App() {
                 </nav>
                 <div className="spacer" />
                 {mode === "source" &&
-                (view?.path.length || currentCell?.container) ? (
+                  !sourceIsSelectedValue &&
+                  hasSourceLocation && (
+                    <button
+                      className="source-cell-locator"
+                      disabled={busy}
+                      title={
+                        activeCell && view?.rows[activeCell.row]
+                          ? `Find ${columnLetter(activeCell.column)}${rowLabel(activeCell.row)} in source`
+                          : "Find the selected cell in source"
+                      }
+                      onClick={() => sourceLocate.current?.()}
+                    >
+                      {activeCell && view?.rows[activeCell.row]
+                        ? `Go to ${columnLetter(activeCell.column)}${rowLabel(activeCell.row)}`
+                        : "Go to selected cell"}
+                    </button>
+                  )}
+                {mode === "source" &&
+                (view?.path.length || selectedSourceValue) ? (
                   <div
                     className="view-mode source-scope-switch"
                     title={
@@ -2894,20 +2935,20 @@ export default function App() {
                           void run(() => showSource(view.path).then(() => {}))
                         }
                       >
-                        This table
+                        Current sheet
                       </button>
                     )}
-                    {currentCell?.container && (
+                    {selectedSourceValue && (
                       <button
                         aria-pressed={
                           !!sourceScope &&
                           pointer(sourceScope.path) ===
-                            pointer(currentCell.path)
+                            pointer(selectedSourceValue.path)
                         }
                         disabled={busy || sourceDirty}
                         onClick={() =>
                           void run(() =>
-                            showSource(currentCell.path).then(() => {}),
+                            showSource(selectedSourceValue.path).then(() => {}),
                           )
                         }
                       >
@@ -2925,18 +2966,6 @@ export default function App() {
                     </button>
                   </div>
                 ) : null}
-                {mode === "source" && hasSourceLocation && (
-                  <button
-                    className="source-cell-locator"
-                    disabled={busy}
-                    title="Jump to the selected table cell. Its source is marked by dotted underlines, blue line numbers and a gutter bar."
-                    onClick={() => sourceLocate.current?.()}
-                  >
-                    {activeCell && view?.rows[activeCell.row]
-                      ? `Go to ${columnLetter(activeCell.column)}${rowLabel(activeCell.row)}`
-                      : "Go to selected cell"}
-                  </button>
-                )}
                 {mode === "source" && formattingSource && (
                   <span className="source-format-status" role="status">
                     Formatting…
@@ -3074,7 +3103,11 @@ export default function App() {
                       aria-pressed={mode === "source"}
                       disabled={busy || mode === "source" || sourceDirty}
                       onClick={() => {
-                        if (currentCell && currentCell.type !== "missing")
+                        if (selectedSourceValue)
+                          void run(async () => {
+                            await showSource(selectedSourceValue.path);
+                          });
+                        else if (currentCell && currentCell.type !== "missing")
                           void showInSource(
                             currentCell.path,
                             !!selectedIdentifier,
@@ -3186,7 +3219,7 @@ export default function App() {
                       hint="Right-click the column to rename it or copy its name."
                     />
                   ) : (
-                    <ValueBarPlaceholder address="" />
+                    <ValueBarPlaceholder />
                   )}
                   <>
                     {headerMenu !== null && (
@@ -3793,7 +3826,7 @@ export default function App() {
                         applyScopedDraft(sourceBase, sourceScope, draft),
                       );
                     }}
-                    target={sourceTarget}
+                    target={sourceIsSelectedValue ? null : sourceTarget}
                   />
                 </>
               )}
@@ -3856,29 +3889,37 @@ export default function App() {
                   </button>
                 </div>
                 {view?.recordsAvailable && (
-                  <div
-                    className="view-mode"
-                    role="group"
-                    aria-label="Table layout"
-                  >
-                    {[false, true].map((records) => (
-                      <button
-                        key={String(records)}
-                        aria-pressed={!!query.records === records}
-                        disabled={busy}
-                        onClick={() => {
-                          if (!!query.records !== records)
-                            changeQuery({
-                              ...query,
-                              records,
-                              page: 0,
-                              sort: undefined,
-                            });
-                        }}
-                      >
-                        {records ? "Records" : "Properties"}
-                      </button>
-                    ))}
+                  <div className="inspector-layout">
+                    <span>Table layout</span>
+                    <div
+                      className="view-mode"
+                      role="group"
+                      aria-label="Table layout"
+                    >
+                      {[false, true].map((records) => (
+                        <button
+                          key={String(records)}
+                          aria-pressed={!!query.records === records}
+                          title={
+                            records
+                              ? "Show one record per row, with fields as columns."
+                              : "Show keys and values in two columns."
+                          }
+                          disabled={busy}
+                          onClick={() => {
+                            if (!!query.records !== records)
+                              changeQuery({
+                                ...query,
+                                records,
+                                page: 0,
+                                sort: undefined,
+                              });
+                          }}
+                        >
+                          {records ? "Records" : "Properties"}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
                 {selection && singleCellSelected ? (
@@ -3908,21 +3949,38 @@ export default function App() {
                           </>
                         )}
                       </dl>
-                      {selection.cell.container && (
-                        <div className="inspector-actions">
+                      <div className="inspector-actions">
+                        {selection.cell.container && (
                           <button
+                            className="inspector-open-table"
                             disabled={busy}
                             onClick={() => void navigate(selection.cell.path)}
                           >
-                            Open table
+                            Open as table
                           </button>
-                        </div>
-                      )}
+                        )}
+                        {selection.cell.type !== "missing" && (
+                          <button
+                            disabled={busy}
+                            onClick={() =>
+                              void navigator.clipboard
+                                .writeText(selection.raw)
+                                .then(() => setNotice("Copied JSON value."))
+                                .catch(() =>
+                                  setError("Clipboard access is unavailable."),
+                                )
+                            }
+                          >
+                            Copy JSON
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <ValueDetails raw={selection.raw} />
                     {selection.cell.type !== "missing" && (
                       <details className="inspector-json">
                         <summary>
+                          <ColumnMenuChevron />
                           {selectedJsonPreview?.truncated
                             ? "JSON preview"
                             : "Exact JSON"}
@@ -3939,51 +3997,36 @@ export default function App() {
                         )}
                       </details>
                     )}
-                    <div className="inspector-actions">
-                      <button
-                        disabled={busy || selection.cell.writable === false}
-                        onClick={() => void edit(selection.cell)}
-                      >
-                        Change type…
-                      </button>
-                      <button
-                        disabled={busy || selection.cell.type === "missing"}
-                        onClick={() =>
-                          void navigator.clipboard
-                            .writeText(selection.raw)
-                            .then(() => setNotice("Copied JSON value."))
-                            .catch(() =>
-                              setError("Clipboard access is unavailable."),
-                            )
-                        }
-                      >
-                        Copy JSON
-                      </button>
-                    </div>
-                    {selection.cell.path.length > 0 &&
-                      selection.cell.type !== "missing" && (
-                        <div className="structural-actions">
-                          {typeof selection.cell.path.at(-1) === "string" && (
-                            <button
-                              disabled={busy}
-                              onClick={() => newEdit("rename")}
-                            >
-                              Rename key
-                            </button>
-                          )}
-                          <button
-                            className="danger"
-                            disabled={busy}
-                            onClick={() => newEdit("remove")}
-                          >
-                            Remove value…
-                          </button>
-                        </div>
+                    <div className="structural-actions">
+                      {selection.cell.writable !== false && (
+                        <button
+                          disabled={busy}
+                          onClick={() => void edit(selection.cell)}
+                        >
+                          Change type…
+                        </button>
                       )}
-                    <p className="small">
-                      Types are explicit. Sorting and filtering change only the
-                      view.
-                    </p>
+                      {selection.cell.path.length > 0 &&
+                        selection.cell.type !== "missing" && (
+                          <>
+                            {typeof selection.cell.path.at(-1) === "string" && (
+                              <button
+                                disabled={busy}
+                                onClick={() => newEdit("rename")}
+                              >
+                                Rename key
+                              </button>
+                            )}
+                            <button
+                              className="danger"
+                              disabled={busy}
+                              onClick={() => newEdit("remove")}
+                            >
+                              Remove value…
+                            </button>
+                          </>
+                        )}
+                    </div>
                   </>
                 ) : (
                   <div className="inspector-empty">
@@ -4044,7 +4087,10 @@ export default function App() {
           </nav>
           <footer className="status" aria-live="polite">
             {inline?.error && (
-              <InlineError anchor={inlineInput.current}>
+              <InlineError
+                anchor={inlineInput.current}
+                onDiscard={cancelInline}
+              >
                 {inline.error}
               </InlineError>
             )}

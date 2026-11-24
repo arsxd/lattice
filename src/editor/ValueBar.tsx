@@ -254,7 +254,7 @@ function ValueBarEditor({
   );
 }
 
-/** Keep the bar stable; identifier selections still show their address and key. */
+/** Show identifier selections and the idle hint at the same bar height. */
 export function ValueBarPlaceholder({
   address,
   value,
@@ -272,10 +272,8 @@ export function ValueBarPlaceholder({
       className="value-bar value-bar-empty"
       aria-hidden={!selected || undefined}
     >
-      {selected && address ? (
+      {selected && address && (
         <output aria-label="Cell address">{address}</output>
-      ) : (
-        <span className="value-bar-address value-bar-address-idle" />
       )}
       <span className="value-bar-caption sr-only">
         {selected ? caption : "Value"}

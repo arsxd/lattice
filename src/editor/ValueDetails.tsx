@@ -23,7 +23,7 @@ export function ValueDetails({ raw }: { raw: string }) {
                 minWidth:
                   preview.headers.length > 2
                     ? 104 + (preview.headers.length - 1) * 160
-                    : 300,
+                    : undefined,
               }}
             >
               <colgroup>
@@ -33,7 +33,9 @@ export function ValueDetails({ raw }: { raw: string }) {
                     style={{
                       width:
                         index === 0
-                          ? 104
+                          ? preview.headers.length > 2
+                            ? 104
+                            : "34%"
                           : preview.headers.length > 2
                             ? 160
                             : undefined,
