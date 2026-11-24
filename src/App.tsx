@@ -155,6 +155,10 @@ type InlineEdit = {
   column: number;
   error: string;
 };
+const singleCell = (selection: SheetSelection | null) =>
+  selection?.mode === "cells" &&
+  selection.anchor.r === selection.end.r &&
+  selection.anchor.c === selection.end.c;
 export default function App() {
   const { installPrompt, updateStatus } = useOfflineApp();
   const [sourceWrapLines, setSourceWrapLines] = useState(false);
@@ -203,6 +207,11 @@ export default function App() {
   const [query, setQuery] = useState<Query>(initialQuery);
   const [findDraft, setFindDraft] = useState(initialQuery.search);
   const [operationBusy, setBusy] = useState(false);
+  // The latest view and selection, for async code that outlives a render.
+  const shown = useRef<{
+    view: Projection | null;
+    sheetSelection: SheetSelection | null;
+  }>({ view: null, sheetSelection: null });
   const [columnName, setColumnName] = useState<string | null>(null);
   const [columnError, setColumnError] = useState("");
   const [inline, setInline] = useState<InlineEdit | null>(null);
@@ -405,6 +414,7 @@ export default function App() {
   const [sheetSelection, setSheetSelection] = useState<SheetSelection | null>(
     null,
   );
+  shown.current = { view: view ?? null, sheetSelection };
   const singleCellSelected =
     sheetSelection?.mode === "cells" &&
     sheetSelection.anchor.r === sheetSelection.end.r &&
@@ -675,7 +685,30 @@ export default function App() {
     const id = ++request.current;
     const p = await client.current.call<Projection>("project", q);
     if (id !== request.current) return;
-    if (view && p.revision !== view.revision) setSheetSelection(null);
+    const before = shown.current;
+    if (before.view && p.revision !== before.view.revision)
+      setSheetSelection(null);
+    else if (before.view && singleCell(before.sheetSelection)) {
+      // A cell clicked while rows were being replaced still carries its old row
+      // number; follow it by row identity or drop it, never land on another row.
+      const old = before.view;
+      const anchor = before.sheetSelection!.anchor;
+      const id = old.rows[anchor.r - old.page * 500]?.id;
+      const found =
+        id === undefined ? -1 : p.rows.findIndex((r) => r.id === id);
+      const row = p.page * 500 + found;
+      if (found < 0) setSheetSelection(null);
+      else if (row !== anchor.r) {
+        setSheetSelection(selectCell(null, { r: row, c: anchor.c }));
+        // The grid draws its own outline from its active position.
+        requestAnimationFrame(() =>
+          grid.current?.setActivePosition(
+            { idx: anchor.c + 1, rowIdx: found },
+            { shouldFocus: false },
+          ),
+        );
+      }
+    }
     setView(p);
     setSheets(p.sheets ?? p.children);
     setTruncatedSheets(
@@ -2166,7 +2199,10 @@ export default function App() {
           }
         : onlyPage
           ? previous
-          : null,
+          : // A single cell is followed to its new row by refresh().
+            singleCell(previous)
+            ? previous
+            : null,
     );
     setQuery(next);
     void run(async () => {

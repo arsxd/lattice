@@ -1206,3 +1206,86 @@ test("an invalid value-bar draft shows a clear error, can be discarded, and does
   await cell(page, 1, 1).click();
   await expect(bar).toHaveValue('"Beta"');
 });
+
+// Models a large file: Find results arrive well after the click.
+async function slowFindResults(page: Page, ms = 900) {
+  await page.addInitScript((delay) => {
+    const NativeWorker = window.Worker;
+    (window as any).Worker = function (...args: any[]) {
+      const worker = new (NativeWorker as any)(...args);
+      const sent = new Map<number, any>();
+      const post = worker.postMessage.bind(worker);
+      worker.postMessage = (message: any, ...rest: any[]) => {
+        if (message && typeof message.id === "number")
+          sent.set(message.id, message);
+        return post(message, ...rest);
+      };
+      let handler: ((e: MessageEvent) => void) | undefined;
+      Object.defineProperty(worker, "onmessage", {
+        get: () => handler,
+        set(next) {
+          handler = next;
+          worker.addEventListener("message", (e: MessageEvent) => {
+            const m = sent.get(e.data?.id);
+            sent.delete(e.data?.id);
+            const slow = m?.action === "project" && m.args?.search;
+            if (slow) setTimeout(() => handler?.call(worker, e), delay);
+            else handler?.call(worker, e);
+          });
+        },
+      });
+      return worker;
+    };
+  }, ms);
+  await page.reload();
+}
+const manyRows = () =>
+  JSON.stringify(
+    Array.from({ length: 400 }, (_, i) => ({
+      name: i % 2 ? `odd ${i}` : `even ${i}`,
+    })),
+  );
+
+test("a cell clicked just after typing in Find stays selected with its value", async ({
+  page,
+}) => {
+  await slowFindResults(page);
+  await open(page, manyRows());
+  const bar = page.getByRole("textbox", { name: "Selected cell value" });
+  await page.locator("#find").fill("even");
+  await cell(page, 0, 1).click(); // before the debounced search even starts
+  await expect(page.locator(".find-count")).toContainText("200");
+  await expect(bar).toHaveValue('"even 0"');
+  await cell(page, 1, 1).click();
+  await expect(bar).toHaveValue('"even 2"');
+});
+
+test("a click on a row that is about to disappear never selects a different row", async ({
+  page,
+}) => {
+  await slowFindResults(page);
+  await open(page, manyRows());
+  const bar = page.getByRole("textbox", { name: "Selected cell value" });
+  await page.locator("#find").fill("odd");
+  await page.waitForTimeout(400); // the search is running; the old rows are still shown
+  await cell(page, 2, 1).click(); // "even 2": not in the results
+  await expect(page.locator(".find-count")).toContainText("200");
+  await page.waitForTimeout(300);
+  await expect(bar).toHaveCount(0); // nothing is selected, and nothing wrong is
+  await cell(page, 1, 1).click();
+  await expect(bar).toHaveValue('"odd 3"');
+});
+
+test("a row clicked while Find is updating stays selected if it is still in the results", async ({
+  page,
+}) => {
+  await slowFindResults(page);
+  await open(page, manyRows());
+  const bar = page.getByRole("textbox", { name: "Selected cell value" });
+  await page.locator("#find").fill("odd");
+  await page.waitForTimeout(400);
+  await cell(page, 3, 1).click(); // "odd 3" moves from row 3 to row 1
+  await expect(page.locator(".find-count")).toContainText("200");
+  await expect(bar).toHaveValue('"odd 3"');
+  await expect(cell(page, 1, 1)).toHaveAttribute("aria-selected", "true");
+});
