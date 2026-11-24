@@ -409,3 +409,65 @@ it("selection returns the same cells as a full projection, without building the 
     d.project(searched, sel).selectedCells,
   );
 });
+it("never serves stale filtered or sorted rows after an edit, undo or query change", () => {
+  const d = new DocumentEngine(
+    JSON.stringify([
+      { name: "delta", n: 4 },
+      { name: "alpha", n: 1 },
+      { name: "charlie", n: 3 },
+      { name: "bravo", n: 2 },
+    ]),
+  );
+  const base = { path: [], records: true, search: "", page: 0 };
+  const col = d.project(base).headers.indexOf("name");
+  const names = (q: object) =>
+    d.project({ ...base, ...q }).rows.map((r) => r.cells[col].display);
+  const asc = { sort: { column: col, direction: "ASC" as const } };
+  expect(names(asc)).toEqual(["alpha", "bravo", "charlie", "delta"]);
+  expect(names(asc)).toEqual(["alpha", "bravo", "charlie", "delta"]); // repeat: cached
+  expect(names({ ...asc, sort: { column: col, direction: "DESC" } })).toEqual([
+    "delta",
+    "charlie",
+    "bravo",
+    "alpha",
+  ]);
+  expect(d.project({ ...base, search: "a" }).matched).toBe(4);
+  expect(d.project({ ...base, search: "alp" }).matched).toBe(1);
+  // An edit changes the order and the matches.
+  const row = d
+    .project(base)
+    .rows.find((r) => r.cells[col].display === "delta")!;
+  d.mutate(
+    { action: "replace", path: [...row.path, "name"], raw: '"aaa"' },
+    d.revision,
+  );
+  expect(names(asc)).toEqual(["aaa", "alpha", "bravo", "charlie"]);
+  expect(d.project({ ...base, search: "alp" }).matched).toBe(1);
+  expect(d.project({ ...base, search: "aaa" }).matched).toBe(1);
+  d.undo();
+  expect(names(asc)).toEqual(["alpha", "bravo", "charlie", "delta"]);
+  expect(d.project({ ...base, search: "aaa" }).matched).toBe(0);
+  // Result navigation picks the right match from the same cached search.
+  const hits = [0, 1, 2].map(
+    (i) => d.project({ ...base, search: "a", searchResult: i }).searchSelection,
+  );
+  expect(hits.every((h) => !!h)).toBe(true);
+  expect(new Set(hits.map((h) => `${h!.row}:${h!.column}`)).size).toBe(3);
+  expect(
+    d.project({ ...base, search: "a", searchResult: 99 }).searchSelection,
+  ).toBeUndefined();
+  // Case and whole-word options are part of the key.
+  expect(d.project({ ...base, search: "ALPHA" }).matched).toBe(1);
+  expect(
+    d.project({ ...base, search: "ALPHA", searchCaseSensitive: true }).matched,
+  ).toBe(0);
+  expect(
+    d.project({ ...base, search: "alph", searchWholeWord: true }).matched,
+  ).toBe(0);
+  // Value filters.
+  const options = d.project({ ...base, optionsColumn: col }).filterOptions!;
+  const keep = options.find((o) => o.label === "bravo")!.key;
+  expect(names({ valueFilters: { [col]: [keep] } })).toEqual(["bravo"]);
+  expect(names({ valueFilters: { [col]: [keep] } })).toEqual(["bravo"]);
+  expect(names({})).toHaveLength(4);
+});
