@@ -81,3 +81,54 @@ test("disabled controls share one opacity", async ({ page }) => {
   expect(seen.size).toBeGreaterThan(0);
   expect(seen.size).toBe(1);
 });
+
+test("a selected column header looks selected all the way across, arrow included", async ({
+  page,
+}) => {
+  await openTable(page);
+  const header = page.locator('[role="columnheader"]').nth(1);
+  const parts = () =>
+    header.evaluate((h) => ({
+      label: getComputedStyle(h.querySelector(".column-select")!).color,
+      arrow: getComputedStyle(h.querySelector(".header-filter")!).color,
+    }));
+  const before = await parts();
+  await header.locator(".column-select").click();
+  const after = await parts();
+  expect(after.label).not.toBe(before.label); // selection is shown
+  expect(after.arrow).toBe(after.label); // ...on the arrow as well
+});
+
+test("the app starts in the light theme unless a theme was chosen", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "dark" }); // an OS in dark mode
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await page.getByRole("button", { name: "Dark theme" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.getByRole("button", { name: "System theme" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+});
+
+test("Review changes sits at the edge in Source, with no empty slot where Details was", async ({
+  page,
+}) => {
+  await openTable(page);
+  const review = page.getByRole("button", { name: "Review changes" });
+  const gapToEdge = async () =>
+    review.evaluate((button) => {
+      const bar = button.parentElement!.getBoundingClientRect();
+      const box = button.getBoundingClientRect();
+      return Math.round(bar.right - box.right);
+    });
+  const table = await gapToEdge();
+  await page.getByRole("button", { name: "Source", exact: true }).click();
+  await page.locator(".cm-content").waitFor();
+  await expect(page.getByRole("button", { name: /Details/ })).toHaveCount(0);
+  // In Source the button is the last item, so it ends where the bar ends.
+  expect(await gapToEdge()).toBeLessThanOrEqual(table);
+  expect(await gapToEdge()).toBeLessThanOrEqual(14);
+});

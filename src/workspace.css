@@ -1179,3 +1179,8 @@ summary[aria-disabled="true"] {
   background: var(--hover);
   color: var(--text);
 }
+
+/* A selected column header is selected all the way across, dropdown arrow included. */
+.sheet-column-heading:has(.column-select[aria-pressed="true"]) .header-filter {
+  color: var(--accent);
+}
