@@ -43,6 +43,7 @@ self.onmessage = (event: MessageEvent) => {
                 body,
                 root,
                 text.includes("\r\n") ? "\r\n" : "\n",
+                args.baseIndent,
               );
           } else if (args.action === "minify") {
             value =

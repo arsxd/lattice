@@ -5,6 +5,7 @@ export function compactPrettyJson(
   text: string,
   root: Node,
   eol: string,
+  baseIndent = "",
 ): string {
   const width = 120;
   const raw = (node: Node) =>
@@ -56,7 +57,7 @@ export function compactPrettyJson(
     }
     const object = node.type === "object";
     parts.push(object ? "{" : "[");
-    const indent = "  ".repeat(depth + 1);
+    const indent = baseIndent + "  ".repeat(depth + 1);
     if (
       !object &&
       children.every(
@@ -85,7 +86,7 @@ export function compactPrettyJson(
         parts.push(token);
         used += token.length;
       }
-      parts.push(eol, "  ".repeat(depth), "]");
+      parts.push(eol, baseIndent + "  ".repeat(depth), "]");
       return;
     }
     for (let i = 0; i < children.length; i++) {
@@ -100,8 +101,8 @@ export function compactPrettyJson(
       }
       emit(object ? child.children![1] : child, depth + 1, column);
     }
-    parts.push(eol, "  ".repeat(depth), object ? "}" : "]");
+    parts.push(eol, baseIndent + "  ".repeat(depth), object ? "}" : "]");
   }
-  emit(root, 0, 0, true);
+  emit(root, 0, baseIndent.length, true);
   return parts.join("");
 }

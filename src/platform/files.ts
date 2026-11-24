@@ -31,6 +31,10 @@ export type Opened = {
   diskText?: string;
 };
 export async function readJsonFile(file: File): Promise<string> {
+  if (!/\.json$/i.test(file.name))
+    throw new Error(
+      `"${file.name}" is not a .json file. Choose a UTF-8 JSON file.`,
+    );
   if (file.size > 64 * 1024 * 1024)
     throw new Error(
       `"${file.name}" is too large. Lattice opens files up to 64 MiB.`,
@@ -140,6 +144,7 @@ export async function openFile(): Promise<Opened | null> {
         id: "lattice-open-json",
         ...(lastOpenHandle ? { startIn: lastOpenHandle } : {}),
         multiple: false,
+        excludeAcceptAllOption: true,
         types: [
           { description: "JSON", accept: { "application/json": [".json"] } },
         ],

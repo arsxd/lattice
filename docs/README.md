@@ -10,7 +10,7 @@
 | [Accessibility](ACCESSIBILITY.md)                    | Automated keyboard coverage and manual checks still needed                                    |
 | [Performance and limits](PERFORMANCE.md)             | Historical measurements, reproduction commands and evidence boundaries                        |
 | [Web architecture](WEB.md)                           | Workers, revisions, bounded rendering, storage, offline assets and deployment                 |
-| [Release-candidate validation](RELEASE-CANDIDATE.md) | Verification gates and manual release checks                                                  |
+| [Release-candidate validation](RELEASE-CANDIDATE.md) | Published build, verification evidence and pending manual checks                              |
 | [Contributing](../CONTRIBUTING.md)                   | Local development, focused changes and bug reports                                            |
 | [Changelog](../CHANGELOG.md)                         | Changes by version                                                                            |
 

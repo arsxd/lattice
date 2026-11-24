@@ -152,7 +152,7 @@
   background: var(--chrome);
   padding: 2px;
 }
-.location .view-mode button {
+:is(.location, .inspector) .view-mode button {
   border: 0;
   border-radius: 3px;
   background: transparent;
@@ -161,12 +161,12 @@
   font-size: 12px;
   color: var(--muted);
 }
-.location .view-mode button[aria-pressed="true"] {
+:is(.location, .inspector) .view-mode button[aria-pressed="true"] {
   background: var(--surface);
   color: var(--accent);
   box-shadow: 0 1px 3px #17243b12;
 }
-.location .view-mode button:hover:not(:disabled) {
+:is(.location, .inspector) .view-mode button:hover:not(:disabled) {
   color: var(--text);
 }
 .sheet-column-heading small {
@@ -337,7 +337,7 @@
 }
 
 /* Active view state must remain distinct from an unavailable alternative. */
-.location .view-mode button[aria-pressed="true"]:disabled {
+:is(.location, .inspector) .view-mode button[aria-pressed="true"]:disabled {
   opacity: 1;
 }
 
@@ -855,7 +855,9 @@
 :root[data-theme="dark"] .data-grid .active-cell-header {
   background: #454545;
 }
-:root[data-theme="dark"] .value-bar :is(textarea, output, .value-bar-empty-field) {
+:root[data-theme="dark"]
+  .value-bar
+  :is(textarea, output, .value-bar-empty-field) {
   background: #262626;
   border-color: #555;
 }
@@ -876,7 +878,11 @@
   padding: 7px 10px;
   max-width: min(420px, 90vw);
   white-space: normal;
-  font: 12px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font:
+    12px/1.5 -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
 }
 
 .source-editor .source-syntax-gutter {
@@ -913,14 +919,15 @@
 /* Motion stays on controls and floating surfaces, never on the sheet or editor. */
 @media (prefers-reduced-motion: no-preference) {
   :is(
-    .toolbar,
-    .location,
-    .pagination,
-    .document-tab,
-    .home-screen,
-    .column-menu,
-    .sheet-menu
-  ) button:not(:disabled) {
+      .toolbar,
+      .location,
+      .pagination,
+      .document-tab,
+      .home-screen,
+      .column-menu,
+      .sheet-menu
+    )
+    button:not(:disabled) {
     transition:
       background-color 100ms ease-out,
       border-color 100ms ease-out,
@@ -1080,7 +1087,7 @@
 }
 .toolbar button,
 .toolbar .theme-picker button,
-.location .view-mode button,
+:is(.location, .inspector) .view-mode button,
 .pagination button,
 .pagination .freeze-menu summary,
 .file-location > summary,
@@ -1094,7 +1101,9 @@
 .source-format-buttons > .source-format-option:last-child > button {
   border-radius: 0 var(--control-radius) var(--control-radius) 0;
 }
-.source-format-buttons > .source-format-option:not(:first-child):not(:last-child) > button {
+.source-format-buttons
+  > .source-format-option:not(:first-child):not(:last-child)
+  > button {
   border-radius: 0;
 }
 .freeze-options button,
@@ -1115,7 +1124,7 @@ summary[aria-disabled="true"] {
   opacity: var(--disabled-opacity);
 }
 /* The active view toggle stays readable even when it cannot be pressed. */
-.location .view-mode button[aria-pressed="true"]:disabled {
+:is(.location, .inspector) .view-mode button[aria-pressed="true"]:disabled {
   opacity: 1;
 }
 
@@ -1183,4 +1192,16 @@ summary[aria-disabled="true"] {
 /* A selected column header is selected all the way across, dropdown arrow included. */
 .sheet-column-heading:has(.column-select[aria-pressed="true"]) .header-filter {
   color: var(--accent);
+}
+
+.sheet-column-heading .header-filter[aria-expanded="true"] {
+  background: var(--surface);
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.file-opening-status {
+  padding: 4px 12px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
 }

@@ -291,13 +291,9 @@ test("announces a real waiting service worker without replacing a dirty draft", 
     await page
       .getByRole("button", { name: "Update available", exact: true })
       .click();
-    await expect(page.getByRole("dialog")).toContainText(
-      "close all Lattice tabs",
-    );
-    // One window left open keeps the old version; say so, and name the build.
-    await expect(page.getByRole("dialog")).toContainText(
-      "one that is still open",
-    );
+    await expect(
+      page.getByRole("button", { name: "Update now", exact: true }),
+    ).toBeDisabled();
     await expect(page.getByRole("dialog")).toContainText(/build [0-9a-f]{7}/);
     await expect(page.locator(".app-version")).toHaveAttribute(
       "title",
@@ -310,6 +306,26 @@ test("announces a real waiting service worker without replacing a dirty draft", 
     await expect(
       page.getByRole("button", { name: "Update available", exact: true }),
     ).toBeVisible();
+    const home = await page.context().newPage();
+    await home.goto(page.url());
+    await home
+      .getByRole("button", { name: "Update available", exact: true })
+      .click();
+    await Promise.all([
+      home.waitForEvent("framenavigated"),
+      home.getByRole("button", { name: "Update now", exact: true }).click(),
+    ]);
+    await expect(
+      home.getByRole("button", { name: "Update available", exact: true }),
+    ).toHaveCount(0);
+    await expect(draft).toHaveText('{"keep":');
+    expect(
+      await home.evaluate(
+        async () =>
+          (await navigator.serviceWorker.getRegistration())?.waiting ?? null,
+      ),
+    ).toBeNull();
+    await home.close();
   } finally {
     await writeFile(workerPath, original);
   }

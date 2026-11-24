@@ -164,7 +164,6 @@ const singleCell = (selection: SheetSelection | null) =>
   selection.anchor.r === selection.end.r &&
   selection.anchor.c === selection.end.c;
 export default function App() {
-  const { installPrompt, updateStatus } = useOfflineApp();
   const [sourceWrapLines, setSourceWrapLines] = useState(false);
   const [hasSourceLocation, setHasSourceLocation] = useState(false);
   const sourceLocate = useRef<(() => void) | null>(null);
@@ -211,6 +210,7 @@ export default function App() {
   const [query, setQuery] = useState<Query>(initialQuery);
   const [findDraft, setFindDraft] = useState(initialQuery.search);
   const [operationBusy, setBusy] = useState(false);
+  const [openingFile, setOpeningFile] = useState(false);
   // The latest view and selection, for async code that outlives a render.
   const shown = useRef<{
     view: Projection | null;
@@ -242,7 +242,7 @@ export default function App() {
     new Map<string, { top: number; left: number }>(),
   );
   const [activeId, setActiveId] = useState("");
-  const tableHeightKey = `${activeId}:${pointer(query.path)}:${query.showIndex !== false}`;
+  const tableHeightKey = `${activeId}:${pointer(query.path)}:${query.showIndex !== false}:${!!query.records}`;
   const heightKey = (row: Row) => `${tableHeightKey}:${row.id}`;
   const automaticWidths = useMemo(
     () => (view ? contentColumnWidths(view, gridSize.width, textMeasure) : []),
@@ -558,6 +558,9 @@ export default function App() {
     [...sessions.current.values()].some(
       (s) => s.id !== activeId && sessionDirty(s),
     );
+  const { installPrompt, updateStatus } = useOfflineApp(
+    sessions.current.size === 0 && !operationBusy && !anyDirty,
+  );
   const latest = useRef({ dirty: anyDirty, busy: operationBusy });
   latest.current = { dirty: anyDirty, busy: operationBusy };
   function snapshot(): Session | null {
@@ -764,14 +767,24 @@ export default function App() {
     activate(next);
     setTabVersion((v) => v + 1);
   }
-  async function open() {
+  async function runOpening(action: () => Promise<void>) {
     await run(async () => {
+      setOpeningFile(true);
+      try {
+        await action();
+      } finally {
+        setOpeningFile(false);
+      }
+    });
+  }
+  async function open() {
+    await runOpening(async () => {
       const file = await openFile();
       if (file) await load(file);
     });
   }
   async function openDropped(files: DroppedFile[]) {
-    await run(async () => {
+    await runOpening(async () => {
       const failures: string[] = [];
       const opened: Session[] = [];
       for (const item of files) {
@@ -1756,6 +1769,7 @@ export default function App() {
                     }
                     onKeyDown={(e) => e.stopPropagation()}
                     disabled={operationBusy}
+                    aria-expanded={headerMenu === i}
                     aria-label={`Sort and filter ${columnLabel(view, i)}`}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -2638,6 +2652,11 @@ export default function App() {
           </button>
         </div>
       )}
+      {openingFile && (
+        <div className="file-opening-status" role="status">
+          Opening JSON…
+        </div>
+      )}
       {!doc ? (
         <HomeScreen
           webClient
@@ -2851,7 +2870,8 @@ export default function App() {
                   ))}
                 </nav>
                 <div className="spacer" />
-                {mode === "source" && !!view?.path.length && (
+                {mode === "source" &&
+                (view?.path.length || currentCell?.container) ? (
                   <div
                     className="view-mode source-scope-switch"
                     title={
@@ -2862,15 +2882,38 @@ export default function App() {
                     role="group"
                     aria-label="Source scope"
                   >
-                    <button
-                      aria-pressed={!!sourceScope}
-                      disabled={busy || sourceDirty}
-                      onClick={() =>
-                        void run(() => showSource(view.path).then(() => {}))
-                      }
-                    >
-                      This table
-                    </button>
+                    {!!view?.path.length && (
+                      <button
+                        aria-pressed={
+                          !!sourceScope &&
+                          pointer(sourceScope.path) ===
+                            pointer(view?.path ?? [])
+                        }
+                        disabled={busy || sourceDirty}
+                        onClick={() =>
+                          void run(() => showSource(view.path).then(() => {}))
+                        }
+                      >
+                        This table
+                      </button>
+                    )}
+                    {currentCell?.container && (
+                      <button
+                        aria-pressed={
+                          !!sourceScope &&
+                          pointer(sourceScope.path) ===
+                            pointer(currentCell.path)
+                        }
+                        disabled={busy || sourceDirty}
+                        onClick={() =>
+                          void run(() =>
+                            showSource(currentCell.path).then(() => {}),
+                          )
+                        }
+                      >
+                        Selected value
+                      </button>
+                    )}
                     <button
                       aria-pressed={!sourceScope}
                       disabled={busy || sourceDirty}
@@ -2881,7 +2924,7 @@ export default function App() {
                       Whole document
                     </button>
                   </div>
-                )}
+                ) : null}
                 {mode === "source" && hasSourceLocation && (
                   <button
                     className="source-cell-locator"
@@ -3730,9 +3773,17 @@ export default function App() {
                         return Promise.reject(
                           new Error("No document is open."),
                         );
+                      const start = sourceScope?.from ?? 0;
+                      const lineStart = start
+                        ? sourceBase.lastIndexOf("\n", start - 1) + 1
+                        : 0;
+                      const baseIndent = sourceBase
+                        .slice(lineStart, start)
+                        .match(/^[ \t]*/)?.[0];
                       return client.current.call<string>("format-source", {
                         text,
                         action,
+                        baseIndent,
                       });
                     }}
                     key={`${activeId}:${sourceScope ? JSON.stringify(sourceScope.path) : "whole"}`}
@@ -3806,19 +3857,30 @@ export default function App() {
                   </button>
                 </div>
                 {view?.recordsAvailable && (
-                  <button
-                    disabled={busy}
-                    onClick={() =>
-                      changeQuery({
-                        ...query,
-                        records: !query.records,
-                        page: 0,
-                        sort: undefined,
-                      })
-                    }
+                  <div
+                    className="view-mode"
+                    role="group"
+                    aria-label="Table layout"
                   >
-                    {query.records ? "Properties view" : "Records view"}
-                  </button>
+                    {[false, true].map((records) => (
+                      <button
+                        key={String(records)}
+                        aria-pressed={!!query.records === records}
+                        disabled={busy}
+                        onClick={() => {
+                          if (!!query.records !== records)
+                            changeQuery({
+                              ...query,
+                              records,
+                              page: 0,
+                              sort: undefined,
+                            });
+                        }}
+                      >
+                        {records ? "Records" : "Properties"}
+                      </button>
+                    ))}
+                  </div>
                 )}
                 {selection && singleCellSelected ? (
                   <>
@@ -3846,6 +3908,16 @@ export default function App() {
                         <span>{blankState(selection.cell)}</span>
                       </>
                     )}
+                    {selection.cell.container && (
+                      <div className="inspector-actions">
+                        <button
+                          disabled={busy}
+                          onClick={() => void navigate(selection.cell.path)}
+                        >
+                          Open table
+                        </button>
+                      </div>
+                    )}
                     <ValueDetails raw={selection.raw} />
                     <label>
                       {selectedJsonPreview?.truncated
@@ -3871,14 +3943,6 @@ export default function App() {
                       >
                         Change type…
                       </button>
-                      {selection.cell.container && (
-                        <button
-                          disabled={busy}
-                          onClick={() => void navigate(selection.cell.path)}
-                        >
-                          Open table
-                        </button>
-                      )}
                       <button
                         disabled={busy || selection.cell.type === "missing"}
                         onClick={() =>
