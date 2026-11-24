@@ -101,7 +101,11 @@ function ValueBarEditor({
     if (pending.current) return pending.current;
     if (!isCurrent()) return Promise.resolve(false);
     const next = draftRef.current;
-    if (next === committed.current || readOnly) return Promise.resolve(true);
+    if (next === committed.current || readOnly) {
+      // Nothing to write, and nothing left to complain about.
+      if (mounted.current) setError("");
+      return Promise.resolve(true);
+    }
     const operation = (async () => {
       try {
         await onCommit(next);
@@ -168,6 +172,8 @@ function ValueBarEditor({
           onChange={(e) => {
             draftRef.current = e.target.value;
             setDraft(e.target.value);
+            // Back to the stored value: no draft left to be wrong about.
+            if (e.target.value === committed.current) setError("");
           }}
           onKeyDown={(e) => {
             if (

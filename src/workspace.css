@@ -1118,3 +1118,18 @@ summary[aria-disabled="true"] {
 .location .view-mode button[aria-pressed="true"]:disabled {
   opacity: 1;
 }
+
+/* Why an in-cell edit was rejected: a popup under the cell, in the error colour. */
+.inline-error {
+  position: fixed;
+  z-index: 110;
+  max-width: 320px;
+  padding: 6px 10px;
+  border: 1px solid var(--error);
+  border-radius: var(--popup-radius);
+  background: var(--raised);
+  box-shadow: var(--popup-shadow);
+  color: var(--error);
+  font-size: 12px;
+  line-height: 1.4;
+}

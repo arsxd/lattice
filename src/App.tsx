@@ -85,6 +85,7 @@ import {
   type Opened,
 } from "./platform/files";
 import { describeFileError, type FileAction } from "./platform/fileErrors";
+import { InlineError } from "./grid/InlineError";
 import { SourceEditor } from "./editor/SourceEditor";
 import {
   cellInputKind,
@@ -152,6 +153,8 @@ type InlineEdit = {
   selectAll: boolean;
   revision: number;
   value: string;
+  /** The text the editor opened with; committing it unchanged writes nothing. */
+  original?: string;
   row: number;
   column: number;
   error: string;
@@ -1287,6 +1290,8 @@ export default function App() {
       selectAll: initial === undefined,
       revision: view.revision,
       value: initial ?? String(cell.path.at(-1) ?? ""),
+      original:
+        initial === undefined ? String(cell.path.at(-1) ?? "") : undefined,
       row,
       column: 0,
       error: "",
@@ -1336,6 +1341,7 @@ export default function App() {
         selectAll: true,
         revision: view.revision,
         value,
+        original: value,
         row,
         column,
         error: "",
@@ -1458,11 +1464,18 @@ export default function App() {
           (blank || current.kind !== "string") && current.value === ""
             ? "null"
             : cellEntryText(current.kind, current.value);
-        if (!(
-          current.cell.type === "missing" &&
-          current.value === "" &&
-          !current.rename
-        ))
+        // Leaving the editor as it opened must not rewrite the value: the
+        // editor shows a compact form, and saving it would re-flow the file.
+        const unchanged =
+          current.original !== undefined && current.value === current.original;
+        if (
+          !unchanged &&
+          !(
+            current.cell.type === "missing" &&
+            current.value === "" &&
+            !current.rename
+          )
+        )
           await mutate(
             current.rename
               ? {
@@ -3958,9 +3971,9 @@ export default function App() {
           </nav>
           <footer className="status" aria-live="polite">
             {inline?.error && (
-              <span id="cell-error" role="alert" className="cell-error">
+              <InlineError anchor={inlineInput.current}>
                 {inline.error}
-              </span>
+              </InlineError>
             )}
             <span>
               {operationBusy
