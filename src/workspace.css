@@ -1133,3 +1133,49 @@ summary[aria-disabled="true"] {
   font-size: 12px;
   line-height: 1.4;
 }
+
+/*
+ * Find bar: the field never moves. Its controls always take their space (they
+ * are hidden, not removed, while it is empty) and the count has a fixed slot.
+ * The clear button is ours, inside the field, because the browser's own "x" is
+ * tiny and ignores the theme.
+ */
+.find-bar {
+  flex-wrap: nowrap;
+}
+.find-bar .find-field {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.find-bar .find-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.find-bar .find-count {
+  display: inline-block;
+  width: 17ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+}
+.find-bar input {
+  padding-right: 30px;
+}
+.find-bar .find-clear {
+  position: absolute;
+  right: 3px;
+  top: 50%;
+  translate: 0 -50%;
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: var(--control-radius);
+  color: var(--muted);
+}
+.find-bar .find-clear:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--text);
+}
