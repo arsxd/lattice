@@ -100,3 +100,56 @@ it("reconstructs arbitrary small text changes with exact UTF-16 offsets", () => 
     { numRuns: 250 },
   );
 });
+it("completes a large document with scattered edits within a small budget", () => {
+  // Like pretty-printed event data: many different short lines. The time budget
+  // is made tiny so the result does not depend on how fast the machine is: a
+  // whole-document diff cannot finish in it, but diffing only the edited
+  // pieces can.
+  const words = [
+    "id",
+    "type",
+    "actor",
+    "login",
+    "repo",
+    "name",
+    "payload",
+    "ref",
+    "size",
+    "url",
+  ];
+  const rows = Array.from({ length: 300_000 }, (_, i) => {
+    const w = words[i % words.length];
+    return `${" ".repeat(2 + (i % 5) * 2)}"${w}": ${i % 3 ? `"v${i}-${(i * 7919) % 100003}"` : i},`;
+  });
+  const join = (r: string[]) => ["{", ...r, '  "last": 0', "}"].join("\n");
+  const before = join(rows);
+  const edit = (at: number[]) => {
+    const copy = [...rows];
+    for (const i of at) copy[i] = copy[i].replace(/"[^"]*"|\d+/, '"CHANGED"');
+    return join(copy);
+  };
+  const tiny = { timeout: 10 };
+  const one = compareReviewText(before, edit([5000]), tiny);
+  expect(one.complete).toBe(true);
+  expect(one.changes.length).toBe(1);
+  const spreads = [
+    [10, 70_000, 140_000, 210_000, 290_000],
+    Array.from({ length: 50 }, (_, i) => 100 + i * 5_800),
+    Array.from({ length: 300 }, (_, i) => 100 + i * 990),
+  ];
+  for (const spread of spreads) {
+    const result = compareReviewText(before, edit(spread), tiny);
+    expect(result.complete).toBe(true);
+    expect(result.changes.length).toBe(spread.length);
+    for (const change of result.changes)
+      expect(change.toA - change.fromA).toBeLessThan(80); // one edited line each
+  }
+}, 30_000);
+it("handles an edit on the first and last line, and a swap of everything", () => {
+  const a = "first\nmiddle\nlast";
+  expect(compareReviewText(a, "FIRST\nmiddle\nLAST").changes.length).toBe(2);
+  const everything = compareReviewText("a\nb\nc", "x\ny\nz");
+  expect(everything.complete).toBe(true);
+  expect(everything.changes.length).toBeGreaterThan(0);
+  expect(compareReviewText("same", "same").changes).toEqual([]);
+});
