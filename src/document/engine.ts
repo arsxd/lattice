@@ -246,6 +246,9 @@ export class DocumentEngine {
   revision = 0;
   private saved: string;
   private root?: Node;
+  // Compacted previews of nested values. Building one means scanning up to
+  // 4,096 characters of source, and every page asks for hundreds of them.
+  private previews = new WeakMap<Node, { revision: number; text: string }>();
   // The filtered, sorted rows (and Find match positions) of the last few
   // queries. Every click, page change and value lookup asks again, and on a
   // large file recomputing them dominated each request. Keyed by revision.
@@ -664,6 +667,15 @@ export class DocumentEngine {
         multiline ? eol + indent + "  " + content : content,
       );
   }
+  private compactPreview(n: Node): string {
+    const hit = this.previews.get(n);
+    if (hit && hit.revision === this.revision) return hit.text;
+    const text = compactJson(
+      this.text.slice(n.offset, n.offset + Math.min(n.length, 4096)),
+    );
+    this.previews.set(n, { revision: this.revision, text });
+    return text;
+  }
   private cell(
     n: Node | undefined,
     path: Path,
@@ -685,9 +697,7 @@ export class DocumentEngine {
     // Bound work before copying or formatting large nested values.
     let display =
       container || primitiveArray
-        ? compactJson(
-            this.text.slice(n.offset, n.offset + Math.min(n.length, 4096)),
-          ) + (n.length > 4096 ? "…" : "")
+        ? this.compactPreview(n) + (n.length > 4096 ? "…" : "")
         : n.type === "string"
           ? n.value === ""
             ? '""'
