@@ -129,10 +129,16 @@ test("hidden indices keep first-field editing, sort/filter and freeze tied to th
 }) => {
   await open(page, '[{"name":"Zulu","index":91},{"name":"Alpha","index":92}]');
   await expect(
-    page.getByRole("button", { name: /^Select column [A-Z]+ Index$/, exact: true }),
+    page.getByRole("button", {
+      name: /^Select column [A-Z]+ Index$/,
+      exact: true,
+    }),
   ).toHaveCount(0);
   await expect(
-    page.getByRole("button", { name: /^Select column [A-Z]+ index$/, exact: true }),
+    page.getByRole("button", {
+      name: /^Select column [A-Z]+ index$/,
+      exact: true,
+    }),
   ).toBeVisible();
   await cell(page, 0, 0).dblclick();
   const editor = page.getByRole("textbox", { name: "Edit name (string)" });
@@ -147,7 +153,7 @@ test("hidden indices keep first-field editing, sort/filter and freeze tied to th
   await page.getByRole("button", { name: "Toggle value inspector" }).click();
   await cell(page, 0, 0).click();
   await expect(
-    page.locator('.inspector label:has-text("Original index") + code'),
+    page.locator('.inspector dt:has-text("Original index") + dd'),
   ).toHaveText("1");
   await page.getByRole("button", { name: "Toggle value inspector" }).click();
   await page.locator(".freeze-menu summary").click();
@@ -159,7 +165,10 @@ test("hidden indices keep first-field editing, sort/filter and freeze tied to th
     .getByRole("menuitem", { name: "Show original index", exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: /^Select column [A-Z]+ Index$/, exact: true }),
+    page.getByRole("button", {
+      name: /^Select column [A-Z]+ Index$/,
+      exact: true,
+    }),
   ).toBeVisible();
   await expect(cell(page, 0, 0)).toHaveText("1");
   await expect(cell(page, 0, 1)).toHaveText("Alpha");

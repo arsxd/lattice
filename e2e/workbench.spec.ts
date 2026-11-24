@@ -543,12 +543,16 @@ test("header and corner selections show a range summary instead of the first val
   await open(page, '[{"name":"Alpha","count":1},{"name":"Beta","count":2}]');
   await cell(page, 0, 1).click();
   await page.getByRole("button", { name: "Toggle value inspector" }).click();
-  await expect(page.locator(".inspector .type-label")).toHaveText("string");
+  await expect(
+    page.locator('.inspector dt:has-text("JSON type") + dd'),
+  ).toHaveText("string");
   await page
     .getByRole("button", { name: /^Select column [A-Z]+ name$/, exact: true })
     .click();
   await expect(page.locator(".inspector")).toContainText("cells selected");
-  await expect(page.locator(".inspector .type-label")).toHaveCount(0);
+  await expect(
+    page.locator('.inspector dt:has-text("JSON type") + dd'),
+  ).toHaveCount(0);
   await expect(
     page.getByRole("textbox", { name: "Selected cell value" }),
   ).toHaveCount(0);
