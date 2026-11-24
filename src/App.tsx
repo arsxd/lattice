@@ -481,7 +481,7 @@ export default function App() {
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- re-measure only when a view appears or disappears
   }, [mode, tableHeightKey, !!view]);
   const [theme, setTheme] = useState(
-    localStorage.getItem("json-workbench-theme") ?? "system",
+    localStorage.getItem("json-workbench-theme") ?? "light",
   );
   const [systemDark, setSystemDark] = useState(
     () => window.matchMedia("(prefers-color-scheme: dark)").matches,
@@ -2753,15 +2753,15 @@ export default function App() {
             >
               {mode === "review" ? "Close review" : "Review changes"}
             </button>
-            <button
-              aria-label="Details — toggle value inspector"
-              aria-pressed={inspector}
-              onClick={() => setInspector(!inspector)}
-              // Keep the slot in Source and Review so "Review changes" does not move.
-              style={mode === "table" ? undefined : { visibility: "hidden" }}
-            >
-              <NavigationIcon name="details" /> Details
-            </button>
+            {mode === "table" && (
+              <button
+                aria-label="Details — toggle value inspector"
+                aria-pressed={inspector}
+                onClick={() => setInspector(!inspector)}
+              >
+                <NavigationIcon name="details" /> Details
+              </button>
+            )}
           </div>
           <main className="workspace">
             <aside
