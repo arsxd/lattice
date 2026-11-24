@@ -294,6 +294,15 @@ test("announces a real waiting service worker without replacing a dirty draft", 
     await expect(page.getByRole("dialog")).toContainText(
       "close all Lattice tabs",
     );
+    // One window left open keeps the old version; say so, and name the build.
+    await expect(page.getByRole("dialog")).toContainText(
+      "one that is still open",
+    );
+    await expect(page.getByRole("dialog")).toContainText(/build [0-9a-f]{7}/);
+    await expect(page.locator(".app-version")).toHaveAttribute(
+      "title",
+      /build [0-9a-f]{7}/i,
+    );
     await page
       .getByRole("button", { name: "Keep working", exact: true })
       .click();
@@ -1162,4 +1171,38 @@ test("editing a cell keeps its row height and font, and only grows for extra lin
     .toBeGreaterThan(before.height);
   await expect(row).toBeVisible();
   await expect(second).toBeVisible();
+});
+
+test("an invalid value-bar draft shows a clear error, can be discarded, and does not trap focus", async ({
+  page,
+}) => {
+  await open(
+    page,
+    '[{"name":"Alpha","tags":["a","b"]},{"name":"Beta","tags":["c"]}]',
+  );
+  await cell(page, 0, 2).click();
+  const bar = page.getByRole("textbox", { name: "Selected cell value" });
+  await expect(bar).toHaveValue('["a", "b"]');
+  await bar.fill("[1,");
+  await bar.press("Enter");
+  const alert = page.locator(".value-bar").getByRole("alert");
+  await expect(alert).toContainText("valid JSON array");
+  // The message sits under the field, left-aligned with it, on one line.
+  const [field, message] = await Promise.all([
+    bar.boundingBox(),
+    alert.boundingBox(),
+  ]);
+  expect(message!.y).toBeGreaterThanOrEqual(field!.y + field!.height - 1);
+  expect(Math.abs(message!.x - field!.x)).toBeLessThanOrEqual(2);
+  expect(message!.height).toBeLessThan(28);
+  await expect(bar).toHaveAttribute("aria-invalid", "true");
+  // Leaving the field with the keyboard is allowed.
+  await bar.press("Tab");
+  await expect(bar).not.toBeFocused();
+  // One visible action restores the stored value.
+  await alert.getByRole("button", { name: "Discard change" }).click();
+  await expect(bar).toHaveValue('["a", "b"]');
+  await expect(alert).toHaveCount(0);
+  await cell(page, 1, 1).click();
+  await expect(bar).toHaveValue('"Beta"');
 });

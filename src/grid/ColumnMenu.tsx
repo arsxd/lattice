@@ -20,26 +20,44 @@ export function ColumnMenu({
   onClose: () => void;
 }) {
   const panel = useRef<HTMLElement>(null);
-  const [position, setPosition] = useState({ left: 8, top: 8 });
+  const [position, setPosition] = useState<{
+    left: number;
+    top?: number;
+    bottom?: number;
+    maxHeight?: number;
+  }>({ left: 8, top: 8 });
   useLayoutEffect(() => {
-    const place = () => {
+    // Choose below or above the arrow once. The list loads after opening and
+    // changes the height, so deciding from the current height made the menu
+    // jump over the header. Above, it is pinned by its bottom edge instead.
+    let side: "below" | "above" | undefined;
+    const place = (decide = false) => {
       if (!anchor) return;
       const rect = anchor.getBoundingClientRect();
-      const height = panel.current?.offsetHeight ?? 400;
       const width = panel.current?.offsetWidth ?? 300;
-      setPosition({
-        left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
-        top:
-          rect.bottom + height + 8 <= window.innerHeight
-            ? rect.bottom + 4
-            : Math.max(8, rect.top - height - 4),
-      });
+      const below = window.innerHeight - rect.bottom - 12;
+      const above = rect.top - 12;
+      if (!side || decide)
+        side = below >= 440 || below >= above ? "below" : "above";
+      const left = Math.max(
+        8,
+        Math.min(rect.left, window.innerWidth - width - 8),
+      );
+      setPosition(
+        side === "below"
+          ? { left, top: rect.bottom + 4, maxHeight: Math.max(120, below) }
+          : {
+              left,
+              bottom: window.innerHeight - rect.top + 4,
+              maxHeight: Math.max(120, above),
+            },
+      );
     };
-    place();
-    const observer = new ResizeObserver(place);
-    if (panel.current) observer.observe(panel.current);
-    window.addEventListener("resize", place);
-    window.addEventListener("scroll", place, true);
+    place(true);
+    const onResize = () => place(true);
+    const onScroll = () => place();
+    window.addEventListener("resize", onResize);
+    window.addEventListener("scroll", onScroll, true);
     const outside = (e: PointerEvent) => {
       if (
         e.target instanceof Node &&
@@ -50,9 +68,8 @@ export function ColumnMenu({
     };
     document.addEventListener("pointerdown", outside);
     return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", place);
-      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("scroll", onScroll, true);
       document.removeEventListener("pointerdown", outside);
     };
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- onClose only closes the menu; listeners attach once per anchor
@@ -92,7 +109,12 @@ export function ColumnMenu({
     // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- dialog handles Escape and Tab for its own controls
     <section
       ref={panel}
-      style={{ left: position.left, top: position.top }}
+      style={{
+        left: position.left,
+        top: position.top ?? "auto",
+        bottom: position.bottom,
+        maxHeight: position.maxHeight,
+      }}
       className="column-menu"
       role="dialog"
       aria-label={`Sort and filter ${name}`}

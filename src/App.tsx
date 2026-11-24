@@ -3958,7 +3958,7 @@ export default function App() {
             <span
               className="app-version"
               aria-label="Lattice version"
-              title="Lattice version"
+              title={`Lattice version, build ${__APP_BUILD__}`}
             >
               v{__APP_VERSION__}
             </span>
