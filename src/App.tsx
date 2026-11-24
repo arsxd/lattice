@@ -164,7 +164,6 @@ const singleCell = (selection: SheetSelection | null) =>
   selection.anchor.r === selection.end.r &&
   selection.anchor.c === selection.end.c;
 export default function App() {
-  const { installPrompt, updateStatus } = useOfflineApp();
   const [sourceWrapLines, setSourceWrapLines] = useState(false);
   const [hasSourceLocation, setHasSourceLocation] = useState(false);
   const sourceLocate = useRef<(() => void) | null>(null);
@@ -211,6 +210,7 @@ export default function App() {
   const [query, setQuery] = useState<Query>(initialQuery);
   const [findDraft, setFindDraft] = useState(initialQuery.search);
   const [operationBusy, setBusy] = useState(false);
+  const [openingFile, setOpeningFile] = useState(false);
   // The latest view and selection, for async code that outlives a render.
   const shown = useRef<{
     view: Projection | null;
@@ -242,7 +242,7 @@ export default function App() {
     new Map<string, { top: number; left: number }>(),
   );
   const [activeId, setActiveId] = useState("");
-  const tableHeightKey = `${activeId}:${pointer(query.path)}:${query.showIndex !== false}`;
+  const tableHeightKey = `${activeId}:${pointer(query.path)}:${query.showIndex !== false}:${!!query.records}`;
   const heightKey = (row: Row) => `${tableHeightKey}:${row.id}`;
   const automaticWidths = useMemo(
     () => (view ? contentColumnWidths(view, gridSize.width, textMeasure) : []),
@@ -558,6 +558,9 @@ export default function App() {
     [...sessions.current.values()].some(
       (s) => s.id !== activeId && sessionDirty(s),
     );
+  const { installPrompt, updateStatus } = useOfflineApp(
+    sessions.current.size === 0 && !operationBusy && !anyDirty,
+  );
   const latest = useRef({ dirty: anyDirty, busy: operationBusy });
   latest.current = { dirty: anyDirty, busy: operationBusy };
   function snapshot(): Session | null {
@@ -764,14 +767,24 @@ export default function App() {
     activate(next);
     setTabVersion((v) => v + 1);
   }
-  async function open() {
+  async function runOpening(action: () => Promise<void>) {
     await run(async () => {
+      setOpeningFile(true);
+      try {
+        await action();
+      } finally {
+        setOpeningFile(false);
+      }
+    });
+  }
+  async function open() {
+    await runOpening(async () => {
       const file = await openFile();
       if (file) await load(file);
     });
   }
   async function openDropped(files: DroppedFile[]) {
-    await run(async () => {
+    await runOpening(async () => {
       const failures: string[] = [];
       const opened: Session[] = [];
       for (const item of files) {
@@ -1756,6 +1769,7 @@ export default function App() {
                     }
                     onKeyDown={(e) => e.stopPropagation()}
                     disabled={operationBusy}
+                    aria-expanded={headerMenu === i}
                     aria-label={`Sort and filter ${columnLabel(view, i)}`}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -2638,6 +2652,11 @@ export default function App() {
           </button>
         </div>
       )}
+      {openingFile && (
+        <div className="file-opening-status" role="status">
+          Opening JSON…
+        </div>
+      )}
       {!doc ? (
         <HomeScreen
           webClient
@@ -2851,7 +2870,8 @@ export default function App() {
                   ))}
                 </nav>
                 <div className="spacer" />
-                {mode === "source" && !!view?.path.length && (
+                {mode === "source" &&
+                (view?.path.length || currentCell?.container) ? (
                   <div
                     className="view-mode source-scope-switch"
                     title={
@@ -2862,15 +2882,38 @@ export default function App() {
                     role="group"
                     aria-label="Source scope"
                   >
-                    <button
-                      aria-pressed={!!sourceScope}
-                      disabled={busy || sourceDirty}
-                      onClick={() =>
-                        void run(() => showSource(view.path).then(() => {}))
-                      }
-                    >
-                      This table
-                    </button>
+                    {!!view?.path.length && (
+                      <button
+                        aria-pressed={
+                          !!sourceScope &&
+                          pointer(sourceScope.path) ===
+                            pointer(view?.path ?? [])
+                        }
+                        disabled={busy || sourceDirty}
+                        onClick={() =>
+                          void run(() => showSource(view.path).then(() => {}))
+                        }
+                      >
+                        This table
+                      </button>
+                    )}
+                    {currentCell?.container && (
+                      <button
+                        aria-pressed={
+                          !!sourceScope &&
+                          pointer(sourceScope.path) ===
+                            pointer(currentCell.path)
+                        }
+                        disabled={busy || sourceDirty}
+                        onClick={() =>
+                          void run(() =>
+                            showSource(currentCell.path).then(() => {}),
+                          )
+                        }
+                      >
+                        Selected value
+                      </button>
+                    )}
                     <button
                       aria-pressed={!sourceScope}
                       disabled={busy || sourceDirty}
@@ -2881,7 +2924,7 @@ export default function App() {
                       Whole document
                     </button>
                   </div>
-                )}
+                ) : null}
                 {mode === "source" && hasSourceLocation && (
                   <button
                     className="source-cell-locator"
@@ -2889,10 +2932,9 @@ export default function App() {
                     title="Jump to the selected table cell. Its source is marked by dotted underlines, blue line numbers and a gutter bar."
                     onClick={() => sourceLocate.current?.()}
                   >
-                    Selected cell
                     {activeCell && view?.rows[activeCell.row]
-                      ? ` · ${columnLetter(activeCell.column)}${rowLabel(activeCell.row)}`
-                      : ""}
+                      ? `Go to ${columnLetter(activeCell.column)}${rowLabel(activeCell.row)}`
+                      : "Go to selected cell"}
                   </button>
                 )}
                 {mode === "source" && formattingSource && (
@@ -3730,9 +3772,17 @@ export default function App() {
                         return Promise.reject(
                           new Error("No document is open."),
                         );
+                      const start = sourceScope?.from ?? 0;
+                      const lineStart = start
+                        ? sourceBase.lastIndexOf("\n", start - 1) + 1
+                        : 0;
+                      const baseIndent = sourceBase
+                        .slice(lineStart, start)
+                        .match(/^[ \t]*/)?.[0];
                       return client.current.call<string>("format-source", {
                         text,
                         action,
+                        baseIndent,
                       });
                     }}
                     key={`${activeId}:${sourceScope ? JSON.stringify(sourceScope.path) : "whole"}`}
@@ -3806,63 +3856,88 @@ export default function App() {
                   </button>
                 </div>
                 {view?.recordsAvailable && (
-                  <button
-                    disabled={busy}
-                    onClick={() =>
-                      changeQuery({
-                        ...query,
-                        records: !query.records,
-                        page: 0,
-                        sort: undefined,
-                      })
-                    }
+                  <div
+                    className="view-mode"
+                    role="group"
+                    aria-label="Table layout"
                   >
-                    {query.records ? "Properties view" : "Records view"}
-                  </button>
+                    {[false, true].map((records) => (
+                      <button
+                        key={String(records)}
+                        aria-pressed={!!query.records === records}
+                        disabled={busy}
+                        onClick={() => {
+                          if (!!query.records !== records)
+                            changeQuery({
+                              ...query,
+                              records,
+                              page: 0,
+                              sort: undefined,
+                            });
+                        }}
+                      >
+                        {records ? "Records" : "Properties"}
+                      </button>
+                    ))}
+                  </div>
                 )}
                 {selection && singleCellSelected ? (
                   <>
-                    {view?.kind === "array" && activeCell && (
-                      <>
-                        {/* oxlint-disable-next-line jsx-a11y/label-has-associated-control -- caption in the Details pane, not a form field */}
-                        <label>Original index</label>
-                        <code>
-                          {String(view.rows[activeCell.row].path.at(-1))}
-                        </code>
-                      </>
-                    )}
-                    {/* oxlint-disable-next-line jsx-a11y/label-has-associated-control -- caption in the Details pane, not a form field */}
-                    <label>Path</label>
-                    <code className="path">
-                      {pointer(selection.cell.path) || "(root)"}
-                    </code>
-                    {/* oxlint-disable-next-line jsx-a11y/label-has-associated-control -- caption in the Details pane, not a form field */}
-                    <label>JSON type</label>
-                    <span className="type-label">{selection.cell.type}</span>
-                    {blankState(selection.cell) && (
-                      <>
-                        {/* oxlint-disable-next-line jsx-a11y/label-has-associated-control -- caption in the Details pane, not a form field */}
-                        <label>Value state</label>
-                        <span>{blankState(selection.cell)}</span>
-                      </>
-                    )}
+                    <div className="inspector-selection">
+                      <dl className="inspector-metadata">
+                        <dt>Path</dt>
+                        <dd>
+                          <code className="path">
+                            {pointer(selection.cell.path) || "(root)"}
+                          </code>
+                        </dd>
+                        <dt>JSON type</dt>
+                        <dd>{selection.cell.type}</dd>
+                        {view?.kind === "array" && activeCell && (
+                          <>
+                            <dt>Original index</dt>
+                            <dd>
+                              {String(view.rows[activeCell.row].path.at(-1))}
+                            </dd>
+                          </>
+                        )}
+                        {blankState(selection.cell) && (
+                          <>
+                            <dt>Value state</dt>
+                            <dd>{blankState(selection.cell)}</dd>
+                          </>
+                        )}
+                      </dl>
+                      {selection.cell.container && (
+                        <div className="inspector-actions">
+                          <button
+                            disabled={busy}
+                            onClick={() => void navigate(selection.cell.path)}
+                          >
+                            Open table
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <ValueDetails raw={selection.raw} />
-                    <label>
-                      {selectedJsonPreview?.truncated
-                        ? "JSON preview"
-                        : "Exact JSON"}
-                    </label>
-                    <pre className="value-preview">
-                      {selection.cell.type === "missing"
-                        ? "Property is absent"
-                        : selectedJsonPreview?.text}
-                    </pre>
-                    {selectedJsonPreview?.truncated && (
-                      <p className="small">
-                        Showing the first {JSON_PREVIEW_LIMIT.toLocaleString()}{" "}
-                        characters. Open table or Source for the complete value.
-                        Copy JSON copies the full value.
-                      </p>
+                    {selection.cell.type !== "missing" && (
+                      <details className="inspector-json">
+                        <summary>
+                          {selectedJsonPreview?.truncated
+                            ? "JSON preview"
+                            : "Exact JSON"}
+                        </summary>
+                        <pre className="value-preview">
+                          {selectedJsonPreview?.text}
+                        </pre>
+                        {selectedJsonPreview?.truncated && (
+                          <p className="small">
+                            Showing the first{" "}
+                            {JSON_PREVIEW_LIMIT.toLocaleString()} characters.
+                            Copy JSON copies the full value.
+                          </p>
+                        )}
+                      </details>
                     )}
                     <div className="inspector-actions">
                       <button
@@ -3871,14 +3946,6 @@ export default function App() {
                       >
                         Change type…
                       </button>
-                      {selection.cell.container && (
-                        <button
-                          disabled={busy}
-                          onClick={() => void navigate(selection.cell.path)}
-                        >
-                          Open table
-                        </button>
-                      )}
                       <button
                         disabled={busy || selection.cell.type === "missing"}
                         onClick={() =>
@@ -3955,8 +4022,14 @@ export default function App() {
               <button
                 key={pointer(sheet.path)}
                 aria-current={
-                  sheet.path.every((part, i) => query.path[i] === part)
+                  pointer(sheet.path) === pointer(query.path)
                     ? "page"
+                    : undefined
+                }
+                data-ancestor={
+                  sheet.path.length < query.path.length &&
+                  sheet.path.every((part, i) => query.path[i] === part)
+                    ? true
                     : undefined
                 }
                 disabled={busy || sourceDirty}

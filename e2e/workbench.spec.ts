@@ -291,13 +291,9 @@ test("announces a real waiting service worker without replacing a dirty draft", 
     await page
       .getByRole("button", { name: "Update available", exact: true })
       .click();
-    await expect(page.getByRole("dialog")).toContainText(
-      "close all Lattice tabs",
-    );
-    // One window left open keeps the old version; say so, and name the build.
-    await expect(page.getByRole("dialog")).toContainText(
-      "one that is still open",
-    );
+    await expect(
+      page.getByRole("button", { name: "Update now", exact: true }),
+    ).toBeDisabled();
     await expect(page.getByRole("dialog")).toContainText(/build [0-9a-f]{7}/);
     await expect(page.locator(".app-version")).toHaveAttribute(
       "title",
@@ -310,6 +306,26 @@ test("announces a real waiting service worker without replacing a dirty draft", 
     await expect(
       page.getByRole("button", { name: "Update available", exact: true }),
     ).toBeVisible();
+    const home = await page.context().newPage();
+    await home.goto(page.url());
+    await home
+      .getByRole("button", { name: "Update available", exact: true })
+      .click();
+    await Promise.all([
+      home.waitForEvent("framenavigated"),
+      home.getByRole("button", { name: "Update now", exact: true }).click(),
+    ]);
+    await expect(
+      home.getByRole("button", { name: "Update available", exact: true }),
+    ).toHaveCount(0);
+    await expect(draft).toHaveText('{"keep":');
+    expect(
+      await home.evaluate(
+        async () =>
+          (await navigator.serviceWorker.getRegistration())?.waiting ?? null,
+      ),
+    ).toBeNull();
+    await home.close();
   } finally {
     await writeFile(workerPath, original);
   }
@@ -527,12 +543,16 @@ test("header and corner selections show a range summary instead of the first val
   await open(page, '[{"name":"Alpha","count":1},{"name":"Beta","count":2}]');
   await cell(page, 0, 1).click();
   await page.getByRole("button", { name: "Toggle value inspector" }).click();
-  await expect(page.locator(".inspector .type-label")).toHaveText("string");
+  await expect(
+    page.locator('.inspector dt:has-text("JSON type") + dd'),
+  ).toHaveText("string");
   await page
     .getByRole("button", { name: /^Select column [A-Z]+ name$/, exact: true })
     .click();
   await expect(page.locator(".inspector")).toContainText("cells selected");
-  await expect(page.locator(".inspector .type-label")).toHaveCount(0);
+  await expect(
+    page.locator('.inspector dt:has-text("JSON type") + dd'),
+  ).toHaveCount(0);
   await expect(
     page.getByRole("textbox", { name: "Selected cell value" }),
   ).toHaveCount(0);

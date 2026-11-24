@@ -45,7 +45,7 @@ test("source locator marks exact text without selecting it and wrapping leaves J
     await cue.evaluate((element) =>
       element.getAnimations().forEach((animation) => animation.finish()),
     );
-    await page.getByRole("button", { name: /^Selected cell/ }).click();
+    await page.getByRole("button", { name: /^Go to / }).click();
     await expect
       .poll(() =>
         cue.evaluate((element) =>

@@ -15,7 +15,7 @@ Summary of everything since the first public preview. This entry becomes the 1.0
 - **Project health.** 0BSD license with third-party notices, protected main with Windows, Linux and macOS checks, lint checks for React hooks and accessibility, and a [security policy](SECURITY.md).
 - **Not in 1.0.** Formulas, charts, JSON Schema validation, and Excel/CSV import.
 
-## 1.0.0-rc.11 — 2026-11-23
+## 1.0.0-rc.11 — 2026-11-25
 
 Stabilisation release. No new features.
 

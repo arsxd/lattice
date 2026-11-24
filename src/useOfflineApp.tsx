@@ -6,11 +6,16 @@ type InstallOffer = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
-export function useOfflineApp() {
+export function useOfflineApp(canReload: boolean) {
   const hosted =
     /^https?:$/.test(location.protocol) &&
     document.querySelector('link[rel="manifest"]') !== null;
   const [updateReady, setUpdateReady] = useState(false);
+  const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
+  const canReloadRef = useRef(canReload);
+  canReloadRef.current = canReload;
+  const [applyingUpdate, setApplyingUpdate] = useState(false);
+  const [updateError, setUpdateError] = useState("");
   const updateDialog = useRef<HTMLDialogElement>(null);
   const [offer, setOffer] = useState<InstallOffer | null>(null);
   const [pending, setPending] = useState(false);
@@ -48,13 +53,15 @@ export function useOfflineApp() {
     void navigator.serviceWorker
       .register("./sw.js")
       .then((registration) => {
-        if (!disposed)
+        if (!disposed) {
+          registrationRef.current = registration;
           stopUpdates = watchAppUpdates(
             registration,
             () => navigator.serviceWorker.controller !== null,
             document,
             setUpdateReady,
           );
+        }
       })
       .catch(() => {
         /* Offline registration can be retried on the next launch. */
@@ -81,12 +88,44 @@ export function useOfflineApp() {
       dismiss();
     }
   }
+  function applyUpdate() {
+    const worker = registrationRef.current?.waiting;
+    if (!worker || !canReloadRef.current || applyingUpdate) return;
+    setApplyingUpdate(true);
+    setUpdateError("");
+    const serviceWorker = navigator.serviceWorker;
+    const cleanup = () => {
+      clearTimeout(timer);
+      serviceWorker.removeEventListener("controllerchange", changed);
+    };
+    const changed = () => {
+      if (serviceWorker.controller !== worker) return;
+      cleanup();
+      if (canReloadRef.current) location.reload();
+      else {
+        setApplyingUpdate(false);
+        setUpdateReady(false);
+      }
+    };
+    const timer = setTimeout(() => {
+      cleanup();
+      setApplyingUpdate(false);
+      setUpdateError(
+        "The update did not activate. Close all Lattice windows and try again.",
+      );
+    }, 10000);
+    serviceWorker.addEventListener("controllerchange", changed);
+    worker.postMessage("lattice-activate-update");
+  }
   const updateStatus =
-    hosted && updateReady ? (
+    hosted && (updateReady || applyingUpdate) ? (
       <>
         <button
           className="text-button update-available"
-          onClick={() => updateDialog.current?.showModal()}
+          onClick={() => {
+            setUpdateError("");
+            updateDialog.current?.showModal();
+          }}
         >
           Update available
         </button>
@@ -97,21 +136,24 @@ export function useOfflineApp() {
         >
           <h2 id="update-title">Update available</h2>
           <p>
-            Save any documents you want to keep. Then close all Lattice tabs and
-            app windows, and reopen Lattice to use the update.
+            {canReload
+              ? "Update now reloads this window with the new build."
+              : "Save your work and close all documents in this window to enable Update now."}
           </p>
-          <p>
-            The browser keeps the old version for as long as any Lattice tab or
-            installed-app window is open, including one that is still open
-            behind other windows. You can keep working until you are ready; this
-            app will not reload your session automatically.
-          </p>
+          {updateError && <p role="alert">{updateError}</p>}
           <p className="small">
             This window runs build {__APP_BUILD__}. After reopening, hover the
             version in the status bar to confirm it changed.
           </p>
           <form method="dialog">
             <button autoFocus>Keep working</button>
+            <button
+              type="button"
+              disabled={!canReload || applyingUpdate}
+              onClick={applyUpdate}
+            >
+              {applyingUpdate ? "Updating…" : "Update now"}
+            </button>
           </form>
         </dialog>
       </>

@@ -148,7 +148,7 @@ Recovery does not reconnect file handles, restore undo history or replace saving
 
 Install the hosted app through a supported browser's prompt or menu. Load it online once and let caching complete before going offline. The service worker caches app assets, not your JSON files.
 
-**Update available** means a newer cached app is waiting. Save your work, close every Lattice tab/window and reopen. **Keep working** dismisses the explanation without reloading. Offline update checks wait for connectivity.
+**Update available** means a newer cached app is waiting. If **Update now** is available, save your work, close the documents in that window, then choose **Update now**. In older builds, close every Lattice tab and app window after saving, then reopen. **Keep working** dismisses the explanation without reloading. Offline update checks wait for connectivity.
 
 The standalone HTML has no service worker. To update it, download the newer release, save your work, close the old file and open the new one. Replacing an HTML file does not update an already open tab.
 

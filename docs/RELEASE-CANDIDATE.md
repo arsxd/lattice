@@ -4,6 +4,18 @@ This is a release candidate, **not the stable release**. The candidate includes 
 
 Download `Lattice-Offline.html` and `SHA256SUMS.txt` from [v1.0.0-rc.11](https://github.com/arsxd/lattice/releases/tag/v1.0.0-rc.11). The HTML runs by itself. The checksum identifies the exact artifact. The [hosted app](https://arsxd.github.io/lattice/) follows main and may contain newer code with the same version label; record its build commit from the version tooltip as well as its version. Use versioned HTML and its checksum for repeatable candidate tests.
 
+## Published build
+
+rc.11 was published on November 25, 2026 (India time) from main commit `b043644`. The [release workflow](https://github.com/arsxd/lattice/actions/runs/45469283646) passed web verification and Chromium tests on Linux, Windows and macOS, then deployed GitHub Pages from the same commit.
+
+SHA-256 for the published `Lattice-Offline.html`:
+
+```text
+8c40da884a402aa6ea1682aa2491e897cb6fe79070dfebf7a05deb3a59893f5f
+```
+
+Manual gates M1–M7 remain pending.
+
 ## Unresolved reports
 
 - **Update not applied after reopening:** instructions and build identification were improved, but the reported installed-PWA flow has not been verified on the affected machine. Keep this open under M6.

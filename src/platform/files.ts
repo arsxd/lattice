@@ -30,6 +30,10 @@ export type Opened = {
   handle?: BrowserHandle;
   diskText?: string;
 };
+function requireJsonExtension(name: string) {
+  if (!/\.json$/i.test(name))
+    throw new Error(`"${name}" is not a .json file. Choose a UTF-8 JSON file.`);
+}
 export async function readJsonFile(file: File): Promise<string> {
   if (file.size > 64 * 1024 * 1024)
     throw new Error(
@@ -102,6 +106,7 @@ export async function droppedJsonFile(
   file: File,
   handle?: BrowserHandle,
 ): Promise<Opened> {
+  requireJsonExtension(file.name);
   const text = await readJsonFile(file);
   return {
     name: file.name,
@@ -140,10 +145,12 @@ export async function openFile(): Promise<Opened | null> {
         id: "lattice-open-json",
         ...(lastOpenHandle ? { startIn: lastOpenHandle } : {}),
         multiple: false,
+        excludeAcceptAllOption: true,
         types: [
           { description: "JSON", accept: { "application/json": [".json"] } },
         ],
       });
+      requireJsonExtension(handle.name);
       const text = await readBrowserFile(handle);
       lastOpenHandle = handle;
       void rememberPickerHandle(handle);
@@ -181,6 +188,7 @@ export async function openFile(): Promise<Opened | null> {
       if (!file) return;
       reading = true;
       try {
+        requireJsonExtension(file.name);
         finish({ name: file.name, text: await readJsonFile(file) });
       } catch (error) {
         finish(null, error);
