@@ -1,8 +1,16 @@
 # v1.0.0-rc.11 validation
 
-This is a release candidate, **not the stable release**. This round clears all lint warnings, adds a security policy and browser-support table, and polishes naming and toolbar layout. It changes how the grid passes cell handlers (so they always use current state) but has no other intended change to editing, saving or file handling.
+This is a release candidate, **not the stable release**. The candidate includes Find accuracy and performance changes, selection-race fixes, unchanged-edit protection, Review comparison changes, file-error messages, and UI consistency fixes. These affect core workflows and require the manual checks below.
 
-Download `Lattice-Offline.html` and `SHA256SUMS.txt` from [v1.0.0-rc.11](https://github.com/arsxd/lattice/releases/tag/v1.0.0-rc.11). The HTML runs by itself. The checksum is optional for use and lets testers identify the exact artifact. The [hosted app](https://arsxd.github.io/lattice/) follows main; its contents may change after this candidate. Use the versioned HTML for a repeatable candidate test.
+Download `Lattice-Offline.html` and `SHA256SUMS.txt` from [v1.0.0-rc.11](https://github.com/arsxd/lattice/releases/tag/v1.0.0-rc.11). The HTML runs by itself. The checksum identifies the exact artifact. The [hosted app](https://arsxd.github.io/lattice/) follows main and may contain newer code with the same version label; record its build commit from the version tooltip as well as its version. Use versioned HTML and its checksum for repeatable candidate tests.
+
+## Unresolved reports
+
+- **Update not applied after reopening:** instructions and build identification were improved, but the reported installed-PWA flow has not been verified on the affected machine. Keep this open under M6.
+- **Wrong or missing cell selection on the large events file:** a related Find-refresh race was fixed, but the exact reported scenario was not reproduced. Keep this open under M3; record the sheet, wrap mode, active Find/sort/filter, viewport and preceding edit when retesting.
+- **Column header selection in two stages:** the dropdown selection colour changed, but the reported delay was not reproduced. Retest under M3/M7.
+
+Do not mark these reports resolved solely because a related fix or automated test passed.
 
 ## Automated gates
 

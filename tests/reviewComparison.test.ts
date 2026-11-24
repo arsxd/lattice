@@ -1,5 +1,5 @@
 import fc from "fast-check";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { compareReviewText } from "../src/editor/reviewComparison";
 it("keeps unchanged JSON lines outside changes when edits are far apart", () => {
   const before = JSON.stringify(
@@ -43,6 +43,20 @@ it("reports an exhausted budget instead of inventing broad replacements", () => 
   expect(
     compareReviewText("before\n", "after\n", { maxEditLength: 0 }),
   ).toEqual({ changes: [], complete: false });
+});
+it("reports timeout exhaustion before refining a changed region", () => {
+  const clock = vi
+    .spyOn(performance, "now")
+    .mockReturnValueOnce(0)
+    .mockReturnValue(201);
+  try {
+    expect(compareReviewText("before\n", "after\n")).toEqual({
+      changes: [],
+      complete: false,
+    });
+  } finally {
+    clock.mockRestore();
+  }
 });
 it("retains exact emoji, whitespace, and newline changes", () => {
   for (const [a, b] of [
@@ -100,11 +114,9 @@ it("reconstructs arbitrary small text changes with exact UTF-16 offsets", () => 
     { numRuns: 250 },
   );
 });
-it("completes a large document with scattered edits within a small budget", () => {
-  // Like pretty-printed event data: many different short lines. The time budget
-  // is made tiny so the result does not depend on how fast the machine is: a
-  // whole-document diff cannot finish in it, but diffing only the edited
-  // pieces can.
+it("completes scattered edits within a bounded edit distance per region", () => {
+  // Keep the large fixture, but bound algorithmic work instead of wall time.
+  // An unsplit diff exceeds this edit limit; individual edited regions do not.
   const words = [
     "id",
     "type",
@@ -128,8 +140,8 @@ it("completes a large document with scattered edits within a small budget", () =
     for (const i of at) copy[i] = copy[i].replace(/"[^"]*"|\d+/, '"CHANGED"');
     return join(copy);
   };
-  const tiny = { timeout: 10 };
-  const one = compareReviewText(before, edit([5000]), tiny);
+  const limits = { timeout: Infinity, maxEditLength: 32 };
+  const one = compareReviewText(before, edit([5000]), limits);
   expect(one.complete).toBe(true);
   expect(one.changes.length).toBe(1);
   const spreads = [
@@ -138,7 +150,7 @@ it("completes a large document with scattered edits within a small budget", () =
     Array.from({ length: 300 }, (_, i) => 100 + i * 990),
   ];
   for (const spread of spreads) {
-    const result = compareReviewText(before, edit(spread), tiny);
+    const result = compareReviewText(before, edit(spread), limits);
     expect(result.complete).toBe(true);
     expect(result.changes.length).toBe(spread.length);
     for (const change of result.changes)
