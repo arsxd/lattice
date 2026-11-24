@@ -1040,3 +1040,31 @@
 .json-literal {
   color: var(--json-literal);
 }
+
+/*
+ * One look for every popup (context menu, column menu, freeze options, file
+ * location, active filters): same corner radius, shadow, text size and row
+ * height, so they read as parts of one interface. Change them here only.
+ */
+:root {
+  --popup-radius: 6px;
+  --popup-shadow: 0 4px 14px #00000024;
+  --popup-item-height: 28px;
+}
+.column-menu,
+.sheet-menu,
+.freeze-options,
+.file-location-panel,
+.active-filters-panel {
+  border: 1px solid var(--line);
+  border-radius: var(--popup-radius);
+  box-shadow: var(--popup-shadow);
+  font-size: 13px;
+}
+.sheet-menu button,
+.column-menu > button,
+.freeze-options button,
+.file-location-panel button {
+  min-height: var(--popup-item-height);
+  font-size: 13px;
+}
