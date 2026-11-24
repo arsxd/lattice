@@ -84,6 +84,7 @@ import {
   saveFile,
   type Opened,
 } from "./platform/files";
+import { describeFileError, type FileAction } from "./platform/fileErrors";
 import { SourceEditor } from "./editor/SourceEditor";
 import {
   cellInputKind,
@@ -660,7 +661,7 @@ export default function App() {
     busyRef.current = value;
     setBusy(value);
   }
-  async function run(fn: () => Promise<void>) {
+  async function run(fn: () => Promise<void>, action: FileAction = "open") {
     if (busyRef.current) return;
     progress(true);
     setError("");
@@ -668,14 +669,7 @@ export default function App() {
     try {
       await fn();
     } catch (e) {
-      setError(
-        e instanceof DOMException &&
-          ["NotAllowedError", "SecurityError"].includes(e.name)
-          ? "File access was blocked. Use Open to select the file again, or Save as to keep your edits in another file."
-          : e instanceof Error
-            ? e.message
-            : String(e),
-      );
+      setError(describeFileError(e, action));
     } finally {
       progress(false);
     }
@@ -905,7 +899,7 @@ export default function App() {
           next.client.dispose();
         }
       }
-    });
+    }, "reload");
   }
   async function save(as = false) {
     await run(async () => {
@@ -933,7 +927,7 @@ export default function App() {
             "Download requested. Browser mode cannot confirm the file was saved. Unsaved state is retained.",
           );
       }
-    });
+    }, "save");
   }
   async function navigate(path: Path, historyIndex?: number) {
     if (busyRef.current) return;
