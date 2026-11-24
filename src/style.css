@@ -1045,12 +1045,14 @@ select {
 }
 .data-grid .inline-cell {
   border: 0;
-  margin: 0;
+  /* Chromium ignores right padding where a textarea stops scrolling, so the
+     editor is inset instead; the caret at the end of long text stays visible. */
+  margin: 0 6px 0 0;
   /* Match the cell text; the global textarea rule is monospace. */
   font: inherit;
   line-height: 20px;
   padding: 4px 8px;
-  width: 100%;
+  width: calc(100% - 6px);
   height: 100%;
   box-sizing: border-box;
   background: var(--surface);
