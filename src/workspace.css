@@ -1127,13 +1127,19 @@ summary[aria-disabled="true"] {
   line-height: 1.4;
 }
 
-/*
- * Find bar: the field never moves. Its controls always take their space (they
- * are hidden, not removed, while it is empty) and the count has a fixed slot.
- * The clear button is ours, inside the field, because the browser's own "x" is
- * tiny and ignores the theme.
- */
+.inline-error .inline-error-discard {
+  display: block;
+  min-height: 24px;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: var(--control-radius);
+  font-size: inherit;
+}
+
+/* Anchor the result controls above the field so they never shift it. */
 .find-bar {
+  position: relative;
+  margin-inline-start: auto;
   flex-wrap: nowrap;
 }
 .find-bar .find-field {
@@ -1142,9 +1148,19 @@ summary[aria-disabled="true"] {
   align-items: center;
 }
 .find-bar .find-tools {
+  position: absolute;
+  inset-inline-end: 0;
+  bottom: calc(100% + 8px);
+  z-index: 6;
   display: inline-flex;
   align-items: center;
   gap: 3px;
+  width: max-content;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
+  background: var(--surface);
+  box-shadow: 0 2px 8px #0002;
 }
 .find-bar .find-count {
   display: inline-block;
@@ -1153,8 +1169,8 @@ summary[aria-disabled="true"] {
   text-overflow: ellipsis;
   text-align: right;
 }
-.find-bar input {
-  padding-right: 30px;
+.pagination .find-bar #find {
+  padding-inline-end: 30px;
 }
 .find-bar .find-clear {
   position: absolute;
@@ -1193,6 +1209,9 @@ summary[aria-disabled="true"] {
 .inspector-selection {
   margin-top: 12px;
 }
+.inspector-selection .inspector-actions {
+  margin-top: 8px;
+}
 .inspector-metadata {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
@@ -1215,8 +1234,21 @@ summary[aria-disabled="true"] {
 }
 .inspector-json summary {
   cursor: pointer;
-  width: fit-content;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  list-style: none;
   padding-block: 4px;
+}
+.inspector-json summary::-webkit-details-marker {
+  display: none;
+}
+.inspector-json summary svg {
+  flex: none;
+  transform: rotate(-90deg);
+}
+.inspector-json[open] summary svg {
+  transform: none;
 }
 .sheet-tabs button[data-ancestor] {
   box-shadow: inset 0 -2px var(--line);
@@ -1229,4 +1261,30 @@ summary[aria-disabled="true"] {
     max-width: 38vw;
     box-shadow: none;
   }
+}
+
+.inspector .pane-heading {
+  margin-bottom: 12px;
+}
+.inspector-layout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+}
+.inspector .inspector-open-table {
+  color: var(--accent);
+  background: var(--selection);
+}
+.inspector .structural-actions {
+  flex-wrap: wrap;
+  margin: 14px 0 0;
+  padding-top: 10px;
+}
+.inspector .details-preview table {
+  min-width: 0;
 }

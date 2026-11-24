@@ -8,8 +8,7 @@
   background: var(--chrome);
   border-bottom: 1px solid var(--line);
 }
-.value-bar output,
-.value-bar-address {
+.value-bar output {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -116,15 +115,6 @@
   color: var(--muted);
   font: inherit;
   line-height: 20px;
-}
-
-.value-bar-address-idle {
-  border-color: transparent;
-  background: transparent;
-}
-
-.value-bar-empty .value-bar-address-idle {
-  visibility: hidden;
 }
 
 .value-bar .value-bar-open {
