@@ -16,8 +16,17 @@ async function linkedFile(page: Page) {
     (window as any).fileModel = model;
     const handle = {
       name: "round-trip.json",
-      getFile: async () =>
-        new File([model.disk], "round-trip.json", { type: "application/json" }),
+      getFile: async () => {
+        // Models a file that was renamed or moved after it was opened.
+        if ((model as any).missing)
+          throw new DOMException(
+            "A requested file or directory could not be found at the time an operation was processed.",
+            "NotFoundError",
+          );
+        return new File([model.disk], "round-trip.json", {
+          type: "application/json",
+        });
+      },
       createWritable: async () => {
         let staged = "";
         return {
@@ -152,4 +161,39 @@ test("Reload file keeps the Source view and shows the reloaded text", async ({
   await expect(
     page.getByRole("button", { name: "Source", exact: true }),
   ).toBeDisabled();
+});
+
+test("Save explains a file that was renamed or moved, and keeps your edits", async ({
+  page,
+}) => {
+  await linkedFile(page);
+  await editName(page, "Mine");
+  await page.evaluate(() => {
+    (window as any).fileModel.missing = true;
+  });
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  const alert = page.getByRole("alert");
+  await expect(alert).toContainText("renamed, moved or deleted");
+  await expect(alert).toContainText("Save as");
+  await expect(alert).not.toContainText("at the time an operation");
+  await expect(page.locator(".status")).toContainText("Unsaved changes");
+  await expect(nameCell(page)).toHaveText("Mine");
+  expect(await page.evaluate(() => (window as any).fileModel.writes)).toBe(0);
+});
+
+test("Reload explains a file that was renamed or moved, and leaves the document alone", async ({
+  page,
+}) => {
+  await linkedFile(page);
+  await page.evaluate(() => {
+    (window as any).fileModel.missing = true;
+  });
+  await page
+    .getByRole("button", { name: /^Reload file…?$/, exact: true })
+    .click();
+  const alert = page.getByRole("alert");
+  await expect(alert).toContainText("renamed, moved or deleted");
+  await expect(alert).toContainText("Open");
+  await expect(alert).not.toContainText("at the time an operation");
+  await expect(nameCell(page)).toHaveText("Alpha");
 });
