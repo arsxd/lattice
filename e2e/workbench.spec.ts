@@ -1319,3 +1319,105 @@ test("editing long text starts at its beginning and keeps the caret clear of the
   expect(gap.scrolled).toBeGreaterThan(0);
   expect(gap.cellRight - gap.textareaRight).toBeGreaterThanOrEqual(6);
 });
+
+test("opening a cell for editing and leaving it unchanged never rewrites the file", async ({
+  page,
+}) => {
+  const pretty = JSON.stringify(
+    [
+      {
+        name: "Alpha",
+        tags: ["a", "b", "c"],
+        meta: { owner: "x", list: [1, 2] },
+      },
+      { name: "Beta", tags: ["d"], meta: { owner: "y", list: [] } },
+    ],
+    null,
+    2,
+  );
+  await open(page, pretty);
+  const status = page.locator(".status");
+  const source = async () => {
+    await page.getByRole("button", { name: "Source", exact: true }).click();
+    const text = await page.locator(".cm-content").innerText();
+    await page.getByRole("button", { name: "Table", exact: true }).click();
+    return text.replace(/\u00a0/g, " ");
+  };
+  const before = await source();
+  expect(before).toContain('"tags": [\n      "a",');
+  // An array, an object and a string: open the editor, change nothing, commit.
+  for (const col of [2, 3, 1]) {
+    await cell(page, 0, col).dblclick();
+    await expect(page.locator(".inline-cell")).toBeVisible();
+    await page.keyboard.press("Enter");
+    await expect(page.locator(".inline-cell")).toHaveCount(0);
+    await expect(status).toContainText("Unmodified");
+  }
+  // Losing focus (for example by dragging a column edge) behaves the same.
+  await cell(page, 0, 2).dblclick();
+  const edge = await page.locator('[role="columnheader"]').nth(2).boundingBox();
+  await page.mouse.move(edge!.x + edge!.width - 2, edge!.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(edge!.x + edge!.width + 40, edge!.y + 10, { steps: 4 });
+  await page.mouse.up();
+  await expect(status).toContainText("Unmodified");
+  await expect(
+    page.getByRole("button", { name: "Review changes" }),
+  ).toBeDisabled();
+  expect(await source()).toBe(before);
+});
+
+test("a value-bar error clears when the draft goes back to the stored value", async ({
+  page,
+}) => {
+  await open(page, '[{"name":"Alpha","meta":{"a":1}}]');
+  await cell(page, 0, 2).click();
+  const bar = page.getByRole("textbox", { name: "Selected cell value" });
+  const error = page.locator(".value-bar-error");
+  await expect(bar).toHaveValue('{"a": 1}');
+  // Typing the stored value back clears the error at once, and Enter keeps it clear.
+  await bar.fill("{broken");
+  await bar.press("Enter");
+  await expect(error).toBeVisible();
+  await bar.fill('{"a": 1}');
+  await expect(error).toHaveCount(0);
+  await bar.press("Enter");
+  await expect(error).toHaveCount(0);
+  // A different valid value is committed and clears the error too.
+  await bar.fill("{broken");
+  await bar.press("Enter");
+  await expect(error).toBeVisible();
+  await bar.fill('{"a": 2}');
+  await bar.press("Enter");
+  await expect(error).toHaveCount(0);
+  await expect(page.locator(".status")).toContainText("Unsaved changes");
+});
+
+test("an invalid in-cell edit explains itself next to the cell", async ({
+  page,
+}) => {
+  await open(page, '[{"name":"Alpha","tags":["a","b"]}]');
+  await cell(page, 0, 2).dblclick();
+  const editor = page.locator(".inline-cell");
+  await editor.fill("[1,");
+  await editor.press("Enter");
+  const alert = page.getByRole("alert").filter({ hasText: "valid JSON array" });
+  await expect(alert).toBeVisible();
+  const [cellBox, alertBox] = await Promise.all([
+    cell(page, 0, 2).boundingBox(),
+    alert.boundingBox(),
+  ]);
+  // Directly under the cell, lined up with it, and fully on screen.
+  expect(alertBox!.y).toBeGreaterThanOrEqual(cellBox!.y + cellBox!.height - 2);
+  expect(alertBox!.y - (cellBox!.y + cellBox!.height)).toBeLessThan(24);
+  expect(Math.abs(alertBox!.x - cellBox!.x)).toBeLessThanOrEqual(2);
+  expect(alertBox!.y + alertBox!.height).toBeLessThanOrEqual(
+    page.viewportSize()!.height,
+  );
+  // It is not tucked away in the status bar any more.
+  await expect(page.locator(".status").getByRole("alert")).toHaveCount(0);
+  await expect(editor).toHaveAttribute("aria-invalid", "true");
+  // Correcting the text removes it.
+  await editor.fill('["a"]');
+  await expect(alert).toHaveCount(0);
+});
