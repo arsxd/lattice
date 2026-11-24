@@ -471,3 +471,30 @@ it("never serves stale filtered or sorted rows after an edit, undo or query chan
   expect(names({ valueFilters: { [col]: [keep] } })).toEqual(["bravo"]);
   expect(names({})).toHaveLength(4);
 });
+it("nested previews stay correct across edits when they are cached", () => {
+  const d = new DocumentEngine(
+    JSON.stringify([
+      { id: 1, meta: { a: [1, 2, { b: "x" }], c: "keep" } },
+      { id: 2, meta: { a: [], c: "other" } },
+    ]),
+  );
+  const q = { path: [], records: true, search: "", page: 0 };
+  const shown = () => {
+    const p = d.project(q);
+    return p.rows.map((r) => r.cells[p.headers.indexOf("meta")].display);
+  };
+  const before = shown();
+  expect(before[0]).toBe('{"a": [1, 2, {"b": "x"}], "c": "keep"}');
+  expect(shown()).toEqual(before); // repeated, cached
+  d.mutate(
+    { action: "replace", path: [0, "meta", "c"], raw: '"changed"' },
+    d.revision,
+  );
+  expect(shown()[0]).toBe('{"a": [1, 2, {"b": "x"}], "c": "changed"}');
+  expect(shown()[1]).toBe(before[1]);
+  d.undo();
+  expect(shown()).toEqual(before);
+  // A different value at the same position after Source replaces the text.
+  d.source(JSON.stringify([{ id: 9, meta: { z: 1 } }]), d.revision);
+  expect(shown()).toEqual(['{"z": 1}']);
+});
