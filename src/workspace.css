@@ -1068,3 +1068,53 @@
   min-height: var(--popup-item-height);
   font-size: 13px;
 }
+
+/*
+ * Shared control standards. Individual rules above predate these and picked
+ * their own values (3/4/5 px corners, 28/32 px popup rows, 0.4/0.45 disabled);
+ * the values below win so every control of a kind looks the same.
+ */
+:root {
+  --control-radius: 4px;
+  --disabled-opacity: 0.4;
+}
+.toolbar button,
+.toolbar .theme-picker button,
+.location .view-mode button,
+.pagination button,
+.pagination .freeze-menu summary,
+.file-location > summary,
+.table-state-control .active-filters > summary {
+  border-radius: var(--control-radius);
+}
+/* Segmented groups keep square inner edges. */
+.source-format-buttons > .source-format-option:first-child > button {
+  border-radius: var(--control-radius) 0 0 var(--control-radius);
+}
+.source-format-buttons > .source-format-option:last-child > button {
+  border-radius: 0 var(--control-radius) var(--control-radius) 0;
+}
+.source-format-buttons > .source-format-option:not(:first-child):not(:last-child) > button {
+  border-radius: 0;
+}
+.freeze-options button,
+.file-location-panel button,
+.column-menu > button,
+.sheet-menu button {
+  box-sizing: border-box;
+  height: var(--popup-item-height);
+  padding-block: 0;
+  border-radius: calc(var(--control-radius) - 1px);
+}
+button:disabled,
+.location-history button:disabled,
+.toolbar button:disabled,
+.pagination button:disabled,
+select:disabled,
+summary[aria-disabled="true"] {
+  opacity: var(--disabled-opacity);
+}
+/* The active view toggle stays readable even when it cannot be pressed. */
+.location .view-mode button[aria-pressed="true"]:disabled {
+  opacity: 1;
+}
