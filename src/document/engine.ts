@@ -246,6 +246,14 @@ export class DocumentEngine {
   revision = 0;
   private saved: string;
   private root?: Node;
+  // The filtered, sorted rows (and Find match positions) of the last few
+  // queries. Every click, page change and value lookup asks again, and on a
+  // large file recomputing them dominated each request. Keyed by revision.
+  private rowCache: {
+    key: string;
+    filtered: [string | number, Node][];
+    matches?: number[];
+  }[] = [];
   diagnostics: Diagnostic[] = [];
   private past: Patch[] = [];
   private future: Patch[] = [];
@@ -996,70 +1004,90 @@ export class DocumentEngine {
         )
       );
     };
-    if (search)
-      filtered = all.filter((item) =>
-        headers.some((_, i) => matchesCell(item, i)),
-      );
-    for (const [column, term] of Object.entries(query.filters ?? {})) {
-      const index = Number(column);
+    const cacheKey = JSON.stringify([
+      this.revision,
+      pointer(path),
+      records,
+      headers,
+      query.search,
+      query.searchCaseSensitive,
+      query.searchWholeWord,
+      query.filters,
+      query.valueFilters,
+      query.sort,
+    ]);
+    const cached = this.rowCache.find((entry) => entry.key === cacheKey);
+    if (cached) filtered = cached.filtered;
+    else {
+      if (search)
+        filtered = all.filter((item) =>
+          headers.some((_, i) => matchesCell(item, i)),
+        );
+      for (const [column, term] of Object.entries(query.filters ?? {})) {
+        const index = Number(column);
+        if (
+          !term ||
+          !Number.isInteger(index) ||
+          index < 0 ||
+          index >= headers.length
+        )
+          continue;
+        filtered = filtered.filter((item) => {
+          const cell = getCell(item, index);
+          const text =
+            cell.type === "string"
+              ? String(this.node(cell.path).value)
+              : cell.display;
+          return text.toLocaleLowerCase().includes(term.toLocaleLowerCase());
+        });
+      }
+      for (const [column, selected] of Object.entries(
+        query.valueFilters ?? {},
+      )) {
+        const index = Number(column);
+        if (index < 0 || index >= headers.length) continue;
+        const allowed = new Set(selected);
+        filtered = filtered.filter((item) =>
+          allowed.has(valueKey(item, index).key),
+        );
+      }
       if (
-        !term ||
-        !Number.isInteger(index) ||
-        index < 0 ||
-        index >= headers.length
-      )
-        continue;
-      filtered = filtered.filter((item) => {
-        const cell = getCell(item, index);
-        const text =
-          cell.type === "string"
-            ? String(this.node(cell.path).value)
-            : cell.display;
-        return text.toLocaleLowerCase().includes(term.toLocaleLowerCase());
-      });
-    }
-    for (const [column, selected] of Object.entries(query.valueFilters ?? {})) {
-      const index = Number(column);
-      if (index < 0 || index >= headers.length) continue;
-      const allowed = new Set(selected);
-      filtered = filtered.filter((item) =>
-        allowed.has(valueKey(item, index).key),
-      );
-    }
-    if (
-      query.sort &&
-      Number.isInteger(query.sort.column) &&
-      query.sort.column >= 0 &&
-      query.sort.column < headers.length
-    ) {
-      const { column, direction } = query.sort,
-        sign = direction === "ASC" ? 1 : -1;
-      // Cache sort values once; never compare truncated display text for numeric cells.
-      const valueColumn = !metadataColumn(column);
-      const indexed = filtered.map((item) => {
-        const c = getCell(item, column);
-        const node = c.type === "missing" ? undefined : this.node(c.path);
-        const full =
-          valueColumn && node
-            ? node.type === "string"
-              ? String(node.value)
-              : this.raw(c.path)
-            : c.display;
-        return { item, cell: c, full };
-      });
-      indexed.sort((a, b) => {
-        let cmp = 0;
-        if (columnKinds[column] === "index")
-          cmp = Number(a.cell.display) - Number(b.cell.display);
-        else if (valueColumn && a.cell.type !== b.cell.type)
-          cmp =
-            TYPE_ORDER.indexOf(a.cell.type) - TYPE_ORDER.indexOf(b.cell.type);
-        else if (valueColumn && a.cell.type === "number")
-          cmp = compareNumbers(a.full, b.full);
-        else cmp = a.full < b.full ? -1 : a.full > b.full ? 1 : 0;
-        return sign * cmp;
-      });
-      filtered = indexed.map((x) => x.item);
+        query.sort &&
+        Number.isInteger(query.sort.column) &&
+        query.sort.column >= 0 &&
+        query.sort.column < headers.length
+      ) {
+        const { column, direction } = query.sort,
+          sign = direction === "ASC" ? 1 : -1;
+        // Cache sort values once; never compare truncated display text for numeric cells.
+        const valueColumn = !metadataColumn(column);
+        const indexed = filtered.map((item) => {
+          const c = getCell(item, column);
+          const node = c.type === "missing" ? undefined : this.node(c.path);
+          const full =
+            valueColumn && node
+              ? node.type === "string"
+                ? String(node.value)
+                : this.raw(c.path)
+              : c.display;
+          return { item, cell: c, full };
+        });
+        indexed.sort((a, b) => {
+          let cmp = 0;
+          if (columnKinds[column] === "index")
+            cmp = Number(a.cell.display) - Number(b.cell.display);
+          else if (valueColumn && a.cell.type !== b.cell.type)
+            cmp =
+              TYPE_ORDER.indexOf(a.cell.type) - TYPE_ORDER.indexOf(b.cell.type);
+          else if (valueColumn && a.cell.type === "number")
+            cmp = compareNumbers(a.full, b.full);
+          else cmp = a.full < b.full ? -1 : a.full > b.full ? 1 : 0;
+          return sign * cmp;
+        });
+        filtered = indexed.map((x) => x.item);
+      }
+      this.rowCache.unshift({ key: cacheKey, filtered });
+      this.rowCache.length = Math.min(this.rowCache.length, 3);
     }
     const searchHeaderMatches = search
       ? headers.flatMap((name, i) =>
@@ -1070,18 +1098,42 @@ export class DocumentEngine {
     let searchSelection: { row: number; column: number } | undefined;
     let searchIndex: number | undefined;
     if (search && !selectionOnly) {
-      for (let row = 0; row < filtered.length; row++) {
-        for (let column = 0; column < headers.length; column++) {
-          if (!matchesCell(filtered[row], column)) continue;
-          if (
-            query.searchResult !== undefined &&
-            searchMatchCount === query.searchResult
-          ) {
-            searchSelection = { row, column };
-            searchIndex = searchMatchCount;
-          }
-          searchMatchCount++;
+      const known = cached?.matches;
+      const positions: number[] = [];
+      let overflow = false;
+      if (known) {
+        searchMatchCount = known.length / 2;
+        if (
+          query.searchResult !== undefined &&
+          query.searchResult < searchMatchCount
+        ) {
+          searchSelection = {
+            row: known[query.searchResult * 2],
+            column: known[query.searchResult * 2 + 1],
+          };
+          searchIndex = query.searchResult;
         }
+      } else {
+        for (let row = 0; row < filtered.length; row++) {
+          for (let column = 0; column < headers.length; column++) {
+            if (!matchesCell(filtered[row], column)) continue;
+            if (!overflow) {
+              positions.push(row, column);
+              // Bound the memory kept for very large result sets.
+              if (positions.length > 2_000_000) overflow = true;
+            }
+            if (
+              query.searchResult !== undefined &&
+              searchMatchCount === query.searchResult
+            ) {
+              searchSelection = { row, column };
+              searchIndex = searchMatchCount;
+            }
+            searchMatchCount++;
+          }
+        }
+        const entry = this.rowCache.find((e) => e.key === cacheKey);
+        if (entry && !overflow) entry.matches = positions;
       }
     }
     const locatedIndex =
