@@ -91,6 +91,12 @@ function ValueBarEditor({
       window.removeEventListener("resize", resize);
     };
   }, [draft, expanded]);
+  function discard() {
+    draftRef.current = committed.current;
+    setDraft(committed.current);
+    setError("");
+    textarea.current?.focus();
+  }
   function commit(): Promise<boolean> {
     if (pending.current) return pending.current;
     if (!isCurrent()) return Promise.resolve(false);
@@ -129,9 +135,9 @@ function ValueBarEditor({
           event.currentTarget.contains(event.relatedTarget)
         )
           return;
-        void commit().then((ok) => {
-          if (!ok && mounted.current && isCurrent()) textarea.current?.focus();
-        });
+        // An invalid draft stays visible with its error; focus is not pulled
+        // back, so leaving the field by keyboard or pointer is never blocked.
+        void commit();
       }}
     >
       {address && <output aria-label="Cell address">{address}</output>}
@@ -226,7 +232,18 @@ function ValueBarEditor({
           ? "Read-only preview."
           : "Edit the selected cell here. Enter applies the change; Escape cancels."}
       </span>
-      {error && <span role="alert">{error}</span>}
+      {error && (
+        <div
+          className="value-bar-error"
+          role="alert"
+          data-aligned={address ? "" : undefined}
+        >
+          <span>{error}</span>
+          <button type="button" className="text-button" onClick={discard}>
+            Discard change
+          </button>
+        </div>
+      )}
     </div>
   );
 }
