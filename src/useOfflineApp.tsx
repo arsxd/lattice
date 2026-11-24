@@ -101,8 +101,14 @@ export function useOfflineApp() {
             app windows, and reopen Lattice to use the update.
           </p>
           <p>
-            You can keep working until you are ready. This app will not reload
-            your session automatically.
+            The browser keeps the old version for as long as any Lattice tab or
+            installed-app window is open, including one that is still open
+            behind other windows. You can keep working until you are ready; this
+            app will not reload your session automatically.
+          </p>
+          <p className="small">
+            This window runs build {__APP_BUILD__}. After reopening, hover the
+            version in the status bar to confirm it changed.
           </p>
           <form method="dialog">
             <button autoFocus>Keep working</button>

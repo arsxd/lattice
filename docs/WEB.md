@@ -25,7 +25,7 @@ Picker hints and layout preferences are optional metadata. JSON recovery is sepa
 
 ## Installation, updates and privacy
 
-[Hosted app](https://arsxd.github.io/lattice/) installation uses the browser's own prompt/menu. Welcome guidance is dismissible and stays out of the editor toolbar. A waiting service worker exposes **Update available** in the existing status area. Updates never call skipWaiting or force reload; save and close all app tabs/windows before reopening. Hourly/visibility update checks carry no document content.
+[Hosted app](https://arsxd.github.io/lattice/) installation uses the browser's own prompt/menu. Welcome guidance is dismissible and stays out of the editor toolbar. A waiting service worker exposes **Update available** in the existing status area. Updates never call skipWaiting or force reload; save and close all app tabs/windows before reopening. One tab or installed-app window left open, even behind other windows, keeps the old version running. To confirm an update applied, hover the version in the status bar: its tooltip shows the build id (the commit), which changes even when the version label does not. Hourly/visibility update checks carry no document content.
 
 The service worker caches application assets, not JSON files. Once successfully cached, the shell works offline. JSON recovery, if explicitly enabled, is local IndexedDB storage independent of that asset cache. The standalone HTML has no manifest, does not register a service worker and shows no install/update guidance, even when served over HTTP. No document-upload endpoint or analytics integration is implemented. See [browser checks on Windows](WINDOWS.md) for manual verification.
 

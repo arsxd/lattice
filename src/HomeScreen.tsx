@@ -61,7 +61,9 @@ export function HomeScreen({
       )}
       {/* Brand marks: Simple Icons 13.21.0 (CC0), embedded for offline use. */}
       <footer className="home-screen-footer">
-        <span aria-label="Lattice version">v{__APP_VERSION__}</span>
+        <span aria-label="Lattice version" title={`Build ${__APP_BUILD__}`}>
+          v{__APP_VERSION__}
+        </span>
         {webClient && <span>Web client</span>}
         <span>UTF-8 · up to 64 MiB · 256 nesting levels</span>
         <nav className="home-footer-links" aria-label="Project links">
