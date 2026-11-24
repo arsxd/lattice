@@ -1,3 +1,4 @@
+import { placeAtPoint, type Placement } from "./popupPlacement";
 import {
   useEffect,
   useLayoutEffect,
@@ -55,7 +56,11 @@ export function SheetRange({
     r: number;
     c: number;
   } | null>(null);
-  const [menuPosition, setMenuPosition] = useState({ left: 8, top: 8 });
+  const [menuPosition, setMenuPosition] = useState<Placement>({
+    left: 8,
+    top: 8,
+    maxHeight: 0,
+  });
   const menuElement = useRef<HTMLDivElement>(null),
     contextTarget = useRef<HTMLElement | null>(null);
   const restoringFocus = useRef(false),
@@ -91,11 +96,18 @@ export function SheetRange({
   }
   useLayoutEffect(() => {
     if (!menu || !menuElement.current) return;
-    const rect = menuElement.current.getBoundingClientRect();
-    setMenuPosition({
-      left: Math.max(8, Math.min(menu.x, innerWidth - rect.width - 8)),
-      top: Math.max(8, Math.min(menu.y, innerHeight - rect.height - 8)),
-    });
+    // Measure at natural size, decide the side once, then stay put.
+    const node = menuElement.current;
+    node.style.maxHeight = "none";
+    const { width, height } = node.getBoundingClientRect();
+    node.style.maxHeight = "";
+    setMenuPosition(
+      placeAtPoint(
+        { x: menu.x, y: menu.y },
+        { width, height },
+        { width: innerWidth, height: innerHeight },
+      ),
+    );
     menuElement.current
       .querySelector<HTMLButtonElement>("button:not(:disabled)")
       ?.focus();
@@ -452,7 +464,12 @@ export function SheetRange({
           className="sheet-menu"
           role="menu"
           tabIndex={-1}
-          style={menuPosition}
+          style={{
+            left: menuPosition.left,
+            top: menuPosition.top ?? "auto",
+            bottom: menuPosition.bottom,
+            maxHeight: menuPosition.maxHeight || undefined,
+          }}
           onKeyDown={(e) => {
             if (e.key === "Escape") {
               e.stopPropagation();
@@ -637,9 +654,6 @@ export function SheetRange({
               </button>
             </>
           )}
-          <button role="menuitem" tabIndex={-1} onClick={() => closeMenu(true)}>
-            Close
-          </button>
         </div>
       )}
     </div>
