@@ -2932,10 +2932,9 @@ export default function App() {
                     title="Jump to the selected table cell. Its source is marked by dotted underlines, blue line numbers and a gutter bar."
                     onClick={() => sourceLocate.current?.()}
                   >
-                    Selected cell
                     {activeCell && view?.rows[activeCell.row]
-                      ? ` · ${columnLetter(activeCell.column)}${rowLabel(activeCell.row)}`
-                      : ""}
+                      ? `Go to ${columnLetter(activeCell.column)}${rowLabel(activeCell.row)}`
+                      : "Go to selected cell"}
                   </button>
                 )}
                 {mode === "source" && formattingSource && (
@@ -3884,57 +3883,61 @@ export default function App() {
                 )}
                 {selection && singleCellSelected ? (
                   <>
-                    {view?.kind === "array" && activeCell && (
-                      <>
-                        {/* oxlint-disable-next-line jsx-a11y/label-has-associated-control -- caption in the Details pane, not a form field */}
-                        <label>Original index</label>
-                        <code>
-                          {String(view.rows[activeCell.row].path.at(-1))}
-                        </code>
-                      </>
-                    )}
-                    {/* oxlint-disable-next-line jsx-a11y/label-has-associated-control -- caption in the Details pane, not a form field */}
-                    <label>Path</label>
-                    <code className="path">
-                      {pointer(selection.cell.path) || "(root)"}
-                    </code>
-                    {/* oxlint-disable-next-line jsx-a11y/label-has-associated-control -- caption in the Details pane, not a form field */}
-                    <label>JSON type</label>
-                    <span className="type-label">{selection.cell.type}</span>
-                    {blankState(selection.cell) && (
-                      <>
-                        {/* oxlint-disable-next-line jsx-a11y/label-has-associated-control -- caption in the Details pane, not a form field */}
-                        <label>Value state</label>
-                        <span>{blankState(selection.cell)}</span>
-                      </>
-                    )}
-                    {selection.cell.container && (
-                      <div className="inspector-actions">
-                        <button
-                          disabled={busy}
-                          onClick={() => void navigate(selection.cell.path)}
-                        >
-                          Open table
-                        </button>
-                      </div>
-                    )}
+                    <div className="inspector-selection">
+                      <dl className="inspector-metadata">
+                        <dt>Path</dt>
+                        <dd>
+                          <code className="path">
+                            {pointer(selection.cell.path) || "(root)"}
+                          </code>
+                        </dd>
+                        <dt>JSON type</dt>
+                        <dd>{selection.cell.type}</dd>
+                        {view?.kind === "array" && activeCell && (
+                          <>
+                            <dt>Original index</dt>
+                            <dd>
+                              {String(view.rows[activeCell.row].path.at(-1))}
+                            </dd>
+                          </>
+                        )}
+                        {blankState(selection.cell) && (
+                          <>
+                            <dt>Value state</dt>
+                            <dd>{blankState(selection.cell)}</dd>
+                          </>
+                        )}
+                      </dl>
+                      {selection.cell.container && (
+                        <div className="inspector-actions">
+                          <button
+                            disabled={busy}
+                            onClick={() => void navigate(selection.cell.path)}
+                          >
+                            Open table
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <ValueDetails raw={selection.raw} />
-                    <label>
-                      {selectedJsonPreview?.truncated
-                        ? "JSON preview"
-                        : "Exact JSON"}
-                    </label>
-                    <pre className="value-preview">
-                      {selection.cell.type === "missing"
-                        ? "Property is absent"
-                        : selectedJsonPreview?.text}
-                    </pre>
-                    {selectedJsonPreview?.truncated && (
-                      <p className="small">
-                        Showing the first {JSON_PREVIEW_LIMIT.toLocaleString()}{" "}
-                        characters. Open table or Source for the complete value.
-                        Copy JSON copies the full value.
-                      </p>
+                    {selection.cell.type !== "missing" && (
+                      <details className="inspector-json">
+                        <summary>
+                          {selectedJsonPreview?.truncated
+                            ? "JSON preview"
+                            : "Exact JSON"}
+                        </summary>
+                        <pre className="value-preview">
+                          {selectedJsonPreview?.text}
+                        </pre>
+                        {selectedJsonPreview?.truncated && (
+                          <p className="small">
+                            Showing the first{" "}
+                            {JSON_PREVIEW_LIMIT.toLocaleString()} characters.
+                            Copy JSON copies the full value.
+                          </p>
+                        )}
+                      </details>
                     )}
                     <div className="inspector-actions">
                       <button
@@ -4019,8 +4022,14 @@ export default function App() {
               <button
                 key={pointer(sheet.path)}
                 aria-current={
-                  sheet.path.every((part, i) => query.path[i] === part)
+                  pointer(sheet.path) === pointer(query.path)
                     ? "page"
+                    : undefined
+                }
+                data-ancestor={
+                  sheet.path.length < query.path.length &&
+                  sheet.path.every((part, i) => query.path[i] === part)
+                    ? true
                     : undefined
                 }
                 disabled={busy || sourceDirty}

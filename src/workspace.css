@@ -918,22 +918,6 @@
 
 /* Motion stays on controls and floating surfaces, never on the sheet or editor. */
 @media (prefers-reduced-motion: no-preference) {
-  :is(
-      .toolbar,
-      .location,
-      .pagination,
-      .document-tab,
-      .home-screen,
-      .column-menu,
-      .sheet-menu
-    )
-    button:not(:disabled) {
-    transition:
-      background-color 100ms ease-out,
-      border-color 100ms ease-out,
-      color 100ms ease-out;
-  }
-
   :is(.column-menu, .sheet-menu, .active-filters-panel, .file-location-panel) {
     animation: workspace-menu-enter 120ms ease-out;
   }
@@ -1204,4 +1188,45 @@ summary[aria-disabled="true"] {
   padding: 4px 12px;
   color: var(--muted);
   border-bottom: 1px solid var(--line);
+}
+
+.inspector-selection {
+  margin-top: 12px;
+}
+.inspector-metadata {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 12px;
+  align-items: baseline;
+  margin: 0;
+  font-size: 12px;
+}
+.inspector-metadata dt,
+.inspector-json summary {
+  color: var(--muted);
+}
+.inspector-metadata dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.inspector-json {
+  margin-top: 12px;
+  font-size: 12px;
+}
+.inspector-json summary {
+  cursor: pointer;
+  width: fit-content;
+  padding-block: 4px;
+}
+.sheet-tabs button[data-ancestor] {
+  box-shadow: inset 0 -2px var(--line);
+  font-weight: 550;
+}
+@media (max-width: 1180px) {
+  .inspector {
+    position: relative;
+    inset: auto;
+    max-width: 38vw;
+    box-shadow: none;
+  }
 }
