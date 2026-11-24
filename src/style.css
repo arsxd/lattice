@@ -1690,9 +1690,11 @@ select optgroup {
 .sheet-column-heading .header-filter {
   position: static;
   align-self: end;
-  width: 28px;
-  height: 28px;
-  margin: 0;
+  width: 24px;
+  height: 24px;
+  /* Inset so the hover background never touches the cell borders. */
+  margin: 0 4px 4px 0;
+  border-radius: 4px;
   padding: 0;
   display: flex;
   align-items: center;

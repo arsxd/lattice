@@ -1075,6 +1075,61 @@ test("Find highlights a match that lies beyond the cell preview", async ({
   await expect(cell(page, 0, 2).locator("mark.find-match")).toHaveCount(0);
 });
 
+test("context menus offer the right copy-name action for rows and columns", async ({
+  page,
+}) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await open(page, '{"x":{"a":1},"y":{"a":2}}');
+  const rowNumber = page.getByRole("button", {
+    name: "Select row 2",
+    exact: true,
+  });
+  await rowNumber.click({ button: "right" });
+  await expect(
+    page.getByRole("menuitem", { name: "Copy column name" }),
+  ).toHaveCount(0);
+  await page.getByRole("menuitem", { name: "Copy row name" }).click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("y");
+  // A cell belongs to both a row and a column.
+  await cell(page, 0, 1).click({ button: "right" });
+  await expect(
+    page.getByRole("menuitem", { name: "Copy row name" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("menuitem", { name: "Copy column name" }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  // Array rows have no name to copy.
+  await open(page, '[{"a":1},{"a":2}]');
+  await page
+    .getByRole("button", { name: "Select row 1", exact: true })
+    .click({ button: "right" });
+  await expect(
+    page.getByRole("menuitem", { name: /^Copy (row|column) name$/ }),
+  ).toHaveCount(0);
+});
+
+test("the column menu button is inset from the header cell edges", async ({
+  page,
+}) => {
+  await open(page, '[{"name":"Alpha"}]');
+  const gap = await page.evaluate(() => {
+    const heading = document.querySelector(".sheet-column-heading")!;
+    const cell = heading
+      .closest('[role="columnheader"]')!
+      .getBoundingClientRect();
+    const button = heading
+      .querySelector(".header-filter")!
+      .getBoundingClientRect();
+    return {
+      right: cell.right - button.right,
+      bottom: cell.bottom - button.bottom,
+    };
+  });
+  expect(gap.right).toBeGreaterThanOrEqual(3);
+  expect(gap.bottom).toBeGreaterThanOrEqual(3);
+});
+
 test("editing a cell keeps its row height and font, and only grows for extra lines", async ({
   page,
 }) => {

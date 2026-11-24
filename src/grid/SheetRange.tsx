@@ -236,10 +236,9 @@ export function SheetRange({
       setMessage(String(e));
     }
   }
-  async function copyColumnName() {
-    if (!menu) return;
+  async function copyName(text: string) {
     try {
-      await navigator.clipboard.writeText(columnLabel(view, menu.c));
+      await navigator.clipboard.writeText(text);
       setMenu(null);
     } catch {
       setMessage(
@@ -602,13 +601,24 @@ export function SheetRange({
               Delete row
             </button>
           )}
-          <button
-            role="menuitem"
-            tabIndex={-1}
-            onClick={() => void copyColumnName()}
-          >
-            Copy column name
-          </button>
+          {menu.r >= 0 && view.kind === "object" && (
+            <button
+              role="menuitem"
+              tabIndex={-1}
+              onClick={() => void copyName(view.rows[menu.r].label)}
+            >
+              Copy row name
+            </button>
+          )}
+          {menu.c >= 0 && (
+            <button
+              role="menuitem"
+              tabIndex={-1}
+              onClick={() => void copyName(columnLabel(view, menu.c))}
+            >
+              Copy column name
+            </button>
+          )}
           {view.columnKinds[menu.c] === "field" && (
             <>
               <button
