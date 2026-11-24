@@ -15,6 +15,21 @@ Summary of everything since the first public preview. This entry becomes the 1.0
 - **Project health.** 0BSD license with third-party notices, protected main with Windows, Linux and macOS checks, lint checks for React hooks and accessibility, and a [security policy](SECURITY.md).
 - **Not in 1.0.** Formulas, charts, JSON Schema validation, and Excel/CSV import.
 
+## 1.0.0-rc.11 — 2026-11-23
+
+Stabilisation release. No new features.
+
+- Opening a cell for editing and leaving it unchanged no longer rewrites the value, so resizing a multiline cell is not a change.
+- Errors explain themselves: an invalid in-cell edit shows a popup next to the cell, and the value-bar error clears once the draft matches the stored value or is fixed. Unsaved invalid drafts are never discarded silently.
+- Review changes compares large documents with scattered edits completely, so changes are highlighted instead of hitting the accuracy budget.
+- Find searches whole nested values, shows a snippet around hidden matches, keeps its field still while you type, and has a visible themed clear button.
+- Large files: clicking a cell with Find active, refreshing results and moving to the next result are several times faster (25 MB file, engine time: click 1149 to 15 ms, next result 2268 to 42 ms). A clicked cell stays selected on its row while results refresh.
+- Row numbers start at 1. Reload file keeps the current view. Header names appear in the value bar. Wrap text grows rows.
+- Nested value previews are coloured like Source.
+- One corner radius, popup row height and disabled opacity across the app. Context and column menus open in predictable places.
+- Friendly messages when a file was renamed, moved or locked. The update dialog explains stuck updates, and the version tooltip shows a build id.
+- The app starts in the light theme unless you chose another. A selected column header looks selected including its arrow. Details shows only in Table view.
+
 ## 1.0.0-rc.10 — 2026-11-23
 
 - Rename the toolbar action to **Reload file** (it re-reads the file on disk; “Source” already names the JSON text view) and label the home footer link **Source code**.

@@ -1,6 +1,6 @@
 # Web architecture and verification
 
-Lattice v1.0.0-rc.10 distributes a hosted PWA and a single-file offline HTML. Native apps are not released. Node 24 is for development only; end users need only a supported desktop browser.
+Lattice v1.0.0-rc.11 distributes a hosted PWA and a single-file offline HTML. Native apps are not released. Node 24 is for development only; end users need only a supported desktop browser.
 
 ## Build and verification
 
