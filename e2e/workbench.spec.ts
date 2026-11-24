@@ -294,6 +294,15 @@ test("announces a real waiting service worker without replacing a dirty draft", 
     await expect(page.getByRole("dialog")).toContainText(
       "close all Lattice tabs",
     );
+    // One window left open keeps the old version; say so, and name the build.
+    await expect(page.getByRole("dialog")).toContainText(
+      "one that is still open",
+    );
+    await expect(page.getByRole("dialog")).toContainText(/build [0-9a-f]{7}/);
+    await expect(page.locator(".app-version")).toHaveAttribute(
+      "title",
+      /build [0-9a-f]{7}/i,
+    );
     await page
       .getByRole("button", { name: "Keep working", exact: true })
       .click();
