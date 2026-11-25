@@ -42,7 +42,7 @@ Inline/value-bar previews are bounded at 4,096 characters. Oversized values use 
 
 Select a cell, drag a range, or extend with Shift+click / Shift+arrows. Column letters/titles select across **all matching rows**, including other pages. Row numbers select rows; the corner selects the table. Ctrl/Cmd-click adds or removes row/column ranges.
 
-Array row labels use original zero-based JSON positions, including after sorting/filtering. Property-table rows use displayed row numbers. An optional **Show original index** context-menu column and **Original index** in Details provide more context. Real properties named `index`, `id` or `type` remain ordinary data. Mixed collections may have a generated **Array value** column marked **view**; it cannot be renamed/deleted as a real property.
+Row labels start at 1 and follow the current display order. JSON array indices start at 0 and identify the original array positions, even after sorting or filtering. Right-click a column header and choose **Show original index** to display the original positions. Details also shows the selected row’s original index. Real properties named `index`, `id` or `type` remain ordinary data. Mixed collections may have a generated **Array value** column marked **view**; it cannot be renamed/deleted as a real property.
 
 | Action                | Shortcut                      |
 | --------------------- | ----------------------------- |
@@ -60,7 +60,7 @@ Paste validates the entire operation before applying it as one undo step. It doe
 
 Bulk operations are limited to 10,000 cells and 16,777,216 value characters. Larger ranges can be highlighted, but copying asks for a smaller range. Disjoint row/column ranges copy in table order.
 
-Click unused sheet space to clear selection. Toolbar and value-bar actions preserve the context they need.
+Click unused sheet space to clear selection. Click a column letter to select its cells, or click a column title to select only the name. **⌘/Ctrl+C** and the context menu’s **Copy** follow that selection. Use the header chevron to sort or filter. Right-click a row number or column header for actions on that row or column. Right-click a cell with a nested object or array and choose **Open as table** to explore it.
 
 ## Sort, filter and Find
 
@@ -68,11 +68,11 @@ Use the header chevron for ascending/descending sort and a searchable value chec
 
 Active **Sort** and **Filters** controls appear beside Table/Source. Use their × actions to clear sort or all filters. Open Filters to inspect active columns and clear one. Checklists show up to 2,000 distinct values and report truncation.
 
-**Find in this table** highlights matches and shows the number of matching **cells**, not individual text occurrences. Use its previous/next buttons, **Enter** / **Shift+Enter**, **Match case** and **Match whole word**. Find filters matching rows separately from column checklists. Searching large nested values uses the bounded display preview; Source is available for complete contents.
+**Find in this table** highlights matches and shows the number of matching **cells**, not individual text occurrences. Use its previous/next buttons, **Enter** / **Shift+Enter**, **Match case** and **Match whole word**. Find filters matching rows separately from column checklists. Find searches full nested values and can show a snippet when a match is beyond the cell preview. The query and matching options carry across sheets within the open file. Each sheet shows its own matches. Searches stay separate across files.
 
 ## Source
 
-Select a cell and choose **Source** to locate its exact JSON. Missing properties have no token. A dotted underline marks the exact value; a gutter bar shows its lines. **Selected cell · B4** scrolls back to the linked value without selecting text. Ordinary edits track its range; formatting clears the location marker because it replaces the entire draft.
+Select a cell and choose **Source** to locate its exact JSON. A single selected row opens with the **Selected row** scope. For several rows, Source opens the sheet and jumps to the first selected row. Choose **Find** or press **⌘/Ctrl+F** in the editor to search the current Source scope. Missing properties have no token. A dotted underline marks the exact value; a gutter bar shows its lines. **Go to B4** scrolls back to the linked value without selecting text. Ordinary edits track its range; formatting clears the location marker because it replaces the entire draft.
 
 ![Source with scope, selected-cell location, wrapping and formatting controls](images/source.png)
 

@@ -32,11 +32,11 @@ export function SheetRange({
   isValueColumn,
   showIndex,
   onToggleIndex,
-  onOpenRow,
+  onOpenTable,
 }: {
   showIndex?: boolean;
   onToggleIndex?: () => void;
-  onOpenRow?: (path: Path) => void;
+  onOpenTable?: (path: Path) => void;
   view: Projection;
   children: ReactNode;
   selection: SheetSelection | null;
@@ -45,8 +45,8 @@ export function SheetRange({
   paste: (selection: SheetSelection, text: string) => Promise<void>;
   fill: (selection: SheetSelection) => Promise<void>;
   apply: (ops: AtomicMutation[]) => Promise<void>;
-  onAddRow: () => void;
-  onAddColumn: () => void;
+  onAddRow?: () => void;
+  onAddColumn?: () => void;
   isValueColumn: (column: number) => boolean;
 }) {
   const [message, setMessage] = useState("");
@@ -55,6 +55,7 @@ export function SheetRange({
     y: number;
     r: number;
     c: number;
+    titleOnly?: boolean;
   } | null>(null);
   const [menuPosition, setMenuPosition] = useState<Placement>({
     left: 8,
@@ -276,13 +277,63 @@ export function SheetRange({
       setMessage(String(e));
     }
   }
+  const rowMenu = menu !== null && menu.r >= 0 && menu.c < 0;
+  const columnMenu = menu !== null && menu.r < 0 && menu.c >= 0;
+  const menuCell =
+    menu && menu.r >= 0 && isValueColumn(menu.c)
+      ? view.rows[menu.r]?.cells[menu.c]
+      : undefined;
+  const openableCell = menuCell?.container || menuCell?.type === "array";
+  const showIndexAction = columnMenu && view.kind === "array" && onToggleIndex;
+  const columnFieldAction = columnMenu && view.columnKinds[menu.c] === "field";
+
   const selectors: string[] = [];
-  if (selection?.mode === "columns")
-    for (const [a, b] of selection.spans)
-      selectors.push(
-        `.range-sheet [role=row] [role=gridcell]:nth-child(n+${a + 2}):nth-child(-n+${b + 2})`,
-      );
-  else if (selection)
+  const edgeRules: string[] = [];
+  const axisSelection =
+    selection?.mode === "rows" || selection?.mode === "columns";
+  const gridRow = ".range-sheet .data-grid [role=row]";
+  const rowNumberCell = '[role=gridcell][aria-colindex="1"]';
+  const columnCell = (c: number) => `[role=gridcell][aria-colindex="${c + 2}"]`;
+  const rowAt = (r: number) => `${gridRow}[aria-rowindex="${r - offset + 2}"]`;
+  const edge = (selector: string, side: "top" | "right" | "bottom" | "left") =>
+    edgeRules.push(
+      side === "bottom"
+        ? `${selector}{--range-bottom-border:var(--accent)}`
+        : `${selector}{--range-${side}:1px}`,
+    );
+  const columnHeader = (c: number) =>
+    `.range-sheet .sheet-header-selected[aria-colindex="${c + 2}"]`;
+  if (selection?.mode === "columns") {
+    for (const [a, b] of selection.spans) {
+      for (let c = a; c <= b; c++) {
+        edge(columnHeader(c), "top");
+        if (view.rows.length) {
+          selectors.push(`${gridRow} ${columnCell(c)}`);
+          edge(
+            `${rowAt(offset + view.rows.length - 1)} ${columnCell(c)}`,
+            "bottom",
+          );
+        } else {
+          edge(columnHeader(c), "bottom");
+        }
+      }
+      edge(`${columnHeader(a)},${gridRow} ${columnCell(a)}`, "left");
+      edge(`${columnHeader(b)},${gridRow} ${columnCell(b)}`, "right");
+    }
+  } else if (selection?.mode === "rows" && view.headers.length) {
+    for (const [a, b] of selection.spans) {
+      const first = Math.max(a, offset);
+      const last = Math.min(b, offset + view.rows.length - 1);
+      if (first > last) continue;
+      edge(`${rowAt(first)} [role=gridcell]`, "top");
+      edge(`${rowAt(last)} [role=gridcell]`, "bottom");
+      for (let r = first; r <= last; r++) {
+        selectors.push(`${rowAt(r)} [role=gridcell]`);
+        edge(`${rowAt(r)} ${rowNumberCell}`, "left");
+        edge(`${rowAt(r)} ${columnCell(view.headers.length - 1)}`, "right");
+      }
+    }
+  } else if (selection?.mode === "cells")
     for (let r = 0; r < view.rows.length; r++) {
       const columns = Array.from(
         { length: view.headers.length },
@@ -303,6 +354,7 @@ export function SheetRange({
   return (
     <div
       className="range-sheet"
+      data-axis-selection={axisSelection || undefined}
       onFocusCapture={(e) => {
         if (
           restoringFocus.current ||
@@ -419,37 +471,55 @@ export function SheetRange({
         const p = point(target),
           header = target.closest("[role=columnheader]"),
           row = target.closest("[role=row]");
+        const titleOnly = !!target.closest("[data-column-title]");
         const c = header
           ? Number(header.getAttribute("aria-colindex")) - 2
           : (p?.c ?? -1);
-        if (!p && !header && !row) return;
+        const r = p
+          ? p.r - offset
+          : Number(row?.getAttribute("aria-rowindex")) - 2;
+        if ((!p && !header && !row) || (r < 0 && c < 0)) return;
         e.preventDefault();
         contextTarget.current =
           target.closest<HTMLElement>('[role="gridcell"]') ??
-          header?.querySelector<HTMLElement>("button") ??
+          (titleOnly
+            ? target.closest<HTMLElement>("[data-column-title]")
+            : header?.querySelector<HTMLElement>("button")) ??
           null;
         if (
           p &&
           !selectionContains(selection, p, view.matched, view.headers.length)
         )
           choose(selectCell(null, p));
-        else if (header && c >= 0 && !axisSelected(selection, "columns", c))
+        else if (
+          header &&
+          !titleOnly &&
+          c >= 0 &&
+          !axisSelected(selection, "columns", c)
+        )
           choose(selectHeader(null, "columns", { r: offset, c }));
         else if (!p && !header && row) {
-          const r = Number(row.getAttribute("aria-rowindex")) - 2;
           if (r >= 0 && !axisSelected(selection, "rows", r + offset))
             choose(selectHeader(null, "rows", { r: r + offset, c: 0 }));
         }
         setMenu({
           x: e.clientX,
           y: e.clientY,
-          r: p ? p.r - offset : Number(row?.getAttribute("aria-rowindex")) - 2,
+          r,
           c,
+          titleOnly,
         });
       }}
     >
-      {selectors.length > 0 && (
-        <style>{selectors.join(",") + "{background:var(--selection);}"}</style>
+      {(selectors.length > 0 || edgeRules.length > 0) && (
+        <style>
+          {selectors.length > 0 &&
+            selectors.join(",") +
+              (axisSelection
+                ? "{background-color:var(--selection);--range-divider:color-mix(in srgb,var(--rdg-border-color),var(--accent) 25%);}"
+                : "{background-color:var(--selection);}")}
+          {edgeRules.join("")}
+        </style>
       )}
       {message && (
         <div role="status" className="range-message">
@@ -499,7 +569,17 @@ export function SheetRange({
             if (e.key === "Tab") closeMenu();
           }}
         >
-          {(menu.r >= 0 || menu.c >= 0) && selection && (
+          {menu.titleOnly && (
+            <button
+              role="menuitem"
+              tabIndex={-1}
+              aria-keyshortcuts="Control+C Meta+C"
+              onClick={() => void copyName(columnLabel(view, menu.c))}
+            >
+              Copy <kbd>{shortcut}C</kbd>
+            </button>
+          )}
+          {!menu.titleOnly && (menu.r >= 0 || menu.c >= 0) && selection && (
             <>
               <button
                 role="menuitem"
@@ -509,64 +589,74 @@ export function SheetRange({
               >
                 Copy <kbd>{shortcut}C</kbd>
               </button>
-              <button
-                role="menuitem"
-                tabIndex={-1}
-                aria-keyshortcuts="Control+V Meta+V"
-                disabled={!isValueColumn(menu.c)}
-                onClick={() => void clipboardAction("paste")}
-              >
-                Paste <kbd>{shortcut}V</kbd>
-              </button>
-              <hr />
+              {isValueColumn(menu.c) && (
+                <button
+                  role="menuitem"
+                  tabIndex={-1}
+                  aria-keyshortcuts="Control+V Meta+V"
+                  onClick={() => void clipboardAction("paste")}
+                >
+                  Paste <kbd>{shortcut}V</kbd>
+                </button>
+              )}
             </>
           )}
-          {view.kind === "array" && onToggleIndex && (
+          {(rowMenu ||
+            (columnMenu && !menu.titleOnly) ||
+            columnFieldAction ||
+            (columnMenu && onAddColumn) ||
+            showIndexAction ||
+            (openableCell && onOpenTable)) && <hr />}
+          {showIndexAction && (
             <button
               role="menuitem"
               tabIndex={-1}
               onClick={() => {
-                onToggleIndex();
+                showIndexAction();
                 closeMenu();
               }}
             >
               {showIndex ? "Hide original index" : "Show original index"}
             </button>
           )}
-          {menu.r >= 0 && view.recordsAvailable && onOpenRow && (
+          {openableCell && menuCell && onOpenTable && (
             <button
               role="menuitem"
               tabIndex={-1}
               onClick={() => {
-                onOpenRow(view.rows[menu.r].path);
+                onOpenTable(menuCell.path);
+                closeMenu();
+              }}
+            >
+              Open as table
+            </button>
+          )}
+          {rowMenu && view.recordsAvailable && onOpenTable && (
+            <button
+              role="menuitem"
+              tabIndex={-1}
+              onClick={() => {
+                onOpenTable(view.rows[menu.r].path);
                 closeMenu();
               }}
             >
               Open row
             </button>
           )}
-          <button
-            role="menuitem"
-            tabIndex={-1}
-            onClick={() => {
-              onAddRow();
-              setMenu(null);
-            }}
-          >
-            Add row
-          </button>
-          <button
-            role="menuitem"
-            tabIndex={-1}
-            onClick={() => {
-              onAddColumn();
-              setMenu(null);
-            }}
-          >
-            Add column
-          </button>
-          {menu.r >= 0 && (
+          {rowMenu && (
             <>
+              {onAddRow && (
+                <button
+                  role="menuitem"
+                  tabIndex={-1}
+                  onClick={() => {
+                    closeMenu();
+                    onAddRow();
+                  }}
+                >
+                  Append row
+                </button>
+              )}
               <button
                 role="menuitem"
                 tabIndex={-1}
@@ -604,7 +694,7 @@ export function SheetRange({
                 Fill down
               </button>
             )}
-          {menu.r >= 0 && (
+          {rowMenu && (
             <button
               role="menuitem"
               tabIndex={-1}
@@ -618,7 +708,7 @@ export function SheetRange({
               Delete row
             </button>
           )}
-          {menu.r >= 0 && view.kind === "object" && (
+          {rowMenu && view.kind === "object" && (
             <button
               role="menuitem"
               tabIndex={-1}
@@ -627,7 +717,7 @@ export function SheetRange({
               Copy row name
             </button>
           )}
-          {menu.c >= 0 && (
+          {columnMenu && !menu.titleOnly && (
             <button
               role="menuitem"
               tabIndex={-1}
@@ -636,7 +726,19 @@ export function SheetRange({
               Copy column name
             </button>
           )}
-          {view.columnKinds[menu.c] === "field" && (
+          {columnMenu && onAddColumn && (
+            <button
+              role="menuitem"
+              tabIndex={-1}
+              onClick={() => {
+                closeMenu();
+                onAddColumn();
+              }}
+            >
+              Add column
+            </button>
+          )}
+          {columnFieldAction && (
             <>
               <button
                 role="menuitem"

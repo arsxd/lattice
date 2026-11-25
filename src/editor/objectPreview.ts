@@ -49,9 +49,10 @@ export function objectPreview(raw: string): {
     }
     if (keys.size <= 9) fields = [...keys];
   }
-  const headers = fields.length
-    ? ["Key / index", ...fields]
-    : ["Key / index", "Value"];
+  const headers = [
+    root.type === "object" ? "Key" : "Index",
+    ...(fields.length ? fields : ["Value"]),
+  ];
   const visible = entries.slice(
     0,
     Math.min(20, Math.floor(100 / headers.length)),

@@ -44,7 +44,7 @@ it("previews small heterogeneous records with bounded columns and exact scalar t
   const preview = objectPreview(
     '[{"id":9007199254740993,"tags":[1,-0,1e400]},{"name":"two"}]',
   );
-  expect(preview?.headers).toEqual(["Key / index", "id", "tags", "name"]);
+  expect(preview?.headers).toEqual(["Index", "id", "tags", "name"]);
   expect(preview?.cells).toEqual([
     ["0", "9007199254740993", "[1, -0, 1e400]", ""],
     ["1", "", "", '"two"'],

@@ -278,13 +278,17 @@ export function ValueBarPlaceholder({
       <span className="value-bar-caption sr-only">
         {selected ? caption : "Value"}
       </span>
-      <span
-        className="value-bar-empty-field"
-        aria-label={selected ? `Selected ${caption.toLowerCase()}` : undefined}
-        title={selected ? hint : undefined}
-      >
-        {selected ? value : "Select a cell"}
-      </span>
+      {selected ? (
+        <input
+          className="value-bar-empty-field"
+          aria-label={`Selected ${caption.toLowerCase()}`}
+          title={hint}
+          readOnly
+          value={value}
+        />
+      ) : (
+        <span className="value-bar-empty-field">Select a cell</span>
+      )}
     </div>
   );
 }

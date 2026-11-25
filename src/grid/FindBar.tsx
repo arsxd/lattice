@@ -1,3 +1,4 @@
+import { ColumnMenuChevron } from "./SheetIcons";
 type Props = {
   id?: string;
   label?: string;
@@ -105,7 +106,9 @@ export function FindBar(p: Props) {
           disabled={p.disabled || !p.count}
           onClick={() => p.onNavigate(-1)}
         >
-          ↑
+          <span className="find-previous-chevron">
+            <ColumnMenuChevron />
+          </span>
         </button>
         <button
           type="button"
@@ -114,7 +117,7 @@ export function FindBar(p: Props) {
           disabled={p.disabled || !p.count}
           onClick={() => p.onNavigate(1)}
         >
-          ↓
+          <ColumnMenuChevron />
         </button>
       </span>
     </div>

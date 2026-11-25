@@ -1,13 +1,25 @@
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { objectPreview } from "./objectPreview";
-export function ValueDetails({ raw }: { raw: string }) {
+export function ValueDetails({
+  raw,
+  action,
+}: {
+  raw: string;
+  action?: ReactNode;
+}) {
   const preview = useMemo(() => objectPreview(raw), [raw]);
-  if (!preview) return null;
+  if (!preview && !action) return null;
   return (
     <div className="details-preview">
-      {/* oxlint-disable-next-line jsx-a11y/label-has-associated-control -- caption for the preview table, not a form field */}
-      <label>Contents</label>
-      {preview.total ? (
+      <div className="details-preview-heading">
+        <h3>Contents</h3>
+        {action}
+      </div>
+      {!preview ? (
+        <p className="small">
+          Preview unavailable. Open as table to browse this value.
+        </p>
+      ) : preview.total ? (
         <>
           <div
             className="details-table-scroll"

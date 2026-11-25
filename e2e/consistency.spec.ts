@@ -82,7 +82,7 @@ test("disabled controls share one opacity", async ({ page }) => {
   expect(seen.size).toBe(1);
 });
 
-test("a selected column header looks selected all the way across, arrow included", async ({
+test("selecting a column letter leaves the field-row filter neutral", async ({
   page,
 }) => {
   await openTable(page);
@@ -96,7 +96,7 @@ test("a selected column header looks selected all the way across, arrow included
   await header.locator(".column-select").click();
   const after = await parts();
   expect(after.label).not.toBe(before.label); // selection is shown
-  expect(after.arrow).toBe(after.label); // ...on the arrow as well
+  expect(after.arrow).toBe(before.arrow);
 });
 
 test("the app starts in the light theme unless a theme was chosen", async ({

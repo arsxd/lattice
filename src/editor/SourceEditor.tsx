@@ -1,3 +1,4 @@
+import { openSearchPanel, search, searchKeymap } from "@codemirror/search";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { sourceDiagnostics } from "./sourceDiagnostics";
 import { editorTheme } from "./editorTheme";
@@ -104,11 +105,13 @@ export function SourceEditor({
   formatSource,
   wrapLines,
   onLocateReady,
+  onSearchReady,
   onLocationChange,
 }: {
   value: string;
   dark: boolean;
   wrapLines: boolean;
+  onSearchReady: (open: (() => void) | null) => void;
   onLocateReady: (locate: (() => void) | null) => void;
   onLocationChange: (available: boolean) => void;
   onFormatReady: (
@@ -141,6 +144,7 @@ export function SourceEditor({
         extensions: [
           EditorState.lineSeparator.of(sourceLineSeparator(value)),
           history(),
+          search({ top: true }),
           appearance.current.of(editorTheme(dark)),
           wrapping.current.of(wrapLines ? EditorView.lineWrapping : []),
           sourceLocationField,
@@ -154,6 +158,7 @@ export function SourceEditor({
           sourceDiagnostics,
           syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
           keymap.of([
+            ...searchKeymap,
             ...closeBracketsKeymap,
             ...historyKeymap,
             // CodeMirror binds Ctrl-Y (and Ctrl-Shift-Z only on Linux); Windows users expect both.
@@ -207,6 +212,9 @@ export function SourceEditor({
           animation.play();
         });
     });
+    onSearchReady(() => {
+      openSearchPanel(editor);
+    });
     let alive = true;
     onFormatReady(async (action) => {
       const original = editor.state.doc;
@@ -229,6 +237,7 @@ export function SourceEditor({
       alive = false;
       onFormatReady(null);
       onLocateReady(null);
+      onSearchReady(null);
       locationCallback.current(false);
       editor.destroy();
     };

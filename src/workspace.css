@@ -170,7 +170,7 @@
   color: var(--text);
 }
 .sheet-column-heading small {
-  font-size: 10px;
+  font-size: 11px;
   line-height: 17px;
 }
 .sheet-column-heading {
@@ -184,7 +184,7 @@
   color: var(--muted);
 }
 .data-grid {
-  --rdg-border-color: var(--line);
+  --rdg-border-color: color-mix(in srgb, var(--line) 78%, var(--surface));
   --rdg-header-background-color: var(--chrome);
 }
 
@@ -214,18 +214,19 @@
   padding: 4px 9px;
 }
 .sheet-tabs {
-  min-height: 34px;
+  min-height: 30px;
   padding-inline: 0;
 }
 .sheet-tabs button {
   position: relative;
-  padding: 0 16px;
-  min-height: 34px;
+  padding: 0 12px;
+  min-height: 30px;
   color: var(--muted);
   border-right: 0;
   font-size: 12px;
 }
 .sheet-tabs button[aria-current="page"] {
+  background: transparent;
   box-shadow: none;
 }
 /* Overlay scrollbars float over content; keep them clear of the tab names. */
@@ -236,8 +237,8 @@
   content: "";
   position: absolute;
   bottom: 0;
-  left: 12px;
-  right: 12px;
+  left: 10px;
+  right: 10px;
   height: 2px;
   background: var(--accent);
 }
@@ -470,6 +471,7 @@
   --rdg-frozen-column-shadow-color: transparent;
 }
 .data-grid .row-number {
+  background-color: var(--rdg-header-background-color);
   border-inline-end: 1px solid var(--line);
 }
 
@@ -515,8 +517,9 @@
   text-underline-offset: 3px;
 }
 /* A faint location cue is distinct from selecting an entire row or column. */
-.data-grid .active-cell-header {
-  background: color-mix(in srgb, var(--selection) 45%, var(--chrome));
+.data-grid .row-number.active-cell-header,
+.data-grid .active-cell-header .column-select {
+  background-color: var(--selection);
 }
 
 .active-cell-header .column-select > small,
@@ -848,12 +851,6 @@
 /* Neutral sheet chrome keeps dark mode distinct from blue selection cues. */
 :root[data-theme="dark"] .data-grid {
   --rdg-header-background-color: #303030;
-}
-:root[data-theme="dark"] .data-grid .row-number {
-  background: #303030;
-}
-:root[data-theme="dark"] .data-grid .active-cell-header {
-  background: #454545;
 }
 :root[data-theme="dark"]
   .value-bar
@@ -1189,11 +1186,6 @@ summary[aria-disabled="true"] {
   color: var(--text);
 }
 
-/* A selected column header is selected all the way across, dropdown arrow included. */
-.sheet-column-heading:has(.column-select[aria-pressed="true"]) .header-filter {
-  color: var(--accent);
-}
-
 .sheet-column-heading .header-filter[aria-expanded="true"] {
   background: var(--surface);
   outline: 1px solid var(--accent);
@@ -1206,21 +1198,59 @@ summary[aria-disabled="true"] {
   border-bottom: 1px solid var(--line);
 }
 
-.inspector-selection {
-  margin-top: 12px;
-}
-.inspector-selection .inspector-actions {
-  margin-top: 8px;
-}
 .inspector-metadata {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: 6px 12px;
+  display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  margin: 0;
+  gap: 4px 8px;
+  margin: 12px 0 0;
+  color: var(--muted);
   font-size: 12px;
 }
-.inspector-metadata dt,
+.inspector-metadata dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.inspector-path,
+.inspector-value-state {
+  flex-basis: 100%;
+  min-width: 0;
+}
+.inspector-metadata .inspector-path .path {
+  color: var(--text);
+  font-size: 12px;
+}
+.inspector-type {
+  text-transform: capitalize;
+}
+.inspector-index {
+  display: flex;
+  gap: 4px;
+}
+.inspector-index::before {
+  content: "·";
+  margin-inline-end: 4px;
+}
+.inspector-raw {
+  position: relative;
+  min-height: 27px;
+  margin-top: 12px;
+  font-size: 12px;
+}
+.inspector-raw > button {
+  padding: 4px 8px;
+  font-size: 11px;
+}
+.inspector-raw:has(.inspector-json) > button {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+}
+.inspector-json summary {
+  color: var(--muted);
+  min-height: 27px;
+  padding-inline-end: 86px;
+}
 .inspector-json summary {
   color: var(--muted);
 }
@@ -1287,4 +1317,70 @@ summary[aria-disabled="true"] {
 }
 .inspector .details-preview table {
   min-width: 0;
+}
+
+.details-preview-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 14px;
+}
+.details-preview-heading h3 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 550;
+  color: var(--muted);
+}
+.source-editor .cm-panel.cm-search {
+  padding: 6px 10px;
+}
+.source-editor .cm-search :is(.cm-textfield, .cm-button) {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
+  font: inherit;
+}
+.source-editor .cm-searchMatch {
+  background: var(--find-highlight, #ffd76a);
+  color: #202936;
+}
+.source-editor .cm-searchMatch-selected {
+  outline: 1px solid var(--accent);
+}
+
+.find-previous-chevron {
+  display: inline-flex;
+  transform: rotate(180deg);
+}
+
+.range-sheet[data-axis-selection] {
+  --axis-label-selection: var(--accent);
+}
+.range-sheet
+  :is(.column-select, .row-select)[aria-pressed="true"]:focus-visible {
+  outline: 2px solid var(--surface);
+  outline-offset: -3px;
+}
+.range-sheet[data-axis-selection]
+  .row-number:has(.row-select[aria-pressed="true"]) {
+  background-image: linear-gradient(
+    var(--axis-label-selection),
+    var(--axis-label-selection)
+  );
+  background-clip: padding-box;
+}
+
+.range-sheet[data-axis-selection]
+  :is([role="gridcell"], .sheet-header-selected) {
+  border-block-end-color: var(
+    --range-bottom-border,
+    var(--range-divider, var(--rdg-border-color))
+  );
+  border-inline-end-color: var(--range-divider, var(--rdg-border-color));
+  box-shadow:
+    inset var(--range-left, 0px) 0 var(--accent),
+    inset calc(-1 * var(--range-right, 0px)) 0 var(--accent),
+    inset 0 var(--range-top, 0px) var(--accent);
 }
