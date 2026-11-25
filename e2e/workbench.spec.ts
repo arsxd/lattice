@@ -410,10 +410,14 @@ test("reload retains selected property page and scroll after external column reo
   ).toContainText("C");
 });
 
-test("highlights the entire selected header and avoids a duplicate Browse filename", async ({
+test("axis selections keep visible gridlines and Browse avoids a duplicate filename", async ({
   page,
 }) => {
-  await open(page, '[{"name":"Alpha","count":1}]', "header-test.json");
+  await open(
+    page,
+    '[{"name":"Alpha","count":1},{"name":"Beta","count":2}]',
+    "header-test.json",
+  );
   await page.getByRole("button", { name: "Browse", exact: true }).click();
   await expect(page.locator(".outline")).not.toContainText("header-test.json");
   const button = page.getByRole("button", {
@@ -424,20 +428,21 @@ test("highlights the entire selected header and avoids a duplicate Browse filena
   const header = page.locator(".sheet-header-selected");
   await expect(header).toHaveCount(1);
   await expect(header).toContainText("name");
-  expect(
-    await button.evaluate(
-      (element) => getComputedStyle(element).backgroundColor,
-    ),
-  ).toBe("rgba(0, 0, 0, 0)");
-  expect(
-    await header.evaluate(
-      (element) => getComputedStyle(element).backgroundColor,
-    ),
-  ).not.toBe("rgba(0, 0, 0, 0)");
-  await button.focus();
-  expect(
-    await button.evaluate((element) => getComputedStyle(element).outlineStyle),
-  ).toBe("none");
+  await expect(button).toHaveAttribute("aria-pressed", "true");
+  const grid = page.getByRole("grid", { name: "JSON data table" });
+  const alpha = grid.getByRole("gridcell", { name: "Alpha", exact: true });
+  const beta = grid.getByRole("gridcell", { name: "Beta", exact: true });
+  const headerColor = await header.evaluate(
+    (element) => getComputedStyle(element).backgroundColor,
+  );
+  await expect(alpha).toHaveCSS("background-color", headerColor);
+  await expect(beta).toHaveCSS("background-color", headerColor);
+  const unselected = cell(page, 0, 2);
+  const defaultDivider = await unselected.evaluate(
+    (element) => getComputedStyle(element).borderBottomColor,
+  );
+  await expect(alpha).toHaveCSS("border-bottom-width", "1px");
+  await expect(alpha).not.toHaveCSS("border-bottom-color", defaultDivider);
   await expect(page.locator(".status .document-filename")).toHaveAttribute(
     "title",
     /File information and copy filename/,
@@ -605,7 +610,7 @@ test("column titles reserve filter space and compact property tables avoid horiz
     .evaluateAll((headings) =>
       headings.some((heading) => {
         const title = heading
-          .querySelector(".column-select > span")!
+          .querySelector(".column-title > span")!
           .getBoundingClientRect();
         const arrow = heading
           .querySelector(".header-filter")!
@@ -982,9 +987,24 @@ test("selecting a column header shows its name in the value bar and can copy it"
   await header.click();
   await expect(
     page.getByLabel("Selected column name", { exact: true }),
-  ).toHaveText("count");
+  ).toHaveValue("count");
   await header.click({ button: "right" });
   await page.getByRole("menuitem", { name: "Copy column name" }).click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    "count",
+  );
+  const title = page.getByRole("button", { name: "Select column name count" });
+  await title.click();
+  await expect(title).toHaveAttribute("aria-pressed", "true");
+  await expect(header).toHaveAttribute("aria-pressed", "false");
+  await page.evaluate(() => navigator.clipboard.writeText("before shortcut"));
+  await page.keyboard.press("ControlOrMeta+c");
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    "count",
+  );
+  await page.evaluate(() => navigator.clipboard.writeText("before menu"));
+  await title.click({ button: "right" });
+  await page.getByRole("menuitem", { name: /^Copy / }).click();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
     "count",
   );
@@ -1123,14 +1143,8 @@ test("context menus offer the right copy-name action for rows and columns", asyn
   ).toHaveCount(0);
   await page.getByRole("menuitem", { name: "Copy row name" }).click();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("y");
-  // A cell belongs to both a row and a column.
   await cell(page, 0, 1).click({ button: "right" });
-  await expect(
-    page.getByRole("menuitem", { name: "Copy row name" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("menuitem", { name: "Copy column name" }),
-  ).toBeVisible();
+  await expect(page.getByRole("menuitem")).toHaveText([/^Copy/, /^Paste/]);
   await page.keyboard.press("Escape");
   // Array rows have no name to copy.
   await open(page, '[{"a":1},{"a":2}]');

@@ -152,15 +152,17 @@ test("hidden indices keep first-field editing, sort/filter and freeze tied to th
   await expect(cell(page, 0, 0)).toHaveText("Alpha");
   await page.getByRole("button", { name: "Toggle value inspector" }).click();
   await cell(page, 0, 0).click();
-  await expect(
-    page.locator('.inspector dt:has-text("Original index") + dd'),
-  ).toHaveText("1");
+  await expect(page.locator('.inspector dt:has-text("Index") + dd')).toHaveText(
+    "1",
+  );
   await page.getByRole("button", { name: "Toggle value inspector" }).click();
   await page.locator(".freeze-menu summary").click();
   await page
     .getByRole("button", { name: "Freeze first column", exact: true })
     .click();
-  await cell(page, 0, 0).click({ button: "right" });
+  await page
+    .getByRole("button", { name: "Select column name name", exact: true })
+    .click({ button: "right" });
   await page
     .getByRole("menuitem", { name: "Show original index", exact: true })
     .click();
@@ -173,7 +175,9 @@ test("hidden indices keep first-field editing, sort/filter and freeze tied to th
   await expect(cell(page, 0, 0)).toHaveText("1");
   await expect(cell(page, 0, 1)).toHaveText("Alpha");
   await expect(cell(page, 0, 0).locator(".container-value")).toHaveCount(0);
-  await cell(page, 0, 1).click({ button: "right" });
+  await page
+    .getByRole("button", { name: "Select column name name", exact: true })
+    .click({ button: "right" });
   await page
     .getByRole("menuitem", { name: "Hide original index", exact: true })
     .click();
@@ -189,7 +193,9 @@ test("hidden indices keep first-field editing, sort/filter and freeze tied to th
     .click();
   await page.getByRole("button", { name: "Apply filter", exact: true }).click();
   await expect(cell(page, 0, 0)).toHaveText("Beta");
-  await cell(page, 0, 0).click({ button: "right" });
+  await page
+    .getByRole("button", { name: "Select row 1", exact: true })
+    .click({ button: "right" });
   await page.getByRole("menuitem", { name: "Open row", exact: true }).click();
   await expect(
     grid(page).getByRole("gridcell", { name: "name", exact: true }),

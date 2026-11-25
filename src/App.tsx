@@ -166,6 +166,7 @@ const singleCell = (selection: SheetSelection | null) =>
 export default function App() {
   const [sourceWrapLines, setSourceWrapLines] = useState(false);
   const [hasSourceLocation, setHasSourceLocation] = useState(false);
+  const sourceSearch = useRef<(() => void) | null>(null);
   const sourceLocate = useRef<(() => void) | null>(null);
   const [formattingSource, setFormattingSource] = useState(false);
   const sourceFormatter = useRef<
@@ -336,8 +337,8 @@ export default function App() {
   const headerHeight = view?.headers.some(
     (_, i) => columnLabel(view, i).length * 7 > columnWidth(i) - 42,
   )
-    ? 64
-    : 48;
+    ? 78
+    : 62;
   const frozenLayout = frozenRowLayout({
     rowHeights: view?.rows.map(rowHeight) ?? [],
     columnCount: (view?.headers.length ?? 0) + 1,
@@ -423,12 +424,15 @@ export default function App() {
     sheetSelection?.mode === "cells" &&
     sheetSelection.anchor.r === sheetSelection.end.r &&
     sheetSelection.anchor.c === sheetSelection.end.c;
+  const [columnTitle, setColumnTitle] = useState<number | null>(null);
   const singleColumn =
     sheetSelection?.mode === "columns" &&
     sheetSelection.spans.length === 1 &&
     sheetSelection.spans[0][0] === sheetSelection.spans[0][1]
       ? sheetSelection.spans[0][0]
-      : null;
+      : sheetSelection
+        ? null
+        : columnTitle;
   const selectedPoint = sheetSelection?.anchor;
   const activeCell =
     selectedPoint &&
@@ -597,6 +601,7 @@ export default function App() {
     client.current = s.client;
     setActiveId(s.id);
     setSourceTarget(null);
+    setColumnTitle(null);
     setDoc(s.doc);
     setView(s.view);
     setQuery(s.query);
@@ -965,18 +970,29 @@ export default function App() {
           }
         }
       } else await client.current!.call("locate", { path: target });
-      const q = previous
-        ? { ...previous, path: target }
-        : {
-            ...query,
-            path: target,
-            filters: undefined,
-            valueFilters: undefined,
-            records: true,
-            search: "",
-            sort: undefined,
-            page: 0,
-          };
+      const activeFind = {
+        search: findDraft,
+        searchCaseSensitive: query.searchCaseSensitive,
+        searchWholeWord: query.searchWholeWord,
+      };
+      const sameSearch =
+        previous &&
+        previous.search === activeFind.search &&
+        previous.searchCaseSensitive === activeFind.searchCaseSensitive &&
+        previous.searchWholeWord === activeFind.searchWholeWord;
+      const q = {
+        ...(previous ?? {
+          ...query,
+          filters: undefined,
+          valueFilters: undefined,
+          records: true,
+          sort: undefined,
+        }),
+        ...activeFind,
+        path: target,
+        searchResult: sameSearch ? previous.searchResult : undefined,
+        page: sameSearch ? previous.page : 0,
+      };
       await refresh(q);
       navigationHistory.current.set(
         activeId,
@@ -985,6 +1001,7 @@ export default function App() {
       ++selectionRequest.current;
       setSelection(null);
       setSheetSelection(null);
+      setColumnTitle(null);
       setQuery(q);
       setMode("table");
       if (JSON.stringify(target) !== JSON.stringify(path))
@@ -1560,6 +1577,13 @@ export default function App() {
   function rowLabel(position: number): number {
     return (view?.page ?? 0) * 500 + position + 1;
   }
+  function selectColumnTitle(column: number) {
+    if (busyRef.current) return;
+    ++selectionRequest.current;
+    setSheetSelection(null);
+    setSelection(null);
+    setColumnTitle(column);
+  }
   const activeFilters = useMemo(
     () => columnFilterSummaries(query, view),
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- columnFilterSummaries reads only filters and valueFilters
@@ -1606,6 +1630,7 @@ export default function App() {
               width: 44,
               minWidth: 44,
               frozen: true,
+              headerCellClass: "sheet-header sheet-corner",
               cellClass: (row) =>
                 singleCellSelected &&
                 activeCell &&
@@ -1678,28 +1703,7 @@ export default function App() {
                   : "sheet-header",
               frozen: i < columnsFrozen,
               renderHeaderCell: () => (
-                // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- pointer shortcut; keyboard uses the Select column button inside
-                <div
-                  className="sheet-column-heading"
-                  onClick={(event) => {
-                    if (
-                      busy ||
-                      (event.target as Element).closest(".header-filter")
-                    )
-                      return;
-                    setSheetSelection(
-                      selectHeader(
-                        sheetSelection,
-                        "columns",
-                        { r: view.page * 500, c: i },
-                        {
-                          extend: event.shiftKey,
-                          additive: event.ctrlKey || event.metaKey,
-                        },
-                      ),
-                    );
-                  }}
-                >
+                <div className="sheet-column-heading">
                   <button
                     className="column-select"
                     data-column-select
@@ -1708,6 +1712,7 @@ export default function App() {
                     disabled={busy}
                     onClick={(e) => {
                       e.stopPropagation();
+                      setColumnTitle(null);
                       setSheetSelection(
                         selectHeader(
                           sheetSelection,
@@ -1721,68 +1726,102 @@ export default function App() {
                       );
                     }}
                   >
-                    <small>{columnLetter(i)}</small>{" "}
-                    <span title={columnLabel(view, i)}>
-                      {view.searchHeaderMatches?.includes(i) ? (
-                        <FindHighlight
-                          search={query.search}
-                          caseSensitive={query.searchCaseSensitive}
-                          wholeWord={query.searchWholeWord}
-                          text={columnLabel(view, i)}
-                        />
-                      ) : (
-                        columnLabel(view, i)
-                      )}
-                      {view.columnKinds[i] === "mixed" && (
-                        <small
-                          className="generated-column-tag"
-                          title="Generated view column for non-object array items; not a JSON property"
-                        >
-                          view
-                        </small>
-                      )}
-                      {query.sort?.column === i && (
-                        <span
-                          className="sort-indicator"
-                          aria-label={
-                            query.sort.direction === "ASC"
-                              ? "Sorted ascending"
-                              : "Sorted descending"
-                          }
-                        >
-                          {query.sort.direction === "ASC" ? " ↑" : " ↓"}
-                        </span>
-                      )}
-                    </span>
+                    <small>{columnLetter(i)}</small>
                   </button>
-                  <button
-                    className={`header-filter ${activeFilters.some((filter) => filter.column === i) ? "filter-active" : ""}`}
-                    title={
-                      activeFilters.find((filter) => filter.column === i)
-                        ? `${columnLabel(view, i)}: ${activeFilters.find((filter) => filter.column === i)!.description}`
-                        : `Sort and filter ${columnLabel(view, i)}`
-                    }
-                    // oxlint-disable-next-line jsx-a11y/role-supports-aria-props -- aria-description (ARIA 1.3) adds the filter summary; title carries it too
-                    aria-description={
-                      activeFilters.find((filter) => filter.column === i)
-                        ?.description
-                    }
-                    onKeyDown={(e) => e.stopPropagation()}
-                    disabled={operationBusy}
-                    aria-expanded={headerMenu === i}
-                    aria-label={`Sort and filter ${columnLabel(view, i)}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setFilterAnchor(e.currentTarget);
-                      setHeaderMenu(headerMenu === i ? null : i);
-                    }}
-                  >
-                    <ColumnMenuChevron
-                      filtered={activeFilters.some(
-                        (filter) => filter.column === i,
-                      )}
-                    />
-                  </button>
+                  <div className="column-field-heading">
+                    <button
+                      className="column-title"
+                      data-column-title
+                      aria-label={`Select column name ${columnLabel(view, i)}`}
+                      aria-pressed={!sheetSelection && columnTitle === i}
+                      disabled={busy}
+                      title={columnLabel(view, i)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        selectColumnTitle(i);
+                      }}
+                      onContextMenu={() => selectColumnTitle(i)}
+                      onKeyDown={(event) => {
+                        if (
+                          (event.ctrlKey || event.metaKey) &&
+                          event.key.toLowerCase() === "c"
+                        ) {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          void navigator.clipboard
+                            .writeText(columnLabel(view, i))
+                            .then(() => setNotice("Copied column name."))
+                            .catch(() =>
+                              setError("Clipboard access is unavailable."),
+                            );
+                        } else if (event.key === "Escape") {
+                          event.stopPropagation();
+                          setColumnTitle(null);
+                        }
+                      }}
+                    >
+                      <span>
+                        {view.searchHeaderMatches?.includes(i) ? (
+                          <FindHighlight
+                            search={query.search}
+                            caseSensitive={query.searchCaseSensitive}
+                            wholeWord={query.searchWholeWord}
+                            text={columnLabel(view, i)}
+                          />
+                        ) : (
+                          columnLabel(view, i)
+                        )}
+                        {view.columnKinds[i] === "mixed" && (
+                          <small
+                            className="generated-column-tag"
+                            title="Generated view column for non-object array items; not a JSON property"
+                          >
+                            view
+                          </small>
+                        )}
+                        {query.sort?.column === i && (
+                          <span
+                            className="sort-indicator"
+                            aria-label={
+                              query.sort.direction === "ASC"
+                                ? "Sorted ascending"
+                                : "Sorted descending"
+                            }
+                          >
+                            {query.sort.direction === "ASC" ? " ↑" : " ↓"}
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                    <button
+                      className={`header-filter ${activeFilters.some((filter) => filter.column === i) ? "filter-active" : ""}`}
+                      title={
+                        activeFilters.find((filter) => filter.column === i)
+                          ? `${columnLabel(view, i)}: ${activeFilters.find((filter) => filter.column === i)!.description}`
+                          : `Sort and filter ${columnLabel(view, i)}`
+                      }
+                      // oxlint-disable-next-line jsx-a11y/role-supports-aria-props -- aria-description (ARIA 1.3) adds the filter summary; title carries it too
+                      aria-description={
+                        activeFilters.find((filter) => filter.column === i)
+                          ?.description
+                      }
+                      onKeyDown={(e) => e.stopPropagation()}
+                      disabled={operationBusy}
+                      aria-expanded={headerMenu === i}
+                      aria-label={`Sort and filter ${columnLabel(view, i)}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFilterAnchor(e.currentTarget);
+                        setHeaderMenu(headerMenu === i ? null : i);
+                      }}
+                    >
+                      <ColumnMenuChevron
+                        filtered={activeFilters.some(
+                          (filter) => filter.column === i,
+                        )}
+                      />
+                    </button>
+                  </div>
                 </div>
               ),
               width: columnWidth(i),
@@ -1919,7 +1958,7 @@ export default function App() {
                     }
                     title={
                       originalIndex
-                        ? "Original array position (starting at zero). Open row from the right-click menu."
+                        ? "Original array position (starting at zero). Right-click the row number to open the row."
                         : c.type === "missing" && c.writable !== false
                           ? `Property absent — double-click or press F2 to add a value. ${pointer(c.path)}`
                           : `${blank ?? c.type} — ${pointer(c.path) || "root"}`
@@ -1966,6 +2005,7 @@ export default function App() {
       selection,
       automaticHeights,
       sheetSelection,
+      columnTitle,
       wrapText,
       activeId,
       columnsFrozen,
@@ -2223,11 +2263,32 @@ export default function App() {
       : undefined;
   const selectedSourceValue =
     currentCell?.container && !selectedIdentifier ? currentCell : undefined;
+  const selectedRowPosition =
+    sheetSelection?.mode === "rows" ? sheetSelection.spans[0]?.[0] : undefined;
+  const selectedRowPath =
+    view && selectedRowPosition !== undefined
+      ? view.rows[selectedRowPosition - view.page * 500]?.path
+      : undefined;
+  const singleSourceRow =
+    selectedRowPath &&
+    pointer(selectedRowPath) !== pointer(view?.path ?? query.path) &&
+    sheetSelection?.spans.length === 1 &&
+    sheetSelection.spans[0][0] === sheetSelection.spans[0][1]
+      ? selectedRowPath
+      : undefined;
+  const selectedSourcePath = selectedSourceValue?.path ?? singleSourceRow;
+  const sourceLocationLabel =
+    selectedRowPath && selectedRowPosition !== undefined
+      ? `row ${selectedRowPosition + 1}`
+      : activeCell && view?.rows[activeCell.row]
+        ? `${columnLetter(activeCell.column)}${rowLabel(activeCell.row)}`
+        : "selected cell";
   const sourceIsSelectedValue =
     !!sourceScope &&
     pointer(sourceScope.path) !== pointer(view?.path ?? query.path);
   function changeQuery(next: Query) {
     if (busyRef.current) return;
+    setColumnTitle(null);
     ++selectionRequest.current;
     setSelection(null);
     const { page: _page, ...currentQuery } = query;
@@ -2330,6 +2391,12 @@ export default function App() {
         }
         const backgroundTarget = e.target instanceof Element ? e.target : null;
         if (backgroundTarget?.closest(".inline-error")) return;
+        if (
+          !backgroundTarget?.closest(
+            ".column-title,.value-bar,.header-filter,.sheet-menu",
+          )
+        )
+          setColumnTitle(null);
         const blankSheet =
           backgroundTarget &&
           (backgroundTarget.matches(".workspace,.range-sheet,.data-grid") ||
@@ -2899,20 +2966,14 @@ export default function App() {
                     <button
                       className="source-cell-locator"
                       disabled={busy}
-                      title={
-                        activeCell && view?.rows[activeCell.row]
-                          ? `Find ${columnLetter(activeCell.column)}${rowLabel(activeCell.row)} in source`
-                          : "Find the selected cell in source"
-                      }
+                      title={`Find ${sourceLocationLabel} in source`}
                       onClick={() => sourceLocate.current?.()}
                     >
-                      {activeCell && view?.rows[activeCell.row]
-                        ? `Go to ${columnLetter(activeCell.column)}${rowLabel(activeCell.row)}`
-                        : "Go to selected cell"}
+                      Go to {sourceLocationLabel}
                     </button>
                   )}
                 {mode === "source" &&
-                (view?.path.length || selectedSourceValue) ? (
+                (view?.path.length || selectedSourcePath) ? (
                   <div
                     className="view-mode source-scope-switch"
                     title={
@@ -2938,21 +2999,21 @@ export default function App() {
                         Current sheet
                       </button>
                     )}
-                    {selectedSourceValue && (
+                    {selectedSourcePath && (
                       <button
                         aria-pressed={
                           !!sourceScope &&
                           pointer(sourceScope.path) ===
-                            pointer(selectedSourceValue.path)
+                            pointer(selectedSourcePath)
                         }
                         disabled={busy || sourceDirty}
                         onClick={() =>
                           void run(() =>
-                            showSource(selectedSourceValue.path).then(() => {}),
+                            showSource(selectedSourcePath).then(() => {}),
                           )
                         }
                       >
-                        Selected value
+                        {singleSourceRow ? "Selected row" : "Selected value"}
                       </button>
                     )}
                     <button
@@ -2977,6 +3038,12 @@ export default function App() {
                     role="group"
                     aria-label="Source actions"
                   >
+                    <button
+                      onClick={() => sourceSearch.current?.()}
+                      title="Find in source (Ctrl/⌘+F)"
+                    >
+                      Find
+                    </button>
                     <button
                       aria-pressed={sourceWrapLines}
                       title="Wrap long source lines visually without changing the JSON"
@@ -3096,17 +3163,21 @@ export default function App() {
                     </button>
                     <button
                       title={
-                        currentCell
-                          ? "Open source at selected cell"
-                          : "Open JSON source"
+                        selectedRowPath
+                          ? "Open source at selected row"
+                          : currentCell
+                            ? "Open source at selected cell"
+                            : "Open JSON source"
                       }
                       aria-pressed={mode === "source"}
                       disabled={busy || mode === "source" || sourceDirty}
                       onClick={() => {
-                        if (selectedSourceValue)
+                        if (selectedSourcePath)
                           void run(async () => {
-                            await showSource(selectedSourceValue.path);
+                            await showSource(selectedSourcePath);
                           });
+                        else if (selectedRowPath)
+                          void showInSource(selectedRowPath);
                         else if (currentCell && currentCell.type !== "missing")
                           void showInSource(
                             currentCell.path,
@@ -3216,7 +3287,7 @@ export default function App() {
                       address={columnLetter(singleColumn)}
                       value={columnLabel(view, singleColumn)}
                       caption="Column name"
-                      hint="Right-click the column to rename it or copy its name."
+                      hint="Select the name to copy it."
                     />
                   ) : (
                     <ValueBarPlaceholder />
@@ -3313,10 +3384,26 @@ export default function App() {
                       isValueColumn={valueColumn}
                       showIndex={query.showIndex !== false}
                       onToggleIndex={() => void toggleIndex()}
-                      onOpenRow={(path) => void navigate(path)}
+                      onOpenTable={(path) => void navigate(path)}
+                      onAddRow={
+                        view.kind === "object" || view.kind === "array"
+                          ? () => void addRow()
+                          : undefined
+                      }
+                      onAddColumn={
+                        view.recordsAvailable
+                          ? () => {
+                              setColumnName("");
+                              setColumnError("");
+                            }
+                          : undefined
+                      }
                       view={view}
                       selection={sheetSelection}
-                      onSelectionChange={setSheetSelection}
+                      onSelectionChange={(next) => {
+                        setColumnTitle(null);
+                        setSheetSelection(next);
+                      }}
                       copy={(selected) =>
                         client.current!.call<string>("copy", {
                           query,
@@ -3333,11 +3420,6 @@ export default function App() {
                           { action: "batch", commands: ops },
                           view.revision,
                         );
-                      }}
-                      onAddRow={() => void addRow()}
-                      onAddColumn={() => {
-                        setColumnName("");
-                        setColumnError("");
                       }}
                     >
                       <DataGrid<Row>
@@ -3797,6 +3879,9 @@ export default function App() {
                       sourceLocate.current = locate;
                     }}
                     onLocationChange={setHasSourceLocation}
+                    onSearchReady={(open) => {
+                      sourceSearch.current = open;
+                    }}
                     onFormatReady={(format) => {
                       sourceFormatter.current = format;
                     }}
@@ -3890,11 +3975,11 @@ export default function App() {
                 </div>
                 {view?.recordsAvailable && (
                   <div className="inspector-layout">
-                    <span>Table layout</span>
+                    <span>Sheet layout</span>
                     <div
                       className="view-mode"
                       role="group"
-                      aria-label="Table layout"
+                      aria-label="Sheet layout"
                     >
                       {[false, true].map((records) => (
                         <button
@@ -3924,78 +4009,88 @@ export default function App() {
                 )}
                 {selection && singleCellSelected ? (
                   <>
-                    <div className="inspector-selection">
-                      <dl className="inspector-metadata">
-                        <dt>Path</dt>
+                    <dl className="inspector-metadata">
+                      <div className="inspector-path">
+                        <dt className="sr-only">Path</dt>
                         <dd>
                           <code className="path">
                             {pointer(selection.cell.path) || "(root)"}
                           </code>
                         </dd>
-                        <dt>JSON type</dt>
+                      </div>
+                      <div className="inspector-type">
+                        <dt className="sr-only">JSON type</dt>
                         <dd>{selection.cell.type}</dd>
-                        {view?.kind === "array" && activeCell && (
-                          <>
-                            <dt>Original index</dt>
-                            <dd>
-                              {String(view.rows[activeCell.row].path.at(-1))}
-                            </dd>
-                          </>
-                        )}
-                        {blankState(selection.cell) && (
-                          <>
-                            <dt>Value state</dt>
-                            <dd>{blankState(selection.cell)}</dd>
-                          </>
-                        )}
-                      </dl>
-                      <div className="inspector-actions">
-                        {selection.cell.container && (
+                      </div>
+                      {view?.kind === "array" && activeCell && (
+                        <div className="inspector-index">
+                          <dt>
+                            <span className="sr-only">Original </span>Index
+                          </dt>
+                          <dd>
+                            {String(view.rows[activeCell.row].path.at(-1))}
+                          </dd>
+                        </div>
+                      )}
+                      {blankState(selection.cell) && (
+                        <div className="inspector-value-state">
+                          <dt className="sr-only">Value state</dt>
+                          <dd>{blankState(selection.cell)}</dd>
+                        </div>
+                      )}
+                    </dl>
+                    <ValueDetails
+                      raw={selection.raw}
+                      action={
+                        selection.cell.container ? (
                           <button
                             className="inspector-open-table"
+                            title="Open this value in the main table"
                             disabled={busy}
                             onClick={() => void navigate(selection.cell.path)}
                           >
                             Open as table
                           </button>
-                        )}
-                        {selection.cell.type !== "missing" && (
-                          <button
-                            disabled={busy}
-                            onClick={() =>
-                              void navigator.clipboard
-                                .writeText(selection.raw)
-                                .then(() => setNotice("Copied JSON value."))
-                                .catch(() =>
-                                  setError("Clipboard access is unavailable."),
-                                )
-                            }
-                          >
-                            Copy JSON
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    <ValueDetails raw={selection.raw} />
+                        ) : undefined
+                      }
+                    />
                     {selection.cell.type !== "missing" && (
-                      <details className="inspector-json">
-                        <summary>
-                          <ColumnMenuChevron />
-                          {selectedJsonPreview?.truncated
-                            ? "JSON preview"
-                            : "Exact JSON"}
-                        </summary>
-                        <pre className="value-preview">
-                          {selectedJsonPreview?.text}
-                        </pre>
-                        {selectedJsonPreview?.truncated && (
-                          <p className="small">
-                            Showing the first{" "}
-                            {JSON_PREVIEW_LIMIT.toLocaleString()} characters.
-                            Copy JSON copies the full value.
-                          </p>
+                      <div className="inspector-raw">
+                        {selectedPresentation?.text !== selection.raw && (
+                          <details className="inspector-json">
+                            <summary>
+                              <ColumnMenuChevron />
+                              {selectedJsonPreview?.truncated
+                                ? "JSON preview"
+                                : "Exact JSON"}
+                            </summary>
+                            <pre className="value-preview">
+                              {selectedJsonPreview?.text}
+                            </pre>
+                            {selectedJsonPreview?.truncated && (
+                              <p className="small">
+                                Showing the first{" "}
+                                {JSON_PREVIEW_LIMIT.toLocaleString()}{" "}
+                                characters. Copy JSON copies the full value.
+                              </p>
+                            )}
+                          </details>
                         )}
-                      </details>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() =>
+                            void navigator.clipboard
+                              .writeText(selection.raw)
+                              .then(() => setNotice("Copied JSON value."))
+                              .catch(() =>
+                                setError("Clipboard access is unavailable."),
+                              )
+                          }
+                        >
+                          Copy JSON
+                        </button>
+                      </div>
                     )}
                     <div className="structural-actions">
                       {selection.cell.writable !== false && (

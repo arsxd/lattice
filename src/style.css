@@ -756,13 +756,6 @@ button[aria-pressed="true"] {
   font-variant-numeric: tabular-nums;
   padding: 0 !important;
 }
-.sheet-column-heading {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  height: 100%;
-  line-height: 20px;
-}
 .sheet-column-heading small {
   font-size: 10px;
   font-weight: 400;
@@ -937,10 +930,6 @@ select {
 }
 .select-inset select:focus-visible {
   outline: none;
-}
-.sheet-column-heading {
-  position: relative;
-  padding-right: 28px;
 }
 .header-filter {
   position: absolute;
@@ -1321,8 +1310,9 @@ select optgroup {
   border-radius: 0;
 }
 .row-select[aria-pressed="true"] {
-  background: var(--selection);
-  color: var(--accent);
+  background: transparent;
+  color: var(--surface);
+  font-weight: 600;
 }
 .column-select:focus-visible,
 .row-select:focus-visible {
@@ -1371,8 +1361,7 @@ select optgroup {
   gap: 8px;
   padding: 6px 10px;
 }
-.column-select .sheet-column-name,
-.column-select > span:last-child {
+.column-title > span {
   white-space: normal;
   overflow: hidden;
   display: -webkit-box;
@@ -1630,25 +1619,9 @@ select optgroup {
   box-shadow: 0 1px var(--line);
 }
 
-/* Select the complete header, including the filter area, with one focus boundary. */
-.data-grid .sheet-header-selected {
-  background: var(--selection);
-  color: var(--accent);
-}
-.sheet-header-selected .column-select > small {
-  color: inherit;
-}
-.data-grid .sheet-header[aria-selected="true"],
-.data-grid .sheet-header:has(.column-select:focus-visible) {
+/* When a header control owns focus, show its own boundary. */
+.data-grid .sheet-header:has(.sheet-column-heading):not(:focus-visible) {
   outline: none;
-  box-shadow: inset 0 0 0 2px var(--accent);
-}
-.data-grid .sheet-header .column-select:focus-visible {
-  outline: none;
-}
-.data-grid .column-select[aria-pressed="true"] {
-  background: transparent;
-  color: inherit;
 }
 .diff-review .diff-host .cm-editor .cm-collapsedLines {
   background: var(--chrome);
@@ -1665,37 +1638,95 @@ select optgroup {
   display: none;
 }
 
-/* Header title and filter have distinct layout slots inside one selection surface. */
+/* The letter strip and field headers share the grid’s column widths. */
 .data-grid .sheet-header {
+  --sheet-letter-height: 28px;
   padding: 0;
 }
+.data-grid .sheet-corner,
 .sheet-column-heading {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 28px;
+  grid-template: var(--sheet-letter-height) minmax(0, 1fr) / minmax(0, 1fr);
+}
+.data-grid .sheet-corner .select-all-cells {
+  grid-row: 1;
+  border-bottom: 1px solid var(--line);
+}
+.sheet-column-heading {
   width: 100%;
   height: 100%;
-  padding: 0;
   line-height: 17px;
 }
+.sheet-column-heading .column-select,
+.sheet-column-heading .column-title {
+  min-width: 0;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
 .sheet-column-heading .column-select {
-  width: 100%;
-  height: 100%;
-  padding: 4px 8px;
-  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+}
+.sheet-column-heading
+  .column-select[aria-pressed="false"]:hover:not(:disabled) {
+  background: var(--hover);
+}
+.data-grid .sheet-header-selected {
+  background-color: var(--selection);
+  background-image: linear-gradient(
+    to bottom,
+    var(--axis-label-selection) var(--sheet-letter-height),
+    transparent var(--sheet-letter-height)
+  );
+}
+.sheet-header-selected .column-select[aria-pressed="true"] {
+  background: transparent;
+  color: var(--surface);
+  font-weight: 600;
+}
+.sheet-header-selected .column-select[aria-pressed="true"] > small {
+  color: inherit;
+  font-weight: inherit;
+}
+.column-field-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+}
+.sheet-column-heading .column-title {
+  padding-block: 3px;
+  text-align: left;
+  font-weight: 550;
+  color: var(--text);
   overflow: hidden;
 }
-.sheet-column-heading .column-select > span {
-  min-width: 0;
-  max-width: 100%;
+.sheet-column-heading .column-title > span {
   overflow-wrap: anywhere;
+}
+.column-field-heading:has(.column-title[aria-pressed="true"]) {
+  background: var(--selection);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.sheet-column-heading .column-title[aria-pressed="true"] {
+  color: var(--accent);
+}
+.sheet-column-heading :is(.column-select, .column-title):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.column-field-heading:has(.column-title[aria-pressed="true"])
+  .column-title:focus-visible {
+  outline: none;
 }
 .sheet-column-heading .header-filter {
   position: static;
-  align-self: end;
+  align-self: center;
   width: 24px;
   height: 24px;
-  /* Inset so the hover background never touches the cell borders. */
-  margin: 0 4px 4px 0;
+  margin: 0 4px 0 0;
   border-radius: 4px;
   padding: 0;
   display: flex;
