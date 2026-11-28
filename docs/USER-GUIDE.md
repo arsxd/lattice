@@ -36,7 +36,7 @@ Nested cells show bounded JSON previews. Double-click/F2 edits eligible values; 
 
 **Wrap text** expands only overflowing rows, up to five automatic lines for nested previews and three for ordinary values. Manually increasing row height reveals more of the loaded preview. An ellipsis signals clipped or truncated content. It does not mean the stored JSON has been shortened.
 
-Inline/value-bar previews are bounded at 4,096 characters. Oversized values use a read-only preview so truncated text cannot overwrite the original. Details raw previews stop at 8,192 characters. Source and **Copy JSON** provide complete values.
+Inline/value-bar previews are bounded at 4,096 characters. Oversized values use a read-only preview so truncated text cannot overwrite the original. The compact JSON preview in Details is scrollable and stops at 8,192 characters. Source and **Copy JSON** provide complete values.
 
 ## Select, copy and paste
 
@@ -46,6 +46,9 @@ Row labels start at 1 and follow the current display order. JSON array indices s
 
 | Action                | Shortcut                      |
 | --------------------- | ----------------------------- |
+| Open JSON file        | Ctrl/Cmd+O                    |
+| Save / Download       | Ctrl/Cmd+S                    |
+| Save as (when shown)  | Ctrl/Cmd+Shift+S              |
 | Copy / paste values   | Ctrl/Cmd+C / Ctrl/Cmd+V       |
 | Fill down             | Ctrl/Cmd+D                    |
 | Select current column | Ctrl+Space                    |
@@ -54,7 +57,7 @@ Row labels start at 1 and follow the current display order. JSON array indices s
 | Edit / cancel         | F2 / Escape                   |
 | Document undo / redo  | Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z |
 
-Clipboard values use quoted TSV compatible with spreadsheet cells. Copy uses complete values, not cell previews. Hold **Alt** (**Option** on macOS) to reveal shortcut letters. **Alt+A** adds a row and **Alt+C** opens Add column. **Alt+O** toggles Browse and **Alt+L** toggles Details in Table view. In an open context menu, release Alt and press the underlined letter, such as **D** to duplicate a row. Use **Shift+E** for Delete in that menu. Copy and Paste from the context menu depend on clipboard permission. Inside a text editor, normal browser text selection applies.
+Clipboard values use quoted TSV compatible with spreadsheet cells. Copy uses complete values, not cell previews. Hold **Alt** (**Option** on macOS) to reveal shortcut letters. **Alt+A** adds a row and **Alt+C** opens Add column. **Alt+O** toggles Browse and **Alt+L** toggles Details in Table view. **Alt+U** opens Source, **Alt+G** opens or closes Review changes, and **Alt+W** toggles wrapping in Table or Source. In an open context menu, release Alt and press the underlined letter, such as **D** to duplicate a row. Use **Shift+E** for Delete in that menu. Copy and Paste from the context menu depend on clipboard permission. Inside a text editor, normal browser text selection applies.
 
 Paste validates the entire operation before applying it as one undo step. It does not grow the table. It can cross pages within the filtered/sorted table, but requires one adjacent destination and compatible writable cells. Empty pasted text stays empty text in a string cell; in non-string cells, blank paste becomes null. Fill down repeats the top selected value; it does not generate a numeric series.
 

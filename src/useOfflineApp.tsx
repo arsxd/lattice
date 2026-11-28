@@ -133,22 +133,21 @@ export function useOfflineApp(canReload: boolean) {
           ref={updateDialog}
           className="update-dialog"
           aria-labelledby="update-title"
+          aria-describedby="update-description"
         >
           <h2 id="update-title">Update available</h2>
-          <p>
+          <p id="update-description">
             {canReload
-              ? "Update now reloads this window with the new build."
-              : "Save your work and close all documents in this window to enable Update now."}
+              ? "Lattice will reload to finish updating."
+              : "Save your work and close all open documents in this window to update."}
           </p>
           {updateError && <p role="alert">{updateError}</p>}
-          <p className="small">
-            This window runs build {__APP_BUILD__}. After reopening, hover the
-            version in the status bar to confirm it changed.
-          </p>
+          <p className="update-build">Current build {__APP_BUILD__}</p>
           <form method="dialog" className="dialog-actions">
             <button autoFocus>Keep working</button>
             <button
               type="button"
+              className="primary"
               disabled={!canReload || applyingUpdate}
               onClick={applyUpdate}
             >

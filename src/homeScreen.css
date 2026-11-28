@@ -1,4 +1,12 @@
+.home-screen-scroll {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
 .home-screen {
+  flex: none;
   width: min(100%, 640px);
   margin: auto;
   padding: 48px 32px 32px;
@@ -38,6 +46,9 @@
   color: var(--muted);
   font-size: 12px;
   line-height: 1.7;
+}
+.home-screen > .update-available {
+  margin-top: 12px;
 }
 .home-screen-recovery {
   margin-top: 24px;

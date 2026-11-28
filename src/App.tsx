@@ -59,13 +59,7 @@ import { ColumnMenu } from "./grid/ColumnMenu";
 import { ValueBar, ValueBarPlaceholder } from "./editor/ValueBar";
 import { SheetRange } from "./grid/SheetRange";
 import ReviewDiff from "./editor/ReviewDiff";
-import {
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   DataGrid,
   type Column,
@@ -241,10 +235,11 @@ export default function App() {
   const grid = useRef<DataGridHandle>(null);
   const reloadButton = useRef<HTMLButtonElement>(null);
   const paneToolbar = useRef<HTMLDivElement>(null);
+  const locationToolbar = useRef<HTMLDivElement>(null);
   const tableToolbar = useRef<HTMLDivElement>(null);
-  const [shortcutHints, setShortcutHints] = useState<"toolbar" | "table" | null>(
-    null,
-  );
+  const [shortcutHints, setShortcutHints] = useState<
+    "toolbar" | "table" | null
+  >(null);
   const [freezeSettings, setFreezeSettings] = useState<
     Record<string, { rows: number; columns: number }>
   >({});
@@ -339,7 +334,12 @@ export default function App() {
         : 0,
     );
   };
-  function resizeRow(row: Row, rowIdx: number, height?: number, commit = false) {
+  function resizeRow(
+    row: Row,
+    rowIdx: number,
+    height?: number,
+    commit = false,
+  ) {
     if (!view) return;
     const offset = view.page * PAGE_SIZE;
     const selected = axisSelected(sheetSelection, "rows", offset + rowIdx);
@@ -381,7 +381,8 @@ export default function App() {
     const widths = new Map<string, { type: "resized"; width: number }>();
     for (let i = 0; i < (view?.headers.length ?? 0); i++) {
       const width = columnWidths[`${tableHeightKey}:${i}`];
-      if (width !== undefined) widths.set(String(i), { type: "resized", width });
+      if (width !== undefined)
+        widths.set(String(i), { type: "resized", width });
     }
     return widths;
   }, [columnWidths, tableHeightKey, view?.headers.length]);
@@ -560,7 +561,8 @@ export default function App() {
   useEffect(() => {
     if (!reloadNoticeVisible) return;
     const timer = setTimeout(
-      () => setNotice((current) => (current === "File reloaded." ? "" : current)),
+      () =>
+        setNotice((current) => (current === "File reloaded." ? "" : current)),
       3500,
     );
     return () => clearTimeout(timer);
@@ -1406,8 +1408,7 @@ export default function App() {
                 };
         }
         await mutate(command, e.revision);
-        if (e.newSheet)
-          createdSheet = [...e.path, e.newSheet.index ?? e.key];
+        if (e.newSheet) createdSheet = [...e.path, e.newSheet.index ?? e.key];
         setEditing(null);
       } catch (e) {
         setEditError(e instanceof Error ? e.message : String(e));
@@ -1829,7 +1830,11 @@ export default function App() {
                     aria-label={`Select row ${rowLabel(rowIdx)}`}
                     aria-pressed={
                       !!sheetSelection?.wholeTable ||
-                      axisSelected(sheetSelection, "rows", view.page * 500 + rowIdx)
+                      axisSelected(
+                        sheetSelection,
+                        "rows",
+                        view.page * 500 + rowIdx,
+                      )
                     }
                     disabled={busy}
                     onClick={(e) => {
@@ -2412,8 +2417,7 @@ export default function App() {
         )
       ) {
         const valueBarHasDraft = valueBarHasChanges.current();
-        const tableShortcutsAvailable =
-          mode === "table" && !valueBarHasDraft;
+        const tableShortcutsAvailable = mode === "table" && !valueBarHasDraft;
         if (e.key === "Alt") {
           setShortcutHints(tableShortcutsAvailable ? "table" : "toolbar");
           return;
@@ -2439,6 +2443,9 @@ export default function App() {
         if (!letter || valueBarHasDraft) return;
         const action =
           paneToolbar.current?.querySelector<HTMLElement>(
+            `[data-mnemonic="${letter}"]:not(:disabled)`,
+          ) ??
+          locationToolbar.current?.querySelector<HTMLElement>(
             `[data-mnemonic="${letter}"]:not(:disabled)`,
           ) ??
           (tableShortcutsAvailable
@@ -2533,8 +2540,11 @@ export default function App() {
     [selection],
   );
   const selectedJsonPreview = useMemo(
-    () => (selection ? jsonSelectionPreview(selection.raw) : null),
-    [selection],
+    () =>
+      inspector && selection && selectedPresentation?.text !== selection.raw
+        ? jsonSelectionPreview(selection.raw)
+        : null,
+    [inspector, selection, selectedPresentation],
   );
   const currentCell =
     singleCellSelected && activeCell && activeCell.column >= 0
@@ -2548,10 +2558,11 @@ export default function App() {
     currentCell?.container && !selectedIdentifier ? currentCell : undefined;
   const selectedRowPosition =
     sheetSelection?.mode === "rows" ? sheetSelection.spans[0]?.[0] : undefined;
-  const selectedRowPath =
+  const selectedRow =
     view && selectedRowPosition !== undefined
-      ? view.rows[selectedRowPosition - view.page * 500]?.path
+      ? view.rows[selectedRowPosition - view.page * PAGE_SIZE]
       : undefined;
+  const selectedRowPath = selectedRow?.path;
   const singleSourceRow =
     selectedRowPath &&
     pointer(selectedRowPath) !== pointer(view?.path ?? query.path) &&
@@ -2881,12 +2892,19 @@ export default function App() {
         >
           New
         </button>
-        <button onClick={() => void open()} disabled={busy}>
+        <button
+          onClick={() => void open()}
+          disabled={busy}
+          title="Open JSON file (Ctrl/⌘+O)"
+          aria-keyshortcuts="Control+O Meta+O"
+        >
           Open…
         </button>
         <button
           onClick={() => void save()}
           disabled={busy || !doc || !!view?.diagnostics.length || sourceDirty}
+          title={browserSave ? "Save (Ctrl/⌘+S)" : "Download (Ctrl/⌘+S)"}
+          aria-keyshortcuts="Control+S Meta+S"
         >
           {browserSave ? "Save" : "Download"}
         </button>
@@ -2894,6 +2912,8 @@ export default function App() {
           <button
             onClick={() => void save(true)}
             disabled={busy || !doc || !!view?.diagnostics.length || sourceDirty}
+            title="Save as (Ctrl/⌘+Shift+S)"
+            aria-keyshortcuts="Control+Shift+S Meta+Shift+S"
           >
             Save as…
           </button>
@@ -3041,24 +3061,26 @@ export default function App() {
         </div>
       )}
       {!doc ? (
-        <HomeScreen
-          webClient
-          busy={busy}
-          onOpen={() => void open()}
-          onNew={() =>
-            void run(() => load({ name: "untitled.json", text: "{}\n" }))
-          }
-          onSample={() =>
-            void run(() =>
-              load({ name: "bookshop-workspace.json", text: sample }, [
-                "books",
-              ]),
-            )
-          }
-          installPrompt={installPrompt}
-          updateStatus={updateStatus}
-          recoverySetting={recoverySetting}
-        />
+        <div className="home-screen-scroll">
+          <HomeScreen
+            webClient
+            busy={busy}
+            onOpen={() => void open()}
+            onNew={() =>
+              void run(() => load({ name: "untitled.json", text: "{}\n" }))
+            }
+            onSample={() =>
+              void run(() =>
+                load({ name: "bookshop-workspace.json", text: sample }, [
+                  "books",
+                ]),
+              )
+            }
+            installPrompt={installPrompt}
+            updateStatus={updateStatus}
+            recoverySetting={recoverySetting}
+          />
+        </div>
       ) : (
         <>
           <div
@@ -3132,7 +3154,10 @@ export default function App() {
                     >
                       {s.id === activeId ? doc.name : s.doc.name}
                       {(s.id === activeId ? dirty : sessionDirty(s)) && (
-                        <span aria-label="Unsaved changes" className="dirty-dot">
+                        <span
+                          aria-label="Unsaved changes"
+                          className="dirty-dot"
+                        >
                           {" "}
                           ●
                         </span>
@@ -3180,18 +3205,24 @@ export default function App() {
                   (sourceDirty || !!doc?.reviewUnavailable || !dirty))
               }
               aria-pressed={mode === "review"}
+              aria-keyshortcuts="Alt+G"
+              data-mnemonic="G"
               onClick={() => void toggleReview()}
               title={
                 mode === "review"
-                  ? "Return to the previous view"
+                  ? "Return to the previous view (Alt+G)"
                   : doc?.reviewUnavailable
                     ? "Comparison unavailable: local recovery contains the draft but not the original file. A confirmed save establishes a new baseline."
                     : !dirty
                       ? "No changes to review yet"
-                      : "Compare with the opened or saved version"
+                      : "Compare with the opened or saved version (Alt+G)"
               }
             >
-              {mode === "review" ? "Close review" : "Review changes"}
+              {mode === "review" ? (
+                "Close review"
+              ) : (
+                <MnemonicLabel label="Review changes" letter="G" />
+              )}
             </button>
             {mode === "table" && (
               <button
@@ -3235,7 +3266,11 @@ export default function App() {
               />
             )}
             <section className="document">
-              <div className="location">
+              <div
+                ref={locationToolbar}
+                className="location"
+                data-show-mnemonics={!!shortcutHints || undefined}
+              >
                 <div
                   className="location-history"
                   role="group"
@@ -3382,10 +3417,12 @@ export default function App() {
                     </button>
                     <button
                       aria-pressed={sourceWrapLines}
-                      title="Wrap long source lines visually without changing the JSON"
+                      aria-keyshortcuts="Alt+W"
+                      data-mnemonic="W"
+                      title="Wrap long source lines visually (Alt+W)"
                       onClick={() => setSourceWrapLines(!sourceWrapLines)}
                     >
-                      Wrap lines
+                      <MnemonicLabel label="Wrap lines" letter="W" />
                     </button>
                     <div
                       className="source-format-options"
@@ -3523,12 +3560,14 @@ export default function App() {
                     <button
                       title={
                         selectedRowPath
-                          ? "Open source at selected row"
+                          ? "Open source at selected row (Alt+U)"
                           : currentCell
-                            ? "Open source at selected cell"
-                            : "Open JSON source"
+                            ? "Open source at selected cell (Alt+U)"
+                            : "Open JSON source (Alt+U)"
                       }
                       aria-pressed={mode === "source"}
+                      aria-keyshortcuts="Alt+U"
+                      data-mnemonic="U"
                       disabled={busy || mode === "source" || sourceDirty}
                       onClick={() => {
                         if (selectedSourcePath)
@@ -3548,7 +3587,7 @@ export default function App() {
                         }
                       }}
                     >
-                      Source
+                      <MnemonicLabel label="Source" letter="U" />
                     </button>
                   </div>
                 </div>
@@ -3643,6 +3682,16 @@ export default function App() {
                           selection.revision,
                         );
                       }}
+                    />
+                  ) : singleSourceRow &&
+                    selectedRowPosition !== undefined &&
+                    selectedRow?.canOpenAsTable ? (
+                    <ValueBarPlaceholder
+                      value={`Row ${selectedRowPosition + 1}`}
+                      caption="Row"
+                      hint="Selected row"
+                      onOpenRow={() => void navigate(singleSourceRow)}
+                      disabled={busy}
                     />
                   ) : singleColumn !== null && view ? (
                     <ValueBarPlaceholder
@@ -3980,7 +4029,9 @@ export default function App() {
                     <div
                       ref={tableToolbar}
                       className="pagination"
-                      data-show-mnemonics={shortcutHints === "table" || undefined}
+                      data-show-mnemonics={
+                        shortcutHints === "table" || undefined
+                      }
                     >
                       <div className="table-actions">
                         {((query.records && view.recordsAvailable) ||
@@ -4028,7 +4079,9 @@ export default function App() {
                                 });
                               }}
                               aria-label={
-                                view.kind === "object" ? "Add property" : "Add item"
+                                view.kind === "object"
+                                  ? "Add property"
+                                  : "Add item"
                               }
                               aria-keyshortcuts={
                                 view.kind === "object" ? "Alt+Y" : "Alt+I"
@@ -4038,7 +4091,10 @@ export default function App() {
                               }
                             >
                               {view.kind === "object" ? (
-                                <MnemonicLabel label="Add property" letter="Y" />
+                                <MnemonicLabel
+                                  label="Add property"
+                                  letter="Y"
+                                />
                               ) : (
                                 <MnemonicLabel label="Add item" letter="I" />
                               )}
@@ -4446,12 +4502,22 @@ export default function App() {
                               <ColumnMenuChevron />
                               JSON preview
                             </summary>
-                            <pre className="value-preview">
-                              {selectedJsonPreview?.text}
+                            <pre
+                              className="value-preview"
+                              role="region"
+                              aria-label="Formatted JSON preview"
+                              // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- keyboard access to scroll the preview
+                              tabIndex={0}
+                            >
+                              <JsonPreview
+                                text={selectedJsonPreview?.text ?? ""}
+                                search=""
+                              />
                             </pre>
                             {selectedJsonPreview?.truncated && (
                               <p className="small">
-                                Preview shortened. Copy JSON copies the full value.
+                                Preview shortened. Copy JSON copies the full
+                                value.
                               </p>
                             )}
                           </details>
