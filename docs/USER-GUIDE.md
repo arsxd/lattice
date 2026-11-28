@@ -4,7 +4,7 @@
 
 ## Open your first document
 
-Open a JSON file, drop it onto the app, or choose **Explore sample workspace**. The downloaded HTML opens directly in a desktop browser; no Node.js or server is needed. Try the fictional sample to get familiar with editing and Save/Download.
+Open a JSON file, drop it onto the app, or choose **Try sample**. The downloaded HTML opens directly in a desktop browser; no Node.js or server is needed. Try the fictional sample to get familiar with editing and Save/Download.
 
 ![Lattice welcome screen with file opening and the sample workspace](images/home.png)
 

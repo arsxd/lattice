@@ -7,7 +7,7 @@ test("redesigned workspace keeps the value bar visibly editable in both themes",
     page.getByRole("checkbox", { name: "Show nested data" }),
   ).toHaveCount(0);
   await expect(page.locator(".expanded-sheets")).toHaveCount(0);
-  await page.getByRole("button", { name: "Explore sample workspace" }).click();
+  await page.getByRole("button", { name: "Try sample" }).click();
   const cell = page.getByRole("gridcell", {
     name: "A Quiet Kitchen",
     exact: true,
