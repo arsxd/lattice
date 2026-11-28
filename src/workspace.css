@@ -51,11 +51,47 @@
   font-size: 11px;
 }
 .document-tab {
-  height: 37px;
+  height: auto;
   min-height: 37px;
+  flex-shrink: 0;
+  align-items: flex-start;
   padding: 0;
   gap: 5px;
   font-size: 12px;
+}
+.document-tab-strip {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+}
+.document-tab-scroll {
+  display: flex;
+  flex: none;
+  align-items: center;
+  padding-inline: 2px;
+  border-inline-start: 1px solid var(--line);
+}
+.document-tab-scroll button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 28px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+.document-tab-scroll button:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--text);
+}
+.document-tab-scroll button:first-child svg {
+  transform: rotate(180deg);
+}
+.document-tab-item,
+.document-tab .browse-tab-slot {
+  height: 36px;
 }
 .document-tab-item button[role="tab"] {
   font-size: 12px;
@@ -65,6 +101,7 @@
   font-size: 17px;
 }
 .document-tab > button {
+  margin-top: 4px;
   margin-left: 3px;
   font-size: 12px;
 }
@@ -225,6 +262,20 @@
   border-right: 0;
   font-size: 12px;
 }
+.sheet-tabs .new-sheet {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  padding: 0;
+}
+.sheet-tabs .new-sheet:focus-visible {
+  outline-offset: -2px;
+}
+.sheet-tabs .new-sheet:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--text);
+}
 .sheet-tabs button[aria-current="page"] {
   background: transparent;
   box-shadow: none;
@@ -269,6 +320,7 @@
 }
 .value-preview {
   font-size: 11px;
+  line-height: 1.5;
   padding: 10px;
   border-radius: 4px;
 }
@@ -364,7 +416,7 @@
 .cell-value[data-clipped]::after {
   content: "…";
   position: absolute;
-  right: 1px;
+  inset-inline-end: 1px;
   bottom: 0;
   line-height: 20px;
   background: transparent;
@@ -376,13 +428,69 @@
   color: var(--text);
 }
 
+.cell-value:has(> .cell-open-table) {
+  --cell-table-gutter: 29px;
+  position: relative;
+  margin-inline-end: -5px;
+  /* Keep the 20px button inside the preview's clipping area. */
+  min-block-size: 20px;
+  line-height: 20px;
+}
+.cell-value[data-clipped]:has(> .cell-open-table)::after {
+  inset-inline-end: 0;
+  inset-block-start: 50%;
+  inset-block-end: auto;
+  width: 22px;
+  text-align: center;
+  transform: translateY(-50%);
+  opacity: calc(1 - var(--cell-table-icon-opacity, 0));
+}
+.cell-open-table {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--control-radius);
+  background: transparent;
+  color: var(--muted);
+  opacity: var(--cell-table-icon-opacity, 0);
+  visibility: var(--cell-table-icon-visibility, hidden);
+  pointer-events: var(--cell-table-icon-pointer, none);
+}
+.data-grid [role="gridcell"]:is(:hover, :focus-within) .cell-value,
+.data-grid:not(.without-selection) [role="gridcell"][aria-selected="true"]
+  .cell-value {
+  --cell-table-icon-opacity: 1;
+  --cell-table-icon-visibility: visible;
+  --cell-table-icon-pointer: auto;
+}
+.cell-open-table:is(:hover, :focus-visible) {
+  background: color-mix(in srgb, var(--hover) 93%, var(--text));
+  color: var(--text);
+}
+.cell-open-table:focus-visible {
+  outline-offset: -2px;
+}
+.cell-open-table svg {
+  pointer-events: none;
+}
 .cell-preview-text {
   display: block;
+  width: calc(100% - var(--cell-table-gutter, 0px));
   overflow: hidden;
   text-overflow: clip;
 }
 [data-clipped] > .cell-preview-text {
   width: calc(100% - 18px);
+}
+.cell-value:has(> .cell-open-table) > .cell-preview-text {
+  width: calc(100% - var(--cell-table-gutter));
 }
 /* The editor keeps the cell's size; extra lines grow the row (see rowHeight). */
 .data-grid .inline-cell {
@@ -703,7 +811,7 @@
   background: var(--chrome);
   color: var(--text);
 }
-.active-sort > span {
+:is(.active-sort, .active-find) > span {
   max-width: 200px;
   padding: 0 8px;
   overflow: hidden;
@@ -926,6 +1034,14 @@
   .notice-toast {
     animation: workspace-fade-enter 120ms ease-out;
   }
+
+  .cell-value[data-clipped]:has(> .cell-open-table)::after {
+    transition: opacity 100ms ease-out;
+  }
+
+  .cell-open-table {
+    transition: opacity 100ms ease-out, visibility 100ms;
+  }
 }
 
 @keyframes workspace-menu-enter {
@@ -1125,6 +1241,7 @@ summary[aria-disabled="true"] {
 }
 
 .inline-error .inline-error-discard {
+  color: var(--text);
   display: block;
   min-height: 24px;
   margin-top: 6px;
@@ -1358,8 +1475,11 @@ summary[aria-disabled="true"] {
 .range-sheet[data-axis-selection] {
   --axis-label-selection: var(--accent);
 }
+.range-sheet .select-all-cells[aria-pressed="true"] {
+  background-color: var(--axis-label-selection);
+}
 .range-sheet
-  :is(.column-select, .row-select)[aria-pressed="true"]:focus-visible {
+  :is(.column-select, .row-select, .select-all-cells)[aria-pressed="true"]:focus-visible {
   outline: 2px solid var(--surface);
   outline-offset: -3px;
 }

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { SheetSelection } from "../document/sheetSelection";
 import { freezeSelectionTarget } from "./freezeSelection";
+import { MnemonicLabel } from "./MnemonicLabel";
 export function FreezeMenu({
   rows,
   columns,
@@ -23,6 +24,11 @@ export function FreezeMenu({
   onChange: (value: { rows: number; columns: number }) => void;
 }) {
   const root = useRef<HTMLDetailsElement>(null);
+  const label = paused
+    ? "Freeze paused"
+    : rows || columns
+      ? "Frozen panes"
+      : "Freeze";
   const target = freezeSelectionTarget(
     rangeSelection,
     pageOffset,
@@ -57,8 +63,11 @@ export function FreezeMenu({
     <details className="freeze-menu" ref={root}>
       <summary
         title={paused ?? "Keep rows and columns visible while scrolling"}
+        aria-label={label}
+        aria-keyshortcuts="Alt+Z"
+        data-table-mnemonic="Z"
       >
-        {paused ? "Freeze paused" : rows || columns ? "Frozen panes" : "Freeze"}
+        <MnemonicLabel label={label} letter="Z" />
       </summary>
       <div className="freeze-options">
         {(rows > 0 || columns > 0) && (

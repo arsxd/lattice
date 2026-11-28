@@ -4,6 +4,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type MouseEventHandler,
   type ReactNode,
 } from "react";
 import type { Projection, AtomicMutation, Path } from "../document/engine";
@@ -17,7 +18,45 @@ import {
   type SheetPoint,
   type SheetSelection,
 } from "../document/sheetSelection";
-import { fieldColumnKey, columnLabel } from "./columnRoles";
+import { fieldColumnKey, columnLabel, nestedTablePath } from "./columnRoles";
+import { MnemonicLabel, mnemonicLetter } from "./MnemonicLabel";
+function MenuItem({
+  label,
+  mnemonic,
+  requiresShift = false,
+  shortcuts = "",
+  children,
+  onClick,
+}: {
+  label: string;
+  mnemonic: string;
+  requiresShift?: boolean;
+  shortcuts?: string;
+  children?: ReactNode;
+  onClick: MouseEventHandler<HTMLButtonElement>;
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      tabIndex={-1}
+      aria-label={label}
+      aria-keyshortcuts={[
+        requiresShift ? `Shift+${mnemonic}` : mnemonic,
+        shortcuts,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      data-mnemonic={mnemonic}
+      data-requires-shift={requiresShift || undefined}
+      onClick={onClick}
+    >
+      <MnemonicLabel label={label} letter={mnemonic} />
+      {requiresShift ? <kbd>Shift+{mnemonic}</kbd> : children}
+    </button>
+  );
+}
+
 export function SheetRange({
   view,
   children,
@@ -50,6 +89,7 @@ export function SheetRange({
   isValueColumn: (column: number) => boolean;
 }) {
   const [message, setMessage] = useState("");
+  const [showMenuKeys, setShowMenuKeys] = useState(false);
   const [menu, setMenu] = useState<{
     x: number;
     y: number;
@@ -125,11 +165,19 @@ export function SheetRange({
     const escape = (event: KeyboardEvent) => {
       if (event.key === "Escape") closeMenu(true);
     };
+    const hideKeys = () => setShowMenuKeys(false);
+    const releaseAlt = (event: KeyboardEvent) => {
+      if (!event.altKey) hideKeys();
+    };
     document.addEventListener("pointerdown", outside, true);
     document.addEventListener("keydown", escape);
+    window.addEventListener("keyup", releaseAlt);
+    window.addEventListener("blur", hideKeys);
     return () => {
       document.removeEventListener("pointerdown", outside, true);
       document.removeEventListener("keydown", escape);
+      window.removeEventListener("keyup", releaseAlt);
+      window.removeEventListener("blur", hideKeys);
     };
   }, [menu]);
   useEffect(() => {
@@ -279,11 +327,12 @@ export function SheetRange({
   }
   const rowMenu = menu !== null && menu.r >= 0 && menu.c < 0;
   const columnMenu = menu !== null && menu.r < 0 && menu.c >= 0;
-  const menuCell =
-    menu && menu.r >= 0 && isValueColumn(menu.c)
-      ? view.rows[menu.r]?.cells[menu.c]
-      : undefined;
-  const openableCell = menuCell?.container || menuCell?.type === "array";
+  const menuTablePath = menu
+    ? nestedTablePath(
+        view.rows[menu.r]?.cells[menu.c],
+        view.columnKinds[menu.c],
+      )
+    : undefined;
   const showIndexAction = columnMenu && view.kind === "array" && onToggleIndex;
   const columnFieldAction = columnMenu && view.columnKinds[menu.c] === "field";
 
@@ -375,7 +424,11 @@ export function SheetRange({
       onPointerDownCapture={(e) => {
         contextOpening.current = e.button === 2;
         if (e.button !== 0) return;
-        if ((e.target as Element).closest("input,textarea,[data-row-resizer]"))
+        if (
+          (e.target as Element).closest(
+            "input,textarea,[data-row-resizer],.cell-open-table",
+          )
+        )
           return;
         const p = point(e.target);
         if (!p) return;
@@ -502,6 +555,7 @@ export function SheetRange({
           if (r >= 0 && !axisSelected(selection, "rows", r + offset))
             choose(selectHeader(null, "rows", { r: r + offset, c: 0 }));
         }
+        setShowMenuKeys(e.altKey);
         setMenu({
           x: e.clientX,
           y: e.clientY,
@@ -532,6 +586,7 @@ export function SheetRange({
         <div
           ref={menuElement}
           className="sheet-menu"
+          data-show-mnemonics={showMenuKeys || undefined}
           role="menu"
           tabIndex={-1}
           style={{
@@ -541,6 +596,33 @@ export function SheetRange({
             maxHeight: menuPosition.maxHeight || undefined,
           }}
           onKeyDown={(e) => {
+            if (e.key === "Alt" && !e.ctrlKey && !e.metaKey) {
+              e.stopPropagation();
+              setShowMenuKeys(true);
+              return;
+            }
+            if (
+              !e.ctrlKey &&
+              !e.metaKey &&
+              !e.altKey &&
+              !e.nativeEvent.isComposing
+            ) {
+              const letter = mnemonicLetter(e);
+              if (letter) {
+                const item = e.currentTarget.querySelector<HTMLButtonElement>(
+                  `button[data-mnemonic="${letter}"]:not(:disabled)`,
+                );
+                if (
+                  item &&
+                  e.shiftKey === item.hasAttribute("data-requires-shift")
+                ) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (!e.repeat) item.click();
+                  return;
+                }
+              }
+            }
             if (e.key === "Escape") {
               e.stopPropagation();
               closeMenu(true);
@@ -570,34 +652,34 @@ export function SheetRange({
           }}
         >
           {menu.titleOnly && (
-            <button
-              role="menuitem"
-              tabIndex={-1}
-              aria-keyshortcuts="Control+C Meta+C"
+            <MenuItem
+              label="Copy"
+              mnemonic="C"
+              shortcuts="Control+C Meta+C"
               onClick={() => void copyName(columnLabel(view, menu.c))}
             >
-              Copy <kbd>{shortcut}C</kbd>
-            </button>
+              <kbd>{shortcut}C</kbd>
+            </MenuItem>
           )}
           {!menu.titleOnly && (menu.r >= 0 || menu.c >= 0) && selection && (
             <>
-              <button
-                role="menuitem"
-                tabIndex={-1}
-                aria-keyshortcuts="Control+C Meta+C"
+              <MenuItem
+                label="Copy"
+                mnemonic="C"
+                shortcuts="Control+C Meta+C"
                 onClick={() => void clipboardAction("copy")}
               >
-                Copy <kbd>{shortcut}C</kbd>
-              </button>
+                <kbd>{shortcut}C</kbd>
+              </MenuItem>
               {isValueColumn(menu.c) && (
-                <button
-                  role="menuitem"
-                  tabIndex={-1}
-                  aria-keyshortcuts="Control+V Meta+V"
+                <MenuItem
+                  label="Paste"
+                  mnemonic="P"
+                  shortcuts="Control+V Meta+V"
                   onClick={() => void clipboardAction("paste")}
                 >
-                  Paste <kbd>{shortcut}V</kbd>
-                </button>
+                  <kbd>{shortcut}V</kbd>
+                </MenuItem>
               )}
             </>
           )}
@@ -606,154 +688,128 @@ export function SheetRange({
             columnFieldAction ||
             (columnMenu && onAddColumn) ||
             showIndexAction ||
-            (openableCell && onOpenTable)) && <hr />}
+            (menuTablePath && onOpenTable)) && <hr />}
           {showIndexAction && (
-            <button
-              role="menuitem"
-              tabIndex={-1}
+            <MenuItem
+              label={showIndex ? "Hide original index" : "Show original index"}
+              mnemonic="I"
               onClick={() => {
                 showIndexAction();
                 closeMenu();
               }}
-            >
-              {showIndex ? "Hide original index" : "Show original index"}
-            </button>
+            />
           )}
-          {openableCell && menuCell && onOpenTable && (
-            <button
-              role="menuitem"
-              tabIndex={-1}
+          {menuTablePath && onOpenTable && (
+            <MenuItem
+              label="Open as table"
+              mnemonic="O"
               onClick={() => {
-                onOpenTable(menuCell.path);
+                onOpenTable(menuTablePath);
                 closeMenu();
               }}
-            >
-              Open as table
-            </button>
+            />
           )}
           {rowMenu && view.recordsAvailable && onOpenTable && (
-            <button
-              role="menuitem"
-              tabIndex={-1}
+            <MenuItem
+              label="Open row"
+              mnemonic="O"
               onClick={() => {
                 onOpenTable(view.rows[menu.r].path);
                 closeMenu();
               }}
-            >
-              Open row
-            </button>
+            />
           )}
           {rowMenu && (
             <>
               {onAddRow && (
-                <button
-                  role="menuitem"
-                  tabIndex={-1}
+                <MenuItem
+                  label="Append row"
+                  mnemonic="A"
                   onClick={() => {
                     closeMenu();
                     onAddRow();
                   }}
-                >
-                  Append row
-                </button>
+                />
               )}
-              <button
-                role="menuitem"
-                tabIndex={-1}
+              <MenuItem
+                label="Insert row above"
+                mnemonic="V"
                 onClick={() => void relativeRow("before")}
-              >
-                Insert row above
-              </button>
-              <button
-                role="menuitem"
-                tabIndex={-1}
+              />
+              <MenuItem
+                label="Insert row below"
+                mnemonic="B"
                 onClick={() => void relativeRow("after")}
-              >
-                Insert row below
-              </button>
-              <button
-                role="menuitem"
-                tabIndex={-1}
+              />
+              <MenuItem
+                label="Duplicate row"
+                mnemonic="D"
                 onClick={() => void relativeRow("after", true)}
-              >
-                Duplicate row
-              </button>
+              />
             </>
           )}
           {selection &&
             selectedCellCount(selection, view.matched, view.headers.length) >
               view.headers.length && (
-              <button
-                role="menuitem"
-                tabIndex={-1}
+              <MenuItem
+                label="Fill down"
+                mnemonic="F"
                 onClick={() => {
                   void perform("fill");
                   setMenu(null);
                 }}
-              >
-                Fill down
-              </button>
+              />
             )}
           {rowMenu && (
-            <button
-              role="menuitem"
-              tabIndex={-1}
+            <MenuItem
+              label="Delete row"
+              mnemonic="E"
+              requiresShift
               onClick={() => {
                 void apply([
                   { action: "remove", path: view.rows[menu.r].path },
                 ]).catch((e) => setMessage(String(e)));
                 setMenu(null);
               }}
-            >
-              Delete row
-            </button>
+            />
           )}
           {rowMenu && view.kind === "object" && (
-            <button
-              role="menuitem"
-              tabIndex={-1}
+            <MenuItem
+              label="Copy row name"
+              mnemonic="M"
               onClick={() => void copyName(view.rows[menu.r].label)}
-            >
-              Copy row name
-            </button>
+            />
           )}
           {columnMenu && !menu.titleOnly && (
-            <button
-              role="menuitem"
-              tabIndex={-1}
+            <MenuItem
+              label="Copy column name"
+              mnemonic="N"
               onClick={() => void copyName(columnLabel(view, menu.c))}
-            >
-              Copy column name
-            </button>
+            />
           )}
           {columnMenu && onAddColumn && (
-            <button
-              role="menuitem"
-              tabIndex={-1}
+            <MenuItem
+              label="Add column"
+              mnemonic="A"
               onClick={() => {
                 closeMenu();
                 onAddColumn();
               }}
-            >
-              Add column
-            </button>
+            />
           )}
           {columnFieldAction && (
             <>
-              <button
-                role="menuitem"
-                tabIndex={-1}
+              <MenuItem
+                label="Rename column…"
+                mnemonic="R"
                 onClick={() => void columnAction(true)}
-              >
-                Rename column…
-              </button>
-              <button
-                role="menuitem"
-                tabIndex={-1}
+              />
+              <MenuItem
+                label="Delete column"
+                mnemonic="E"
+                requiresShift
                 onClick={() => void columnAction(false)}
-              >
-                Delete column
-              </button>
+              />
             </>
           )}
         </div>

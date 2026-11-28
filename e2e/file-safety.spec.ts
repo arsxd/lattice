@@ -3,7 +3,7 @@ import { test, expect, type Page } from "@playwright/test";
 const original =
   '\ufeff[\r\n  {"name":"Alpha","precise":9007199254740993,"huge":1e400,"escaped":"\\u0061"}\r\n]\r\n';
 
-async function linkedFile(page: Page) {
+async function linkedFile(page: Page, initial = original) {
   // Models the browser handle contract; it does not test native permission dialogs.
   await page.addInitScript((text) => {
     localStorage.setItem("lattice-show-index", "true");
@@ -54,7 +54,7 @@ async function linkedFile(page: Page) {
         throw new DOMException("Cancelled", "AbortError");
       },
     });
-  }, original);
+  }, initial);
   await page.goto("/");
   await page.getByRole("button", { name: "Open…", exact: true }).click();
   await page.getByRole("grid", { name: "JSON data table" }).waitFor();
@@ -147,6 +147,42 @@ test("a failed linked Save aborts the writer and keeps the draft retryable", asy
   );
 });
 
+test("Reload file refreshes open Browse branches without collapsing them", async ({
+  page,
+}) => {
+  await linkedFile(page, '{"section":{"old":{}}}');
+  const browse = page.getByRole("button", { name: "Browse", exact: true });
+  await browse.click();
+  const outline = page.getByRole("navigation", { name: "Document structure" });
+  const branch = outline.getByRole("button", {
+    name: "Expand section",
+    exact: true,
+  });
+  await branch.click();
+  await expect(
+    outline.getByRole("button", { name: "{ } old", exact: true }),
+  ).toBeVisible();
+
+  await page.evaluate(() => {
+    (window as any).fileModel.disk = '{"section":{"updated":{}},"added":[]}';
+  });
+  await page.getByRole("button", { name: "Reload file", exact: true }).click();
+
+  await expect(browse).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    outline.getByRole("button", { name: "Collapse section", exact: true }),
+  ).toBeVisible();
+  await expect(
+    outline.getByRole("button", { name: "{ } old", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    outline.getByRole("button", { name: "{ } updated", exact: true }),
+  ).toBeVisible();
+  await expect(
+    outline.getByRole("button", { name: "[ ] added", exact: true }),
+  ).toBeVisible();
+});
+
 test("Reload file keeps the Source view and shows the reloaded text", async ({
   page,
 }) => {
@@ -156,8 +192,19 @@ test("Reload file keeps the Source view and shows the reloaded text", async ({
   await page.evaluate((text) => {
     (window as any).fileModel.disk = text;
   }, '[{"name":"External","precise":1}]');
-  await page.getByRole("button", { name: "Reload file", exact: true }).click();
+  const reload = page.getByRole("button", { name: "Reload file", exact: true });
+  await expect(reload).toHaveAttribute("aria-keyshortcuts", "Alt+R");
+  await reload.focus();
+  const letter = reload.locator(".mnemonic-letter");
+  await expect(letter).toHaveCSS("text-decoration-line", "none");
+  await page.keyboard.down("Alt");
+  await expect(letter).toHaveCSS("text-decoration-line", "underline");
+  await page.keyboard.up("Alt");
+  await expect(letter).toHaveCSS("text-decoration-line", "none");
+  await page.keyboard.press("Alt+KeyR");
   await expect(page.locator(".cm-content")).toContainText("External");
+  await expect(page.locator(".status")).toContainText("File reloaded.");
+  await expect(page.locator(".notice-toast")).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Source", exact: true }),
   ).toBeDisabled();

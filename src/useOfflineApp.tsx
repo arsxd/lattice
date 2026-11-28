@@ -145,7 +145,7 @@ export function useOfflineApp(canReload: boolean) {
             This window runs build {__APP_BUILD__}. After reopening, hover the
             version in the status bar to confirm it changed.
           </p>
-          <form method="dialog">
+          <form method="dialog" className="dialog-actions">
             <button autoFocus>Keep working</button>
             <button
               type="button"

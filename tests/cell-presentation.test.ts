@@ -91,6 +91,14 @@ it("keeps large container selections out of input/pre rendering without changing
   expect(JSON.parse(engine.raw(["items"]))).toHaveLength(5000);
   expect(engine.text).toBe(text);
 });
+it("compacts Details JSON while keeping exact string and number tokens", () => {
+  const raw =
+    '[\n      { "name": "a  b", "precise": 9007199254740993, "value": -0 }\n    ]';
+  expect(jsonSelectionPreview(raw)).toEqual({
+    text: '[{"name": "a  b", "precise": 9007199254740993, "value": -0}]',
+    truncated: false,
+  });
+});
 it("marks oversized scalar previews read-only instead of exposing truncation as editable text", () => {
   const value = "x".repeat(VALUE_BAR_PREVIEW_LIMIT + 50);
   const result = valueBarPresentation(

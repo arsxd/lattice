@@ -647,7 +647,12 @@ button[aria-pressed="true"] {
   display: flex;
   min-width: 0;
   overflow-x: auto;
-  height: 100%;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  flex: 1;
+}
+.document-tabs::-webkit-scrollbar {
+  display: none;
 }
 .document-tab-item {
   display: flex;
@@ -1233,6 +1238,11 @@ select optgroup {
   align-items: center;
   gap: 24px;
 }
+[data-show-mnemonics] :is([data-mnemonic], [data-table-mnemonic]):not(:disabled)
+  .mnemonic-letter {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 .sheet-menu kbd {
   color: var(--muted);
   font: inherit;
@@ -1315,7 +1325,8 @@ select optgroup {
   font-weight: 600;
 }
 .column-select:focus-visible,
-.row-select:focus-visible {
+.row-select:focus-visible,
+.select-all-cells:focus-visible {
   outline-offset: -2px;
 }
 .selection-status {
@@ -1556,6 +1567,9 @@ select optgroup {
   font-size: 13px;
   line-height: 1.6;
 }
+.update-dialog .dialog-actions {
+  flex-wrap: wrap;
+}
 .update-available {
   white-space: nowrap;
 }
@@ -1620,7 +1634,7 @@ select optgroup {
 }
 
 /* When a header control owns focus, show its own boundary. */
-.data-grid .sheet-header:has(.sheet-column-heading):not(:focus-visible) {
+.data-grid :is(.sheet-corner, .sheet-header:has(.sheet-column-heading)):not(:focus-visible) {
   outline: none;
 }
 .diff-review .diff-host .cm-editor .cm-collapsedLines {
@@ -1643,19 +1657,30 @@ select optgroup {
   --sheet-letter-height: 28px;
   padding: 0;
 }
-.data-grid .sheet-corner,
+.data-grid .sheet-corner {
+  display: flex;
+}
 .sheet-column-heading {
   display: grid;
   grid-template: var(--sheet-letter-height) minmax(0, 1fr) / minmax(0, 1fr);
-}
-.data-grid .sheet-corner .select-all-cells {
-  grid-row: 1;
-  border-bottom: 1px solid var(--line);
 }
 .sheet-column-heading {
   width: 100%;
   height: 100%;
   line-height: 17px;
+}
+/* Keep the grid's keyboard resizing and take over pointer drags for groups. */
+.sheet-header:has(.column-group-resizer) > .rdg-resize-handle {
+  pointer-events: none;
+}
+.column-group-resizer {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  z-index: 1;
+  inline-size: 10px;
+  cursor: col-resize;
+  touch-action: none;
 }
 .sheet-column-heading .column-select,
 .sheet-column-heading .column-title {

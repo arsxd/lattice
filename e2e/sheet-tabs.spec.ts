@@ -22,9 +22,9 @@ async function openManySheets(page: Page) {
   });
   await page.getByRole("grid", { name: "JSON data table" }).waitFor();
 }
-const geometry = (page: Page) =>
-  page.evaluate(() => {
-    const strip = document.querySelector(".sheet-tabs") as HTMLElement;
+const geometry = (page: Page, selector = ".sheet-tabs") =>
+  page.evaluate((selector) => {
+    const strip = document.querySelector(selector) as HTMLElement;
     const style = getComputedStyle(strip);
     const borders =
       parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
@@ -34,7 +34,7 @@ const geometry = (page: Page) =>
       scrollbar: strip.offsetHeight - strip.clientHeight - borders,
       gapBelowTabs: strip.getBoundingClientRect().bottom - tab.bottom,
     };
-  });
+  }, selector);
 
 // Real scrollbars: headless Chromium hides them by default, and "overlay" bars
 // (macOS trackpads) behave differently from classic ones (Windows).
@@ -110,4 +110,56 @@ test("a short sheet list keeps the compact strip", async ({ page }) => {
   const g = await geometry(page);
   expect(g.overflowing).toBe(false);
   expect(g.gapBelowTabs).toBe(0);
+});
+
+test("overflow scroll arrows keep top document tabs usable without a scrollbar", async ({
+  page,
+}) => {
+  await openManySheets(page);
+  const earlier = page.getByRole("button", {
+    name: "Scroll to earlier document tabs",
+  });
+  const later = page.getByRole("button", {
+    name: "Scroll to later document tabs",
+  });
+  await expect(earlier).toHaveCount(0);
+  await expect(later).toHaveCount(0);
+
+  for (let i = 1; i <= 6; i++) {
+    const name = `another-long-document-filename-${i}.json`;
+    const chooser = page.waitForEvent("filechooser");
+    await page.getByRole("button", { name: "Open…", exact: true }).click();
+    await (
+      await chooser
+    ).setFiles({
+      name,
+      mimeType: "application/json",
+      buffer: Buffer.from('{"count":1}'),
+    });
+    await expect(page.getByRole("tab", { name, exact: true })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  }
+
+  const strip = page.locator(".document-tabs");
+  await expect(strip).toHaveCSS("scrollbar-width", "none");
+  await expect(earlier).toBeEnabled();
+  await expect(later).toBeDisabled();
+  const g = await geometry(page, ".document-tabs");
+  expect(g.overflowing).toBe(true);
+  expect(g.gapBelowTabs).toBe(0);
+
+  const before = await strip.evaluate((element) => element.scrollLeft);
+  await earlier.click();
+  await expect
+    .poll(() => strip.evaluate((element) => element.scrollLeft))
+    .toBeLessThan(before);
+  await expect(later).toBeEnabled();
+  await expect(
+    page.getByRole("tab", {
+      name: "another-long-document-filename-6.json",
+      exact: true,
+    }),
+  ).toHaveAttribute("aria-selected", "true");
 });

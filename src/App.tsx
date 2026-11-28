@@ -2,6 +2,7 @@ import { SourceFormatButton } from "./editor/SourceFormatButton";
 import { FileLocation } from "./workspace/FileLocation";
 import { ActiveFilters, columnFilterSummaries } from "./grid/ActiveFilters";
 import { FindBar } from "./grid/FindBar";
+import { MnemonicLabel, mnemonicLetter } from "./grid/MnemonicLabel";
 import { ThemePicker } from "./ThemePicker";
 import { FindHighlight } from "./grid/FindHighlight";
 import { JsonPreview } from "./grid/JsonPreview";
@@ -39,7 +40,7 @@ import {
   selectedCellCount,
   type SheetSelection,
 } from "./document/sheetSelection";
-import { columnLabel } from "./grid/columnRoles";
+import { columnLabel, nestedTablePath } from "./grid/columnRoles";
 import { NavigationIcon } from "./NavigationIcon";
 import {
   blankState,
@@ -47,27 +48,35 @@ import {
   DEFAULT_LINE_LIMITS,
   valueBarPresentation,
   jsonSelectionPreview,
-  JSON_PREVIEW_LIMIT,
 } from "./grid/cellPresentation";
 import { DocumentOutline } from "./grid/DocumentOutline";
 import { recordNavigation, type NavigationHistory } from "./navigation";
 import { RowHeightHandle } from "./grid/RowHeightHandle";
+import { ColumnGroupResizeHandle } from "./grid/ColumnGroupResizeHandle";
 import { ValueDetails } from "./editor/ValueDetails";
 import { useOfflineApp } from "./useOfflineApp";
 import { ColumnMenu } from "./grid/ColumnMenu";
 import { ValueBar, ValueBarPlaceholder } from "./editor/ValueBar";
 import { SheetRange } from "./grid/SheetRange";
 import ReviewDiff from "./editor/ReviewDiff";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   DataGrid,
   type Column,
+  type ColumnWidths,
   type SortColumn,
   type DataGridHandle,
 } from "react-data-grid";
 import { DocumentClient } from "./worker/client";
 import {
   pointer,
+  PAGE_SIZE,
   type Cell,
   type Kind,
   type Mutation,
@@ -92,6 +101,7 @@ import {
   valueBarRaw,
   cellEntryText,
   gridStringDraft,
+  isJsonNumber,
 } from "./editor/scalar";
 import {
   packRecovery,
@@ -126,6 +136,7 @@ type Editing = {
   value: string;
   key: string;
   parentKind?: string;
+  newSheet?: { index?: number };
 };
 type Session = {
   id: string;
@@ -150,7 +161,6 @@ type InlineEdit = {
   rename?: boolean;
   cell: Cell;
   kind: Kind;
-  selectAll: boolean;
   revision: number;
   value: string;
   /** The text the editor opened with; committing it unchanged writes nothing. */
@@ -229,6 +239,12 @@ export default function App() {
   const suppressPointerClick = useRef(false);
   const replayingClick = useRef(false);
   const grid = useRef<DataGridHandle>(null);
+  const reloadButton = useRef<HTMLButtonElement>(null);
+  const paneToolbar = useRef<HTMLDivElement>(null);
+  const tableToolbar = useRef<HTMLDivElement>(null);
+  const [shortcutHints, setShortcutHints] = useState<"toolbar" | "table" | null>(
+    null,
+  );
   const [freezeSettings, setFreezeSettings] = useState<
     Record<string, { rows: number; columns: number }>
   >({});
@@ -323,12 +339,74 @@ export default function App() {
         : 0,
     );
   };
-  function resizeRow(row: Row, height?: number) {
-    const key = heightKey(row);
-    setRowHeights((previous) => {
+  function resizeRow(row: Row, rowIdx: number, height?: number, commit = false) {
+    if (!view) return;
+    const offset = view.page * PAGE_SIZE;
+    const selected = axisSelected(sheetSelection, "rows", offset + rowIdx);
+    const rows = selected
+      ? view.rows.filter((_, index) =>
+          axisSelected(sheetSelection, "rows", offset + index),
+        )
+      : [row];
+    const applyHeights = (keys: string[]) =>
+      setRowHeights((previous) => {
+        const next = { ...previous };
+        for (const key of keys) {
+          if (height === undefined) delete next[key];
+          else next[key] = height;
+        }
+        return next;
+      });
+    applyHeights(rows.map(heightKey));
+
+    if (!commit || !selected || !sheetSelection || !client.current) return;
+    const pageEnd = offset + view.rows.length - 1;
+    const offPageSpans = sheetSelection.spans.flatMap(([start, end]) => {
+      if (end < offset || start > pageEnd) return [[start, end]];
+      const spans = [];
+      if (start < offset) spans.push([start, offset - 1]);
+      if (end > pageEnd) spans.push([pageEnd + 1, end]);
+      return spans;
+    });
+    if (!offPageSpans.length) return;
+    const worker = client.current;
+    void worker
+      .call<string[]>("row-ids", { query, spans: offPageSpans })
+      .then((ids) => applyHeights(ids.map((id) => `${tableHeightKey}:${id}`)))
+      .catch((error) => {
+        if (client.current === worker) setError(String(error));
+      });
+  }
+  const gridColumnWidths = useMemo<ColumnWidths>(() => {
+    const widths = new Map<string, { type: "resized"; width: number }>();
+    for (let i = 0; i < (view?.headers.length ?? 0); i++) {
+      const width = columnWidths[`${tableHeightKey}:${i}`];
+      if (width !== undefined) widths.set(String(i), { type: "resized", width });
+    }
+    return widths;
+  }, [columnWidths, tableHeightKey, view?.headers.length]);
+  function resizeColumns(widths: ColumnWidths) {
+    const resized = [...widths].find(
+      ([key, size]) =>
+        size.type === "resized" &&
+        size.width !== gridColumnWidths.get(key)?.width,
+    );
+    if (!resized || !view) return;
+    const [key, { width }] = resized;
+    const column = Number(key);
+    setManualColumnWidths(
+      selectedColumns.includes(column) ? selectedColumns : [column],
+      width,
+    );
+  }
+  function setManualColumnWidths(columns: number[], width?: number) {
+    setColumnWidths((previous) => {
       const next = { ...previous };
-      if (height === undefined) delete next[key];
-      else next[key] = height;
+      for (const column of columns) {
+        const key = `${tableHeightKey}:${column}`;
+        if (width === undefined) delete next[key];
+        else next[key] = width;
+      }
       return next;
     });
   }
@@ -390,34 +468,112 @@ export default function App() {
   }
   const [tabVersion, setTabVersion] = useState(0);
   const [sheets, setSheets] = useState<Projection["children"]>([]);
-  // Overlay scrollbars (macOS trackpads) float over the sheet tabs instead of
-  // taking space below them, so the strip reserves room when it overflows.
+  const documentStrip = useRef<HTMLDivElement>(null);
+  const [documentScroll, setDocumentScroll] = useState({
+    overflow: false,
+    before: false,
+    after: false,
+  });
+  useLayoutEffect(() => {
+    const strip = documentStrip.current;
+    const container = strip?.parentElement;
+    if (!strip || !container) return;
+    const measure = () => {
+      const next = {
+        overflow: strip.scrollWidth > container.clientWidth + 1,
+        before: strip.scrollLeft > 1,
+        after: strip.scrollLeft + strip.clientWidth < strip.scrollWidth - 1,
+      };
+      setDocumentScroll((previous) =>
+        next.overflow === previous.overflow &&
+        next.before === previous.before &&
+        next.after === previous.after
+          ? previous
+          : next,
+      );
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(container);
+    observer.observe(strip);
+    for (const tab of strip.querySelectorAll(".document-tab-item"))
+      observer.observe(tab);
+    strip.addEventListener("scroll", measure, { passive: true });
+    return () => {
+      observer.disconnect();
+      strip.removeEventListener("scroll", measure);
+    };
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- refresh the observed tabs after documents are opened or closed
+  }, [tabVersion, !!doc]);
+  useLayoutEffect(() => {
+    const strip = documentStrip.current;
+    const active = strip?.querySelector(".document-tab-item.active");
+    if (!strip || !active) return;
+    const viewport = strip.getBoundingClientRect();
+    const tab = active.getBoundingClientRect();
+    if (tab.left < viewport.left) strip.scrollLeft += tab.left - viewport.left;
+    else if (tab.right > viewport.right)
+      strip.scrollLeft += tab.right - viewport.right;
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- reveal the active tab when it changes or scroll controls appear
+  }, [activeId, documentScroll.overflow]);
+  function scrollDocumentTabs(direction: -1 | 1) {
+    const strip = documentStrip.current;
+    if (!strip) return;
+    strip.scrollBy({
+      left: direction * Math.max(40, strip.clientWidth * 0.8),
+      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+    });
+  }
   const sheetStrip = useRef<HTMLElement>(null);
-  const [overlayTabBar, setOverlayTabBar] = useState(false);
   useEffect(() => {
     const strip = sheetStrip.current;
     if (!strip) return;
     const measure = () => {
       const border = parseFloat(getComputedStyle(strip).borderTopWidth) || 0;
-      const bar = strip.offsetHeight - strip.clientHeight - border;
-      setOverlayTabBar(strip.scrollWidth > strip.clientWidth + 1 && bar < 2);
+      const scrollbar = strip.offsetHeight - strip.clientHeight - border;
+      strip.toggleAttribute(
+        "data-overlay-scrollbar",
+        strip.scrollWidth > strip.clientWidth + 1 && scrollbar < 2,
+      );
     };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(strip);
-    return () => observer.disconnect();
-    // oxlint-disable-next-line react-hooks/exhaustive-deps -- measure again when the document or its sheet list changes
-  }, [doc, sheets]);
+    const content = new MutationObserver(measure);
+    content.observe(strip, {
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
+    return () => {
+      observer.disconnect();
+      content.disconnect();
+    };
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- the sheet strip mounts when a file is opened
+  }, [!!doc]);
   const [truncatedSheets, setTruncatedSheets] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const reloadNoticeVisible = notice === "File reloaded.";
   useEffect(() => {
-    if (notice !== "File reloaded.") return;
-    const timer = setTimeout(() => setNotice(""), 3500);
+    if (!reloadNoticeVisible) return;
+    const timer = setTimeout(
+      () => setNotice((current) => (current === "File reloaded." ? "" : current)),
+      3500,
+    );
     return () => clearTimeout(timer);
-  }, [notice]);
+  }, [reloadNoticeVisible]);
   const [sheetSelection, setSheetSelection] = useState<SheetSelection | null>(
     null,
+  );
+  const selectedColumns = useMemo(
+    () =>
+      (view?.headers ?? []).flatMap((_, index) =>
+        axisSelected(sheetSelection, "columns", index) ? [index] : [],
+      ),
+    [view?.headers, sheetSelection],
   );
   shown.current = { view: view ?? null, sheetSelection };
   const singleCellSelected =
@@ -502,6 +658,7 @@ export default function App() {
   const [rightWidth, setRightWidth] = usePaneWidth("details", 360);
   const [inspector, setInspector] = useState(false);
   const [outlineVisible, setOutlineVisible] = useState(false);
+  const [outlineGeneration, setOutlineGeneration] = useState(0);
   useEffect(() => {
     setFindDraft(query.search);
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- stable key for the path array
@@ -892,6 +1049,8 @@ export default function App() {
         client.current?.dispose();
         sessions.current.set(activeId, next);
         activate(next);
+        // A new worker can have the same revision as the old one.
+        setOutlineGeneration((generation) => generation + 1);
         adopted = true;
         setSheetSelection(restoredSelection);
         setTabVersion((v) => v + 1);
@@ -1132,7 +1291,13 @@ export default function App() {
         throw new Error("Apply or discard the editor draft first.");
       await client.current?.call(action);
       setSelection(null);
-      await refresh();
+      const updated = await refresh();
+      if (
+        mode === "table" &&
+        updated &&
+        pointer(updated.path) !== pointer(query.path)
+      )
+        setQuery({ ...query, path: updated.path, page: updated.page });
       if (mode === "source") await showSource(sourceScope?.path ?? []);
       if (mode === "review" && doc && client.current) {
         const current = await client.current.call<{
@@ -1204,9 +1369,12 @@ export default function App() {
   }
   async function applyEdit() {
     if (!editing) return;
+    let createdSheet: Path | undefined;
     await run(async () => {
       try {
         const e = editing;
+        if (e.newSheet && e.parentKind === "object" && !e.key.trim())
+          throw new Error("Enter a sheet name.");
         let command: Mutation;
         if (e.action === "remove") command = { action: "remove", path: e.path };
         else if (e.action === "rename")
@@ -1218,8 +1386,7 @@ export default function App() {
               : e.kind === "null"
                 ? "null"
                 : e.value;
-          const number = /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/;
-          if (e.kind === "number" && !number.test(raw))
+          if (e.kind === "number" && !isJsonNumber(raw))
             throw new Error("Enter a JSON number, such as 12, -0.5 or 1e3.");
           if (e.kind === "boolean" && !["true", "false"].includes(raw))
             throw new Error("Boolean must be true or false.");
@@ -1239,11 +1406,14 @@ export default function App() {
                 };
         }
         await mutate(command, e.revision);
+        if (e.newSheet)
+          createdSheet = [...e.path, e.newSheet.index ?? e.key];
         setEditing(null);
       } catch (e) {
         setEditError(e instanceof Error ? e.message : String(e));
       }
     });
+    if (createdSheet) await navigate(createdSheet);
   }
   function newEdit(action: "rename" | "remove") {
     if (!selection) return;
@@ -1317,7 +1487,6 @@ export default function App() {
       cell,
       kind: "string",
       rename: true,
-      selectAll: initial === undefined,
       revision: view.revision,
       value: initial ?? String(cell.path.at(-1) ?? ""),
       original:
@@ -1340,7 +1509,6 @@ export default function App() {
       setInline({
         cell,
         kind,
-        selectAll: false,
         revision: view.revision,
         value: initial,
         row,
@@ -1368,7 +1536,6 @@ export default function App() {
       setInline({
         cell,
         kind,
-        selectAll: true,
         revision: view.revision,
         value,
         original: value,
@@ -1641,6 +1808,7 @@ export default function App() {
                 <button
                   className="select-all-cells"
                   aria-label="Select all table cells"
+                  aria-pressed={!!sheetSelection?.wholeTable}
                   title="Select all table cells"
                   disabled={busy}
                   onClick={() =>
@@ -1659,11 +1827,10 @@ export default function App() {
                   <button
                     className="row-select"
                     aria-label={`Select row ${rowLabel(rowIdx)}`}
-                    aria-pressed={axisSelected(
-                      sheetSelection,
-                      "rows",
-                      view.page * 500 + rowIdx,
-                    )}
+                    aria-pressed={
+                      !!sheetSelection?.wholeTable ||
+                      axisSelected(sheetSelection, "rows", view.page * 500 + rowIdx)
+                    }
                     disabled={busy}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1686,9 +1853,14 @@ export default function App() {
                     number={rowLabel(rowIdx)}
                     height={rowHeight(row)}
                     onChange={(height) =>
-                      handlers.current.resizeRow(row, height)
+                      handlers.current.resizeRow(row, rowIdx, height)
                     }
-                    onReset={() => handlers.current.resizeRow(row)}
+                    onCommit={(height) =>
+                      handlers.current.resizeRow(row, rowIdx, height, true)
+                    }
+                    onReset={() =>
+                      handlers.current.resizeRow(row, rowIdx, undefined, true)
+                    }
                   />
                 </div>
               ),
@@ -1822,6 +1994,24 @@ export default function App() {
                       />
                     </button>
                   </div>
+                  {selectedColumns.length > 1 &&
+                    selectedColumns.includes(i) && (
+                      <ColumnGroupResizeHandle
+                        columnsBeforeDivider={selectedColumns.indexOf(i) + 1}
+                        widthBeforeDivider={() =>
+                          selectedColumns
+                            .slice(0, selectedColumns.indexOf(i) + 1)
+                            .reduce(
+                              (width, column) => width + columnWidth(column),
+                              0,
+                            )
+                        }
+                        onResize={(width) =>
+                          setManualColumnWidths(selectedColumns, width)
+                        }
+                        onAutoFit={() => setManualColumnWidths(selectedColumns)}
+                      />
+                    )}
                 </div>
               ),
               width: columnWidth(i),
@@ -1848,12 +2038,10 @@ export default function App() {
                       autoFocus
                       value={inline.value}
                       onFocus={(e) => {
+                        if (inline.error) return;
                         const input = e.currentTarget;
-                        if (inline.selectAll) input.select();
-                        else if (!inline.error) {
-                          const end = input.value.length;
-                          input.setSelectionRange(end, end);
-                        }
+                        const end = input.value.length;
+                        input.setSelectionRange(end, end);
                       }}
                       onBlur={(event) => {
                         if (event.relatedTarget?.id === "discard-inline-edit")
@@ -1937,21 +2125,38 @@ export default function App() {
                   );
                 const c = row.cells[i];
                 const originalIndex = view.columnKinds[i] === "index";
-                const blank = valueColumn(i) ? blankState(c) : null;
-                // Nested values get Source-style colours; plain values stay plain.
-                const PreviewText =
-                  !blank && (c.type === "array" || c.type === "object")
-                    ? JsonPreview
-                    : FindHighlight;
+                const tablePath = nestedTablePath(c, view.columnKinds[i]);
+                const isValue = valueColumn(i);
+                const blank = isValue ? blankState(c) : null;
+                const isContainer = c.type === "array" || c.type === "object";
+                const showBlank = !!blank && !isContainer;
+                const quotedJsonText =
+                  isValue &&
+                  c.type === "string" &&
+                  (c.display === "true" ||
+                    c.display === "false" ||
+                    c.display === "null" ||
+                    c.display === "{}" ||
+                    c.display === "[]" ||
+                    isJsonNumber(c.display));
+                const scalarClass =
+                  isValue && c.type === "boolean" ? "json-literal" : "";
+                // Nested values get Source-style colours.
+                const PreviewText = isContainer ? JsonPreview : FindHighlight;
                 return (
                   <CellPreview
-                    className={`cell-value ${blank ? "empty-value" : ""} ${c.container && !originalIndex ? "container-value" : ""} ${c.type === "array" && !originalIndex ? "array-value" : ""} ${c.type === "number" ? "numeric" : ""}`}
+                    className={`cell-value ${showBlank ? "empty-value" : ""} ${c.container && !originalIndex ? "container-value" : ""} ${c.type === "array" && !originalIndex ? "array-value" : ""} ${c.type === "number" ? "numeric" : ""} ${scalarClass}`}
+                    onOpenTable={
+                      tablePath && !operationBusy
+                        ? () => void handlers.current.navigate(tablePath)
+                        : undefined
+                    }
                     onClick={
-                      (c.container || c.type === "array") && !originalIndex
+                      tablePath
                         ? (event) => {
                             if (event.ctrlKey || event.metaKey) {
                               event.stopPropagation();
-                              void handlers.current.navigate(c.path);
+                              void handlers.current.navigate(tablePath);
                             }
                           }
                         : undefined
@@ -1969,12 +2174,13 @@ export default function App() {
                         : undefined
                     }
                   >
+                    {quotedJsonText && '"'}
                     <PreviewText
                       search={query.search}
                       caseSensitive={query.searchCaseSensitive}
                       wholeWord={query.searchWholeWord}
                       text={
-                        blank
+                        showBlank
                           ? ""
                           : c.type === "array" &&
                               !c.container &&
@@ -1986,6 +2192,7 @@ export default function App() {
                             : c.display
                       }
                     />
+                    {quotedJsonText && '"'}
                   </CellPreview>
                 );
               },
@@ -2188,6 +2395,66 @@ export default function App() {
         if (e.key === "Escape" && !busy) setEditing(null);
         return;
       }
+      if (
+        doc &&
+        e.altKey &&
+        !e.shiftKey &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.defaultPrevented &&
+        !e.isComposing &&
+        !busyRef.current &&
+        !(
+          e.target instanceof Element &&
+          e.target.closest(
+            "input,textarea,select,[contenteditable],.sheet-menu,.column-menu,.freeze-menu[open],dialog",
+          )
+        )
+      ) {
+        const valueBarHasDraft = valueBarHasChanges.current();
+        const tableShortcutsAvailable =
+          mode === "table" && !valueBarHasDraft;
+        if (e.key === "Alt") {
+          setShortcutHints(tableShortcutsAvailable ? "table" : "toolbar");
+          return;
+        }
+        const letter = mnemonicLetter(e);
+        if (letter === "R") {
+          e.preventDefault();
+          if (e.repeat) return;
+          const commit = valueBarHasChanges.current()
+            ? valueBarCommit.current
+            : null;
+          if (commit) {
+            void commit().then((ok) => {
+              if (ok)
+                requestAnimationFrame(() => {
+                  if (currentSnapshot.current?.id === activeId)
+                    reloadButton.current?.click();
+                });
+            });
+          } else reloadButton.current?.click();
+          return;
+        }
+        if (!letter || valueBarHasDraft) return;
+        const action =
+          paneToolbar.current?.querySelector<HTMLElement>(
+            `[data-mnemonic="${letter}"]:not(:disabled)`,
+          ) ??
+          (tableShortcutsAvailable
+            ? tableToolbar.current?.querySelector<HTMLElement>(
+                `[data-table-mnemonic="${letter}"]:not(:disabled)`,
+              )
+            : undefined);
+        if (action) {
+          e.preventDefault();
+          if (!e.repeat) {
+            action.focus();
+            action.click();
+          }
+          return;
+        }
+      }
       if (!(e.metaKey || e.ctrlKey)) return;
       const k = e.key.toLowerCase();
       if (k === "o") {
@@ -2219,6 +2486,18 @@ export default function App() {
     window.addEventListener("keydown", handle);
     return () => window.removeEventListener("keydown", handle);
   });
+  useEffect(() => {
+    const hide = () => setShortcutHints(null);
+    const releaseAlt = (event: KeyboardEvent) => {
+      if (!event.altKey) hide();
+    };
+    window.addEventListener("keyup", releaseAlt);
+    window.addEventListener("blur", hide);
+    return () => {
+      window.removeEventListener("keyup", releaseAlt);
+      window.removeEventListener("blur", hide);
+    };
+  }, []);
   useEffect(() => {
     const target = view?.searchSelection;
     if (!view || !target || query.searchResult === undefined || busy) return;
@@ -2261,6 +2540,10 @@ export default function App() {
     singleCellSelected && activeCell && activeCell.column >= 0
       ? view?.rows[activeCell.row]?.cells[activeCell.column]
       : undefined;
+  const selectedTablePath = nestedTablePath(
+    selection?.cell,
+    activeCell ? view?.columnKinds[activeCell.column] : undefined,
+  );
   const selectedSourceValue =
     currentCell?.container && !selectedIdentifier ? currentCell : undefined;
   const selectedRowPosition =
@@ -2524,12 +2807,12 @@ export default function App() {
                     latest.view.rows[point.r - latest.view.page * 500]?.cells[
                       point.c
                     ];
-                  if (
-                    target &&
-                    (modifiers.ctrlKey || modifiers.metaKey) &&
-                    (target.container || target.type === "array")
-                  ) {
-                    void navigate(target.path);
+                  const tablePath = nestedTablePath(
+                    target,
+                    latest.view.columnKinds[point.c],
+                  );
+                  if (tablePath && (modifiers.ctrlKey || modifiers.metaKey)) {
+                    void navigate(tablePath);
                     return;
                   }
                   setSheetSelection(
@@ -2562,7 +2845,7 @@ export default function App() {
         const row = cell?.closest('[role="row"]');
         e.preventDefault();
         e.stopPropagation();
-        if (cell && row) {
+        if (cell && row && !target.closest(".cell-open-table")) {
           void commitInline({
             row: Number(row.getAttribute("aria-rowindex")) - 2,
             column: Number(cell.getAttribute("aria-colindex")) - 2,
@@ -2581,7 +2864,10 @@ export default function App() {
         }
       }}
     >
-      <header className="toolbar">
+      <header
+        className="toolbar"
+        data-show-mnemonics={!!shortcutHints || undefined}
+      >
         <strong title="JSON Workbench">Lattice</strong>
         {operationBusy && (
           <span className="activity" role="status" aria-label="Working" />
@@ -2633,15 +2919,22 @@ export default function App() {
         </button>
         <div className="spacer" />
         <button
+          ref={reloadButton}
           disabled={busy || !doc}
           onClick={() => void reloadSource()}
+          aria-keyshortcuts="Alt+R"
+          data-mnemonic="R"
+          aria-label={doc?.handle ? "Reload file" : "Reload file…"}
           title={
             doc?.handle
-              ? "Read the open JSON file again to pick up changes made outside Lattice."
-              : "Choose the file again to reload it"
+              ? "Read the open JSON file again (Alt+R)"
+              : "Choose the file again to reload it (Alt+R)"
           }
         >
-          {doc?.handle ? "Reload file" : "Reload file…"}
+          <MnemonicLabel
+            label={doc?.handle ? "Reload file" : "Reload file…"}
+            letter="R"
+          />
         </button>
         <ThemePicker value={theme} onChange={setTheme} />
       </header>
@@ -2651,7 +2944,7 @@ export default function App() {
           <button onClick={() => setError("")}>Dismiss</button>
         </div>
       )}
-      {notice && (
+      {notice && !reloadNoticeVisible && (
         <div className="notice-toast" role="status">
           {notice}
         </div>
@@ -2768,80 +3061,118 @@ export default function App() {
         />
       ) : (
         <>
-          <div className="document-tab">
+          <div
+            ref={paneToolbar}
+            className="document-tab"
+            data-show-mnemonics={!!shortcutHints || undefined}
+          >
             <div
               className={`browse-tab-slot ${outlineVisible ? "expanded" : ""}`}
               style={outlineVisible ? browsePaneStyle : undefined}
             >
               <button
+                aria-label="Browse"
                 aria-pressed={outlineVisible}
+                aria-keyshortcuts="Alt+O"
+                data-mnemonic="O"
+                title="Toggle Browse (Alt+O)"
                 onClick={() => setOutlineVisible(!outlineVisible)}
               >
-                <NavigationIcon name="browse" /> Browse
+                <NavigationIcon name="browse" />
+                <MnemonicLabel label="Browse" letter="O" />
               </button>
             </div>
-            <div className="document-tabs">
-              {/* Explicit ownership keeps close controls outside the tablist. */}
+            <div className="document-tab-strip">
               <div
-                className="sr-only"
-                role="tablist"
-                aria-label="Open documents"
-                aria-owns={[...sessions.current.keys()]
-                  .map((id) => `document-tab-${id}`)
-                  .join(" ")}
-              />
-              {[...sessions.current.values()].map((s) => (
+                ref={documentStrip}
+                id="document-tabs"
+                className="document-tabs"
+              >
+                {/* Explicit ownership keeps close controls outside the tablist. */}
                 <div
-                  className={`document-tab-item ${s.id === activeId ? "active" : ""}`}
-                  key={s.id}
-                >
-                  <button
-                    id={`document-tab-${s.id}`}
-                    role="tab"
-                    aria-selected={s.id === activeId}
-                    tabIndex={s.id === activeId ? 0 : -1}
-                    onKeyDown={(e) => {
-                      const ids = [...sessions.current.keys()];
-                      let index = ids.indexOf(s.id);
-                      if (e.key === "ArrowRight")
-                        index = (index + 1) % ids.length;
-                      else if (e.key === "ArrowLeft")
-                        index = (index - 1 + ids.length) % ids.length;
-                      else if (e.key === "Home") index = 0;
-                      else if (e.key === "End") index = ids.length - 1;
-                      else return;
-                      e.preventDefault();
-                      switchDocument(ids[index]);
-                      requestAnimationFrame(() =>
-                        document
-                          .querySelector<HTMLElement>(
-                            '[role="tab"][aria-selected="true"]',
-                          )
-                          ?.focus(),
-                      );
-                    }}
-                    disabled={busy || !!editing}
-                    onClick={() => switchDocument(s.id)}
+                  className="sr-only"
+                  role="tablist"
+                  aria-label="Open documents"
+                  aria-owns={[...sessions.current.keys()]
+                    .map((id) => `document-tab-${id}`)
+                    .join(" ")}
+                />
+                {[...sessions.current.values()].map((s) => (
+                  <div
+                    className={`document-tab-item ${s.id === activeId ? "active" : ""}`}
+                    key={s.id}
                   >
-                    {s.id === activeId ? doc.name : s.doc.name}
-                    {(s.id === activeId ? dirty : sessionDirty(s)) && (
-                      <span aria-label="Unsaved changes" className="dirty-dot">
-                        {" "}
-                        ●
-                      </span>
-                    )}
+                    <button
+                      id={`document-tab-${s.id}`}
+                      role="tab"
+                      aria-selected={s.id === activeId}
+                      tabIndex={s.id === activeId ? 0 : -1}
+                      onKeyDown={(e) => {
+                        const ids = [...sessions.current.keys()];
+                        let index = ids.indexOf(s.id);
+                        if (e.key === "ArrowRight")
+                          index = (index + 1) % ids.length;
+                        else if (e.key === "ArrowLeft")
+                          index = (index - 1 + ids.length) % ids.length;
+                        else if (e.key === "Home") index = 0;
+                        else if (e.key === "End") index = ids.length - 1;
+                        else return;
+                        e.preventDefault();
+                        switchDocument(ids[index]);
+                        requestAnimationFrame(() =>
+                          document
+                            .querySelector<HTMLElement>(
+                              '[role="tab"][aria-selected="true"]',
+                            )
+                            ?.focus(),
+                        );
+                      }}
+                      disabled={busy || !!editing}
+                      onClick={() => switchDocument(s.id)}
+                    >
+                      {s.id === activeId ? doc.name : s.doc.name}
+                      {(s.id === activeId ? dirty : sessionDirty(s)) && (
+                        <span aria-label="Unsaved changes" className="dirty-dot">
+                          {" "}
+                          ●
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      aria-label={`Close ${s.id === activeId ? doc.name : s.doc.name}`}
+                      disabled={busy || !!editing}
+                      onClick={() => void closeDocument(s.id)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+              {documentScroll.overflow && (
+                <div className="document-tab-scroll">
+                  <button
+                    type="button"
+                    aria-label="Scroll to earlier document tabs"
+                    aria-controls="document-tabs"
+                    title="Scroll to earlier document tabs"
+                    disabled={!documentScroll.before}
+                    onClick={() => scrollDocumentTabs(-1)}
+                  >
+                    <NavigationIcon name="chevron" size={14} />
                   </button>
                   <button
-                    aria-label={`Close ${s.id === activeId ? doc.name : s.doc.name}`}
-                    disabled={busy || !!editing}
-                    onClick={() => void closeDocument(s.id)}
+                    type="button"
+                    aria-label="Scroll to later document tabs"
+                    aria-controls="document-tabs"
+                    title="Scroll to later document tabs"
+                    disabled={!documentScroll.after}
+                    onClick={() => scrollDocumentTabs(1)}
                   >
-                    ×
+                    <NavigationIcon name="chevron" size={14} />
                   </button>
                 </div>
-              ))}
+              )}
             </div>
-            <div className="spacer" />
             <button
               disabled={
                 busy ||
@@ -2866,9 +3197,13 @@ export default function App() {
               <button
                 aria-label="Details — toggle value inspector"
                 aria-pressed={inspector}
+                aria-keyshortcuts="Alt+L"
+                data-mnemonic="L"
+                title="Toggle Details (Alt+L)"
                 onClick={() => setInspector(!inspector)}
               >
-                <NavigationIcon name="details" /> Details
+                <NavigationIcon name="details" />
+                <MnemonicLabel label="Details" letter="L" />
               </button>
             )}
           </div>
@@ -2882,6 +3217,7 @@ export default function App() {
               <DocumentOutline
                 key={activeId}
                 current={query.path}
+                generation={outlineGeneration}
                 revision={view?.revision ?? 0}
                 rootKind={view?.rootKind ?? "object"}
                 visible={outlineVisible}
@@ -3130,6 +3466,29 @@ export default function App() {
                       onClearAll={() => clearColumnFilter()}
                     />
                   )}
+                  {mode === "table" && query.search && (
+                    <div className="table-state-control active-find">
+                      <span title="Find hides rows that do not match your search">
+                        Filtered by Find
+                      </span>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        aria-label="Clear Find search"
+                        title="Clear Find search"
+                        onClick={() =>
+                          changeQuery({
+                            ...query,
+                            search: "",
+                            searchResult: undefined,
+                            page: 0,
+                          })
+                        }
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
                   <div
                     className="view-mode"
                     role="group"
@@ -3244,10 +3603,13 @@ export default function App() {
                           : selectedPresentation?.previewOnly
                       }
                       onOpenTable={
-                        !selectedIdentifier &&
-                        (selection.cell.type === "object" ||
-                          selection.cell.type === "array")
-                          ? () => void navigate(selection.cell.path)
+                        selectedTablePath
+                          ? (value) =>
+                              void navigate(
+                                selectedKey
+                                  ? [...selectedTablePath.slice(0, -1), value]
+                                  : selectedTablePath,
+                              )
                           : undefined
                       }
                       editable={
@@ -3430,12 +3792,8 @@ export default function App() {
                         rows={view.rows}
                         getRowKey={(r) => r.id}
                         rowHeight={rowHeight}
-                        onColumnResize={(column, width) =>
-                          setColumnWidths((previous) => ({
-                            ...previous,
-                            [`${tableHeightKey}:${column.key}`]: width,
-                          }))
-                        }
+                        columnWidths={gridColumnWidths}
+                        onColumnWidthsChange={resizeColumns}
                         headerRowHeight={headerHeight}
                         renderers={frozenRenderers}
                         enableVirtualization={frozenLayout.enableVirtualization}
@@ -3465,16 +3823,18 @@ export default function App() {
                             view.columnKinds[Number(column.key)] === "index"
                           )
                             return;
-                          const cell = row.cells[Number(column.key)];
+                          const index = Number(column.key);
+                          const cell = row.cells[index];
                           if (
-                            keyEditable(Number(column.key)) &&
+                            keyEditable(index) &&
                             (cell.container || cell.type === "array")
-                          )
+                          ) {
                             void navigate(cell.path);
-                          else if (keyEditable(Number(column.key)))
-                            startKey(cell, rowIdx);
-                          else if (valueColumn(Number(column.key)))
-                            void startInline(cell, rowIdx, Number(column.key));
+                            return;
+                          }
+                          if (keyEditable(index)) startKey(cell, rowIdx);
+                          else if (valueColumn(index))
+                            void startInline(cell, rowIdx, index);
                         }}
                         onCellKeyDown={(args, event) => {
                           if (busy) return;
@@ -3617,7 +3977,11 @@ export default function App() {
                           : "This container is empty. Add a property or item to begin."}
                       </div>
                     )}
-                    <div className="pagination">
+                    <div
+                      ref={tableToolbar}
+                      className="pagination"
+                      data-show-mnemonics={shortcutHints === "table" || undefined}
+                    >
                       <div className="table-actions">
                         {((query.records && view.recordsAvailable) ||
                           view.total === 0) &&
@@ -3626,8 +3990,11 @@ export default function App() {
                             <button
                               disabled={busy || columnName !== null}
                               onClick={() => void addRow()}
+                              aria-label="Add row"
+                              aria-keyshortcuts="Alt+A"
+                              data-table-mnemonic="A"
                             >
-                              Add row
+                              <MnemonicLabel label="Add row" letter="A" />
                             </button>
                             <button
                               disabled={
@@ -3637,8 +4004,11 @@ export default function App() {
                                 setColumnName("");
                                 setColumnError("");
                               }}
+                              aria-label="Add column"
+                              aria-keyshortcuts="Alt+C"
+                              data-table-mnemonic="C"
                             >
-                              Add column
+                              <MnemonicLabel label="Add column" letter="C" />
                             </button>
                           </>
                         ) : (
@@ -3657,10 +4027,21 @@ export default function App() {
                                   parentKind: view.kind,
                                 });
                               }}
+                              aria-label={
+                                view.kind === "object" ? "Add property" : "Add item"
+                              }
+                              aria-keyshortcuts={
+                                view.kind === "object" ? "Alt+Y" : "Alt+I"
+                              }
+                              data-table-mnemonic={
+                                view.kind === "object" ? "Y" : "I"
+                              }
                             >
-                              {view.kind === "object"
-                                ? "Add property"
-                                : "Add item"}
+                              {view.kind === "object" ? (
+                                <MnemonicLabel label="Add property" letter="Y" />
+                              ) : (
+                                <MnemonicLabel label="Add item" letter="I" />
+                              )}
                             </button>
                           )
                         )}
@@ -3668,10 +4049,13 @@ export default function App() {
 
                       <button
                         aria-pressed={wrapText}
+                        aria-label="Wrap text"
+                        aria-keyshortcuts="Alt+W"
+                        data-table-mnemonic="W"
                         onClick={() => setWrapText(!wrapText)}
                         title="Wrap long or multiline values. Short rows stay compact. Drag a row number’s bottom edge to adjust height."
                       >
-                        Wrap text
+                        <MnemonicLabel label="Wrap text" letter="W" />
                       </button>
                       <FreezeMenu
                         rows={frozen.rows}
@@ -4042,12 +4426,12 @@ export default function App() {
                     <ValueDetails
                       raw={selection.raw}
                       action={
-                        selection.cell.container ? (
+                        selectedTablePath ? (
                           <button
                             className="inspector-open-table"
                             title="Open this value in the main table"
                             disabled={busy}
-                            onClick={() => void navigate(selection.cell.path)}
+                            onClick={() => void navigate(selectedTablePath)}
                           >
                             Open as table
                           </button>
@@ -4060,18 +4444,14 @@ export default function App() {
                           <details className="inspector-json">
                             <summary>
                               <ColumnMenuChevron />
-                              {selectedJsonPreview?.truncated
-                                ? "JSON preview"
-                                : "Exact JSON"}
+                              JSON preview
                             </summary>
                             <pre className="value-preview">
                               {selectedJsonPreview?.text}
                             </pre>
                             {selectedJsonPreview?.truncated && (
                               <p className="small">
-                                Showing the first{" "}
-                                {JSON_PREVIEW_LIMIT.toLocaleString()}{" "}
-                                characters. Copy JSON copies the full value.
+                                Preview shortened. Copy JSON copies the full value.
                               </p>
                             )}
                           </details>
@@ -4147,7 +4527,6 @@ export default function App() {
             ref={sheetStrip}
             className="sheet-tabs"
             aria-label="Document sheets"
-            data-overlay-scrollbar={overlayTabBar || undefined}
           >
             <button
               aria-current={query.path.length === 0 ? "page" : undefined}
@@ -4176,6 +4555,38 @@ export default function App() {
                 {sheet.label || "(empty key)"}
               </button>
             ))}
+            {view?.sheetParent && mode !== "review" && (
+              <button
+                type="button"
+                className="new-sheet"
+                aria-label="New sheet"
+                disabled={busy || sourceDirty || sheets.length >= 200}
+                title={
+                  sheets.length >= 200
+                    ? "The sheet bar displays up to 200 sheets"
+                    : "New sheet"
+                }
+                onClick={() => {
+                  const parent = view.sheetParent;
+                  if (!parent) return;
+                  setEditError("");
+                  setEditing({
+                    action: "insert",
+                    path: parent.path,
+                    revision: view.revision,
+                    kind: "array",
+                    value: "[]",
+                    key: "",
+                    parentKind: parent.kind,
+                    newSheet: {
+                      index: parent.kind === "array" ? parent.size : undefined,
+                    },
+                  });
+                }}
+              >
+                <NavigationIcon name="add" size={14} />
+              </button>
+            )}
             {truncatedSheets && (
               <span>First 200 sheets shown; use All data for all entries.</span>
             )}
@@ -4196,7 +4607,9 @@ export default function App() {
                   ? "Editing cell"
                   : view?.diagnostics.length
                     ? "JSON needs repair"
-                    : "✓ Valid JSON"}
+                    : reloadNoticeVisible
+                      ? notice
+                      : "✓ Valid JSON"}
             </span>
             <span>{dirty ? "Unsaved changes" : "Unmodified"}</span>
             {view && mode === "table" && (
@@ -4268,13 +4681,17 @@ export default function App() {
             <h2 id="edit-title">
               {editing.action === "remove"
                 ? "Remove value?"
-                : editing.action === "rename"
-                  ? "Rename property"
-                  : editing.action === "insert"
-                    ? "Add value"
-                    : "Edit value"}
+                : editing.newSheet
+                  ? "New sheet"
+                  : editing.action === "rename"
+                    ? "Rename property"
+                    : editing.action === "insert"
+                      ? "Add value"
+                      : "Edit value"}
             </h2>
-            <code className="path">{pointer(editing.path) || "(root)"}</code>
+            {!editing.newSheet && (
+              <code className="path">{pointer(editing.path) || "(root)"}</code>
+            )}
             {editing.action === "remove" ? (
               <p>
                 This removes the selected property or array item. You can undo
@@ -4286,17 +4703,28 @@ export default function App() {
                   (editing.action === "insert" &&
                     editing.parentKind === "object")) && (
                   <label>
-                    Property key
+                    {editing.newSheet ? "Sheet name" : "Property key"}
                     <input
                       autoFocus
                       value={editing.key}
                       onChange={(e) =>
                         setEditing({ ...editing, key: e.target.value })
                       }
+                      onKeyDown={(e) => {
+                        if (
+                          editing.newSheet &&
+                          e.key === "Enter" &&
+                          !e.nativeEvent.isComposing
+                        )
+                          void applyEdit();
+                      }}
                     />
                   </label>
                 )}
-                {editing.action !== "rename" && (
+                {editing.newSheet && editing.parentKind === "array" && (
+                  <p>Add an empty table at the end of this array?</p>
+                )}
+                {!editing.newSheet && editing.action !== "rename" && (
                   <>
                     <label>
                       JSON type
@@ -4374,7 +4802,11 @@ export default function App() {
                 className={editing.action === "remove" ? "danger" : "primary"}
                 onClick={() => void applyEdit()}
               >
-                {editing.action === "remove" ? "Remove" : "Apply change"}
+                {editing.action === "remove"
+                  ? "Remove"
+                  : editing.newSheet
+                    ? "Create sheet"
+                    : "Apply change"}
               </button>
             </div>
           </section>

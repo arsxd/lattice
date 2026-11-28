@@ -1,4 +1,4 @@
-import { ColumnMenuChevron } from "../grid/SheetIcons";
+import { ColumnMenuChevron, TableIcon } from "../grid/SheetIcons";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 type Props = {
@@ -8,7 +8,7 @@ type Props = {
   value: string;
   editable: boolean;
   previewOnly?: boolean;
-  onOpenTable?: () => void;
+  onOpenTable?: (committedValue: string) => void;
   onCommit: (v: string) => Promise<void>;
   onCommitReady?: (
     commit: (() => Promise<boolean>) | null,
@@ -212,25 +212,14 @@ function ValueBarEditor({
           type="button"
           className="value-bar-open"
           title="Open as table (Ctrl-click or ⌘-click the cell)"
-          aria-label="Open selected value as table"
           onClick={() => {
             void commit().then((ok) => {
-              if (ok) onOpenTable();
+              if (ok) onOpenTable(committed.current);
             });
           }}
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            aria-hidden="true"
-          >
-            <rect x="3" y="4" width="18" height="16" rx="2" />
-            <path d="M3 10h18M9 10v10M3 15h18" />
-          </svg>
+          <TableIcon />
+          Open as table
         </button>
       )}
       <span id="value-bar-help" className="sr-only">
