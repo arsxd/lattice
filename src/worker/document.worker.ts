@@ -92,6 +92,11 @@ self.onmessage = (event: MessageEvent) => {
         case "project":
           value = engine.project(args as Query);
           break;
+        case "row-ids":
+          value =
+            engine.project(args.query, undefined, undefined, false, args.spans)
+              .rowIds ?? [];
+          break;
         case "locate-row": {
           const result = engine.project(
             args.query as Query,

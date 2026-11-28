@@ -1,6 +1,10 @@
 import { textMatcher, searchPattern } from "./search";
 import { compactJson } from "./compactJson";
-import { selectedCellCount, type SheetSelection } from "./sheetSelection";
+import {
+  selectedCellCount,
+  type SheetSelection,
+  type Span,
+} from "./sheetSelection";
 import {
   createScanner,
   SyntaxKind,
@@ -57,6 +61,7 @@ export type ColumnKind = "index" | "key" | "field" | "value" | "mixed";
 export type Projection = {
   sheets?: { label: string; path: Path; kind: Kind }[];
   sheetsTruncated?: boolean;
+  sheetParent?: { path: Path; kind: "object" | "array"; size: number };
   filterOptions?: { key: string; label: string }[];
   filterOptionsTruncated?: boolean;
   revision: number;
@@ -750,7 +755,8 @@ export class DocumentEngine {
     selection?: SheetSelection,
     locateRowPath?: Path,
     selectionOnly = false,
-  ): Projection & { selectedCells?: SelectedCell[][] } {
+    rowIdSpans?: Span[],
+  ): Projection & { selectedCells?: SelectedCell[][]; rowIds?: string[] } {
     let path = query.path;
     let n: Node | undefined;
     try {
@@ -789,6 +795,14 @@ export class DocumentEngine {
     const common = {
       sheets,
       sheetsTruncated,
+      sheetParent:
+        sheetRoot?.type === "object" || sheetRoot?.type === "array"
+          ? ({
+              path: sheetPath,
+              kind: sheetRoot.type,
+              size: sheetRoot.children?.length ?? 0,
+            } satisfies NonNullable<Projection["sheetParent"]>)
+          : undefined,
       revision: this.revision,
       dirty: this.text !== this.saved,
       undo: !!this.past.length,
@@ -1098,6 +1112,17 @@ export class DocumentEngine {
       }
       this.rowCache.unshift({ key: cacheKey, filtered });
       this.rowCache.length = Math.min(this.rowCache.length, 3);
+    }
+    if (rowIdSpans) {
+      const rowIds: string[] = [];
+      for (const [start, end] of rowIdSpans)
+        for (
+          let index = Math.max(0, start);
+          index <= Math.min(end, filtered.length - 1);
+          index++
+        )
+          rowIds.push(pointer(pathOf(filtered[index][0])));
+      return { rowIds } as never;
     }
     const searchHeaderMatches = search
       ? headers.flatMap((name, i) =>

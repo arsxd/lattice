@@ -5,6 +5,7 @@ export type SheetSelection = {
   anchor: SheetPoint;
   end: SheetPoint;
   spans: Span[];
+  wholeTable?: true;
 };
 function merge(spans: Span[]): Span[] {
   const result: Span[] = [];
@@ -146,6 +147,7 @@ export function selectWholeTable(
   const r = Math.max(0, Math.min(rows - 1, anchorRow));
   return {
     mode: "columns",
+    wholeTable: true,
     anchor: { r, c: 0 },
     end: { r, c: columns - 1 },
     spans: [[0, columns - 1]],

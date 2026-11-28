@@ -6,10 +6,12 @@ type IconName =
   | "undo"
   | "redo"
   | "browse"
+  | "add"
   | "details";
 const paths: Record<Exclude<IconName, "details" | "browse">, string> = {
   home: "M2.5 7 8 2.5 13.5 7M4 6v7.5h8V6",
   chevron: "m6 4 4 4-4 4",
+  add: "M3 8h10M8 3v10",
   back: "M12 8H4m4-4L4 8l4 4",
   forward: "M4 8h8M8 4l4 4-4 4",
   undo: "m8 5-5 5 5 5M3 10h11a6 6 0 0 1 0 12",

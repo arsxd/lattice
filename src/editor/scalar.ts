@@ -1,5 +1,8 @@
 import { parseTree, type ParseError } from "jsonc-parser";
 import type { Kind, Cell } from "../document/engine";
+export function isJsonNumber(value: string): boolean {
+  return /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/.test(value);
+}
 export function scalarText(kind: Kind, value: string): string {
   if (kind !== "string" && value.trim().startsWith('"')) {
     const errors: ParseError[] = [];
@@ -21,11 +24,7 @@ export function scalarText(kind: Kind, value: string): string {
     );
   }
   if (kind === "string") return JSON.stringify(value);
-  if (
-    kind === "number" &&
-    /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/.test(value)
-  )
-    return value;
+  if (kind === "number" && isJsonNumber(value)) return value;
   if (kind === "boolean" && (value === "true" || value === "false"))
     return value;
   if (kind === "null" && value === "null") return value;

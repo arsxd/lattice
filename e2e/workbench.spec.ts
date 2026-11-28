@@ -61,6 +61,109 @@ test("opens a local JSON file, edits inline, and selects full rows and columns",
     }),
   ).toHaveAttribute("aria-pressed", "true");
 });
+test("resizing a selected header applies its size to the selected rows or columns", async ({
+  page,
+}) => {
+  await open(
+    page,
+    '[{"name":"A","count":1},{"name":"B","count":2},{"name":"C","count":3}]',
+  );
+  const name = page.getByRole("button", {
+    name: /^Select column [A-Z]+ name$/,
+  });
+  const count = page.getByRole("button", {
+    name: /^Select column [A-Z]+ count$/,
+  });
+  const heading = (label: RegExp) =>
+    page.getByRole("columnheader", { name: label });
+  const dragColumn = async (label: RegExp, delta: number) => {
+    const box = (await heading(label).boundingBox())!;
+    const x = box.x + box.width - 2;
+    const y = box.y + box.height / 2;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + delta, y);
+    await page.mouse.up();
+    return box.width + delta;
+  };
+  const width = (label: RegExp) =>
+    expect.poll(async () => (await heading(label).boundingBox())!.width);
+  const indexWidth = (await heading(
+    /Select column [A-Z]+ Index/,
+  ).boundingBox())!.width;
+  await width(/Select column [A-Z]+ name/).toBe(
+    await dragColumn(/Select column [A-Z]+ name/, 50),
+  );
+  await name.click();
+  await count.click({ modifiers: ["Shift"] });
+  const nameHeader = heading(/Select column [A-Z]+ name/);
+  const countHeader = heading(/Select column [A-Z]+ count/);
+  const first = (await nameHeader.boundingBox())!;
+  const second = (await countHeader.boundingBox())!;
+  const dividerX = second.x + second.width - 2;
+  const dividerY = second.y + second.height / 2;
+  await page.mouse.move(dividerX, dividerY);
+  await page.mouse.down();
+  await page.mouse.move(dividerX + 96, dividerY);
+  const matchingWidth = Math.round((first.width + second.width + 96) / 2);
+  await width(/Select column [A-Z]+ name/).toBe(matchingWidth);
+  await width(/Select column [A-Z]+ count/).toBe(matchingWidth);
+  await width(/Select column [A-Z]+ Index/).toBe(indexWidth);
+  await page.mouse.up();
+  await width(/Select column [A-Z]+ name/).toBe(matchingWidth);
+  await width(/Select column [A-Z]+ count/).toBe(matchingWidth);
+
+  await page.getByRole("button", { name: "Select row 1", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Select row 2", exact: true })
+    .click({ modifiers: ["Shift"] });
+  const resize = (number: number) =>
+    page.getByRole("separator", { name: `Resize row ${number}`, exact: true });
+  const box = (await resize(2).boundingBox())!;
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x, y + 32);
+  await page.mouse.up();
+  await expect(resize(1)).toHaveAttribute("aria-valuenow", "60");
+  await expect(resize(2)).toHaveAttribute("aria-valuenow", "60");
+  await expect(resize(3)).toHaveAttribute("aria-valuenow", "28");
+});
+
+test("creates an undoable sheet alongside existing sheets in a wrapped object", async ({
+  page,
+}) => {
+  await open(page, '{"data":{"users":[],"settings":[]}}');
+  const sheets = page.getByRole("navigation", { name: "Document sheets" });
+  await sheets.getByRole("button", { name: "users", exact: true }).click();
+  await sheets.getByRole("button", { name: "New sheet", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "New sheet", exact: true });
+  const name = dialog.getByRole("textbox", { name: "Sheet name" });
+  await name.fill("settings");
+  await name.press("Enter");
+  await expect(dialog.getByRole("alert")).toContainText("unique property key");
+  await name.fill("notes");
+  await name.press("Enter");
+  await expect(
+    sheets.getByRole("button", { name: "notes", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
+  await expect(
+    page.getByRole("navigation", { name: "JSON path" }),
+  ).toContainText("data");
+  await expect(
+    sheets.getByRole("button", { name: "users", exact: true }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(
+    sheets.getByRole("button", { name: "notes", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    sheets.getByRole("button", { name: "All data", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
+});
+
 test("typing into a selected cell preserves character order", async ({
   page,
 }) => {
@@ -568,16 +671,33 @@ test("header and corner selections show a range summary instead of the first val
     .getByRole("button", { name: /^Select column [A-Z]+ name$/, exact: true })
     .click();
   await expect(page.locator(".inspector")).toContainText("cells selected");
+  const firstRow = page.getByRole("button", {
+    name: "Select row 1",
+    exact: true,
+  });
+  await expect(firstRow).toHaveAttribute("aria-pressed", "false");
   await expect(
     page.locator('.inspector dt:has-text("JSON type") + dd'),
   ).toHaveCount(0);
   await expect(
     page.getByRole("textbox", { name: "Selected cell value" }),
   ).toHaveCount(0);
-  await page
-    .getByRole("button", { name: "Select all table cells", exact: true })
-    .click();
+  const corner = page.getByRole("button", {
+    name: "Select all table cells",
+    exact: true,
+  });
+  await expect(corner).toHaveAttribute("aria-pressed", "false");
+  await corner.click();
+  await expect(corner).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".inspector")).toContainText("6 cells selected");
+  await expect(firstRow).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    page.getByRole("button", { name: "Select row 2", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".sheet-corner")).toHaveCSS(
+    "outline-style",
+    "none",
+  );
   const header = page.locator(".sheet-header").filter({
     has: page.getByRole("button", {
       name: /^Select column [A-Z]+ count$/,
@@ -1004,7 +1124,7 @@ test("selecting a column header shows its name in the value bar and can copy it"
   );
   await page.evaluate(() => navigator.clipboard.writeText("before menu"));
   await title.click({ button: "right" });
-  await page.getByRole("menuitem", { name: /^Copy / }).click();
+  await page.getByRole("menuitem", { name: "Copy", exact: true }).click();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
     "count",
   );
@@ -1096,6 +1216,44 @@ test("the value bar offers Expand only when the value needs more room", async ({
     .toBeGreaterThan(60);
 });
 
+test("strings that look like JSON scalars or empty containers are visibly quoted", async ({
+  page,
+}) => {
+  await open(
+    page,
+    '[{"value":true},{"value":"true"},{"value":false},{"value":"false"},{"value":"note"},{"value":334},{"value":"334"},{"value":null},{"value":"null"},{"value":"1e400"},{"value":"001"},{"value":{}},{"value":"{}"},{"value":[]},{"value":"[]"}]',
+  );
+  await expect(cell(page, 0, 1).locator(".json-literal")).toHaveText("true");
+  await expect(cell(page, 1, 1)).toHaveText('"true"');
+  await expect(cell(page, 2, 1).locator(".json-literal")).toHaveText("false");
+  await expect(cell(page, 3, 1)).toHaveText('"false"');
+  await expect(cell(page, 4, 1)).toHaveText("note");
+  await expect(cell(page, 5, 1)).toHaveText("334");
+  await expect(cell(page, 6, 1)).toHaveText('"334"');
+  await expect(cell(page, 7, 1)).toHaveText("");
+  await expect(cell(page, 8, 1)).toHaveText('"null"');
+  await expect(cell(page, 9, 1)).toHaveText('"1e400"');
+  await expect(cell(page, 10, 1)).toHaveText("001");
+  await expect(cell(page, 11, 1)).toHaveText("{}");
+  await expect(cell(page, 12, 1)).toHaveText('"{}"');
+  await expect(cell(page, 13, 1)).toHaveText("[]");
+  await expect(cell(page, 14, 1)).toHaveText('"[]"');
+
+  const textColour = () =>
+    cell(page, 1, 1)
+      .locator(".cell-value")
+      .evaluate((element) => getComputedStyle(element).color);
+  await expect(cell(page, 0, 1).locator(".json-literal")).not.toHaveCSS(
+    "color",
+    await textColour(),
+  );
+  await page.getByRole("button", { name: "Dark theme", exact: true }).click();
+  await expect(cell(page, 0, 1).locator(".json-literal")).not.toHaveCSS(
+    "color",
+    await textColour(),
+  );
+});
+
 test("nested values are coloured like Source and still highlight Find matches", async ({
   page,
 }) => {
@@ -1126,6 +1284,120 @@ test("Find highlights a match that lies beyond the cell preview", async ({
   );
   await page.locator("#find").fill("");
   await expect(cell(page, 0, 2).locator("mark.find-match")).toHaveCount(0);
+});
+
+test("nested keys open as tables from the value bar and cell shortcut", async ({
+  page,
+}) => {
+  await open(
+    page,
+    '{"nested":{"message":"inside"},"list":[1,2],"plain":"outside"}',
+  );
+  await cell(page, 0, 0).click();
+  const valueBar = page.locator(".value-bar");
+  await valueBar
+    .getByRole("textbox", { name: "Selected cell value" })
+    .fill("renamed");
+  await valueBar
+    .getByRole("button", { name: "Open as table", exact: true })
+    .click();
+  await expect(
+    page.getByRole("navigation", { name: "JSON path" }),
+  ).toContainText("renamed");
+  await expect(cell(page, 0, 1)).toHaveText("inside");
+
+  await page.getByRole("button", { name: "root", exact: true }).click();
+  const key = page.getByRole("gridcell").filter({
+    has: page.locator(".cell-preview-text").getByText("list", { exact: true }),
+  });
+  await key.hover();
+  await key.getByRole("button", { name: "Open as table", exact: true }).click();
+  await expect(
+    page.getByRole("navigation", { name: "JSON path" }),
+  ).toContainText("list");
+});
+
+test("Alt+O toggles Browse and Alt+L toggles Details", async ({ page }) => {
+  await open(page, '[{"name":"Alpha"}]');
+  const browse = page.getByRole("button", { name: "Browse", exact: true });
+  const details = page.getByRole("button", {
+    name: "Details — toggle value inspector",
+  });
+  await page.keyboard.down("Alt");
+  await expect(browse.locator(".mnemonic-letter")).toHaveCSS(
+    "text-decoration-line",
+    "underline",
+  );
+  await expect(details.locator(".mnemonic-letter")).toHaveCSS(
+    "text-decoration-line",
+    "underline",
+  );
+  await page.keyboard.up("Alt");
+
+  await page.keyboard.press("Alt+KeyO");
+  await expect(browse).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("Alt+KeyL");
+  await expect(details).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("Alt+KeyO");
+  await expect(browse).toHaveAttribute("aria-pressed", "false");
+  await page.keyboard.press("Alt+KeyL");
+  await expect(details).toHaveAttribute("aria-pressed", "false");
+});
+
+test("holding Alt reveals table action shortcuts and Alt+C opens Add column", async ({
+  page,
+}) => {
+  await open(page, '[{"name":"Alpha"}]');
+  await cell(page, 0, 1).click();
+  const add = page.locator(".pagination").getByRole("button", {
+    name: "Add column",
+    exact: true,
+  });
+  await expect(add.locator(":scope > span")).toHaveText("Add column");
+  await expect(
+    page
+      .locator(".pagination")
+      .getByRole("button", { name: "Add row", exact: true }),
+  ).toHaveAttribute("aria-keyshortcuts", "Alt+A");
+  const mnemonic = add.locator(".mnemonic-letter");
+  await expect(mnemonic).toHaveText("c");
+  await expect(mnemonic).toHaveCSS("text-decoration-line", "none");
+  await page.keyboard.down("Alt");
+  await expect(mnemonic).toHaveCSS("text-decoration-line", "underline");
+  await page.keyboard.up("Alt");
+  await expect(mnemonic).toHaveCSS("text-decoration-line", "none");
+  await page.keyboard.press("Alt+KeyC");
+  await expect(
+    page.getByRole("textbox", { name: "Column name" }),
+  ).toBeFocused();
+});
+
+test("holding Alt reveals row menu mnemonics and D duplicates the row", async ({
+  page,
+}) => {
+  await open(page, '[{"name":"Alpha"}]');
+  await page
+    .getByRole("button", { name: "Select row 1", exact: true })
+    .click({ button: "right" });
+  const menu = page.getByRole("menu");
+  const duplicate = menu.getByRole("menuitem", {
+    name: "Duplicate row",
+    exact: true,
+  });
+  const mnemonic = duplicate.locator(".mnemonic-letter");
+  await expect(mnemonic).toHaveText("D");
+  await expect(mnemonic).toHaveCSS("text-decoration-line", "none");
+
+  await page.keyboard.down("Alt");
+  await expect(mnemonic).toHaveCSS("text-decoration-line", "underline");
+  await page.keyboard.up("Alt");
+  await expect(mnemonic).toHaveCSS("text-decoration-line", "none");
+
+  await expect(duplicate).toHaveAttribute("aria-keyshortcuts", "D");
+  await page.keyboard.press("KeyD");
+  await expect(menu).toBeHidden();
+  await expect(cell(page, 0, 1)).toHaveText("Alpha");
+  await expect(cell(page, 1, 1)).toHaveText("Alpha");
 });
 
 test("context menus offer the right copy-name action for rows and columns", async ({
@@ -1337,7 +1609,7 @@ test("a row clicked while Find is updating stays selected if it is still in the 
   await expect(cell(page, 1, 1)).toHaveAttribute("aria-selected", "true");
 });
 
-test("editing long text starts at its beginning and keeps the caret clear of the edge", async ({
+test("F2 and double-click start editing at the end of the existing value", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 900, height: 420 });
@@ -1345,14 +1617,33 @@ test("editing long text starts at its beginning and keeps the caret clear of the
     "A fairly long title that will not fit inside this narrow column at all";
   await open(page, JSON.stringify([{ title, n: 1 }]));
   const editor = page.locator(".inline-cell");
-  await page.getByRole("gridcell", { name: /A fairly long title/ }).dblclick();
-  await expect(editor).toBeVisible();
-  // The start of the value is what you see first, not its end.
+  const titleCell = page.getByRole("gridcell", { name: /A fairly long title/ });
+  await titleCell.click();
+  await page.keyboard.press("F2");
+  await expect(editor).toHaveValue(title);
   await expect
-    .poll(() => editor.evaluate((e: HTMLTextAreaElement) => e.scrollLeft))
-    .toBe(0);
-  await page.keyboard.press("End");
+    .poll(() =>
+      editor.evaluate((e: HTMLTextAreaElement) => [
+        e.selectionStart,
+        e.selectionEnd,
+      ]),
+    )
+    .toEqual([title.length, title.length]);
+  await page.keyboard.press("Escape");
+
+  const preview = titleCell.locator(".cell-preview-text");
+  await preview.dblclick({ position: { x: 1, y: 7 } });
+  await expect(editor).toHaveValue(title);
+  await expect
+    .poll(() =>
+      editor.evaluate((e: HTMLTextAreaElement) => [
+        e.selectionStart,
+        e.selectionEnd,
+      ]),
+    )
+    .toEqual([title.length, title.length]);
   await page.keyboard.type("!");
+  await expect(editor).toHaveValue(title + "!");
   // At the end of the text the caret is not flush against the cell border.
   const gap = await editor.evaluate((t: HTMLTextAreaElement) => {
     const cell = t.closest('[role="gridcell"]')!.getBoundingClientRect();

@@ -85,8 +85,10 @@ export function jsonSelectionPreview(raw: string): {
   text: string;
   truncated: boolean;
 } {
+  const preview = compactJson(raw.slice(0, JSON_PREVIEW_LIMIT));
   return {
-    text: raw.slice(0, JSON_PREVIEW_LIMIT),
-    truncated: raw.length > JSON_PREVIEW_LIMIT,
+    text: preview.slice(0, JSON_PREVIEW_LIMIT),
+    truncated:
+      raw.length > JSON_PREVIEW_LIMIT || preview.length > JSON_PREVIEW_LIMIT,
   };
 }

@@ -8,6 +8,7 @@ import {
 } from "../document/engine";
 type Props = {
   current: Path;
+  generation: number;
   revision: number;
   visible: boolean;
   disabled: boolean;
@@ -49,7 +50,14 @@ function Branch({ item, ...props }: Props & { item: OutlineEntry }) {
       cancelled = true;
     };
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- pathKey stands for item.path; props.load is recreated every render
-  }, [expanded, props.visible, props.revision, pathKey, item.expandable]);
+  }, [
+    expanded,
+    props.visible,
+    props.generation,
+    props.revision,
+    pathKey,
+    item.expandable,
+  ]);
   return (
     <li>
       <div className={`outline-entry ${current ? "active" : ""}`}>

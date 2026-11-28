@@ -10,11 +10,11 @@ Open a JSON file, drop it onto the app, or choose **Explore sample workspace**. 
 
 Each file opens in a document tab with its own worker and undo history. A drop can contain up to eight files totalling 64 MiB. Finish an active cell edit before dropping more files. Invalid or empty JSON opens in Source with an explanation; the original text is retained for repair.
 
-The bottom tabs expose document sections. **Browse** shows the structure; breadcrumbs, Back, Forward and Home navigate it. Objects and arrays can open as separate tables. Duplicate object keys are rejected.
+The bottom tabs expose document sections. Choose **+** at the end of the sheet tabs to add and open an empty table alongside the existing sheets. Object documents ask for a name. In a root array, the new sheet uses the next index. **Browse** shows the structure; breadcrumbs, Back, Forward and Home navigate it. Objects and arrays can open as separate tables. Duplicate object keys are rejected.
 
 ## Edit cells and keys
 
-Click once to select. Type to replace a value; double-click or **F2** to edit. **Enter** commits and moves down; **Shift+Enter** moves up. **Tab** moves right and **Shift+Tab** left. **Escape** cancels. Clicking away applies valid cell/value-bar input; invalid input stays available for correction.
+Click once to select, then type to replace the value. Double-click a value or press **F2** to edit from the end. **Enter** commits and moves down; **Shift+Enter** moves up. **Tab** moves right and **Shift+Tab** left. **Escape** cancels. Clicking away applies valid cell/value-bar input; invalid input stays available for correction.
 
 The value bar edits the selected value directly. Its chevron expands the display to a bounded height; its table icon opens a selected object or array. In the value bar, **Enter** applies, **Shift+Enter** inserts a line break, and **Escape** cancels.
 
@@ -24,9 +24,9 @@ The value bar edits the selected value directly. Its chevron expands the display
 | `"0"` in the value bar               | A JSON string                                                                      |
 | `""` entered in a cell               | Empty text                                                                         |
 | A subtly shaded, blank property cell | The property is absent; it remains editable                                        |
-| A blank, unshaded value cell         | Inspect Details to distinguish empty text, null, an empty object or an empty array |
+| A blank, unshaded value cell         | Inspect Details to distinguish empty text from null |
 
-Existing values retain their type. A consistent column type guides entry into missing/null cells; otherwise these default to text. Use **Change type…** in Details to make an explicit type change. Merely opening and finishing an untouched missing cell does not create a property.
+The grid colors boolean values and uses quotes for text that looks like a JSON number, boolean, null, or empty container, such as `"334"`, `"true"`, `"null"`, `"{}"`, or `"[]"`. Empty objects and arrays appear as `{}` and `[]`. Existing values retain their type. A consistent column type guides entry into missing/null cells; otherwise these default to text. Use **Change type…** in Details to make an explicit type change. Merely opening and finishing an untouched missing cell does not create a property.
 
 Object Key cells can be renamed; generated array indices are read-only. A key selection shows the key in the value bar. Add row creates a blank record using the existing fields; Add column asks for a property name and brings the new column into view. Right-click for relative row insertion, duplication and removal. Column rename/delete affects the full object-row table and checks name collisions.
 
@@ -54,7 +54,7 @@ Row labels start at 1 and follow the current display order. JSON array indices s
 | Edit / cancel         | F2 / Escape                   |
 | Document undo / redo  | Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z |
 
-Clipboard values use quoted TSV compatible with spreadsheet cells. Copy uses complete values, not cell previews. Right-click menus show shortcuts; their Copy/Paste actions depend on clipboard permission. Inside a text editor, normal browser text selection applies.
+Clipboard values use quoted TSV compatible with spreadsheet cells. Copy uses complete values, not cell previews. Hold **Alt** (**Option** on macOS) to reveal shortcut letters. **Alt+A** adds a row and **Alt+C** opens Add column. **Alt+O** toggles Browse and **Alt+L** toggles Details in Table view. In an open context menu, release Alt and press the underlined letter, such as **D** to duplicate a row. Use **Shift+E** for Delete in that menu. Copy and Paste from the context menu depend on clipboard permission. Inside a text editor, normal browser text selection applies.
 
 Paste validates the entire operation before applying it as one undo step. It does not grow the table. It can cross pages within the filtered/sorted table, but requires one adjacent destination and compatible writable cells. Empty pasted text stays empty text in a string cell; in non-string cells, blank paste becomes null. Fill down repeats the top selected value; it does not generate a numeric series.
 
@@ -120,9 +120,9 @@ Review compares with the stored baseline, not a newly modified disk file; it is 
 
 Cancelled or failed writes do not mark a document saved. Save compares the decoded disk contents with its baseline and blocks a detected external change. It provides conflict detection, not an exclusive file lock or automatic watcher.
 
-Reload affects only the active document and resets undo/navigation history. It retains the current table or nearest surviving parent, remaps sort/filter columns by name and role, and restores the selected path/page and compatible scroll position when possible. Removed/filtered cells clear selection; ranges collapse to their active cell. Array paths identify positions, not semantic record identity after external reordering. Cancel retains your work.
+Press **Alt+R** (**Option+R** on macOS) outside a text field to reload the active file. Reload affects only the active document and resets undo/navigation history. It retains the current table or nearest surviving parent, remaps sort/filter columns by name and role, and restores the selected path/page and compatible scroll position when possible. Removed/filtered cells clear selection; ranges collapse to their active cell. Array paths identify positions, not semantic record identity after external reordering. Cancel retains your work.
 
-Busy operations show a small spinning ring and disable repeated requests. A compact toast confirms successful reload.
+Busy operations show a small spinning ring and disable repeated requests. The status bar briefly confirms a successful reload.
 
 Click or right-click the bottom filename for **file information** and **Copy filename**. Standard web APIs do not provide absolute disk paths. A picker may remember a previous location where the browser permits it, but that is not a guarantee of persistent access.
 

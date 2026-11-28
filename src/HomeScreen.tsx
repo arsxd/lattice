@@ -44,8 +44,9 @@ export function HomeScreen({
         Explore sample workspace
       </button>
       <p className="home-screen-local">
-        Drop a JSON file anywhere to open it. Files are processed locally. Save
-        with supported browser file access, or download an edited copy.
+        Drop a JSON file anywhere to open it. Files are processed locally.
+        Depending on your browser, Save writes changes directly to a file or
+        downloads an edited copy.
       </p>
       {installPrompt}
       {updateStatus}

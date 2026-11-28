@@ -5,14 +5,18 @@ export function RowHeightHandle({
   number,
   height,
   onChange,
+  onCommit,
   onReset,
 }: {
   number: number;
   height: number;
   onChange: (height: number) => void;
+  onCommit: (height: number) => void;
   onReset: () => void;
 }) {
-  const drag = useRef<{ y: number; height: number } | null>(null);
+  const drag = useRef<{ y: number; height: number; size?: number } | null>(
+    null,
+  );
   return (
     <span
       className="row-height-handle"
@@ -41,28 +45,27 @@ export function RowHeightHandle({
       onPointerMove={(e) => {
         if (drag.current) {
           e.stopPropagation();
-          onChange(
-            clampRowHeight(drag.current.height + e.clientY - drag.current.y),
+          drag.current.size = clampRowHeight(
+            drag.current.height + e.clientY - drag.current.y,
           );
+          onChange(drag.current.size);
         }
       }}
       onPointerUp={(e) => {
-        drag.current = null;
         if (e.currentTarget.hasPointerCapture(e.pointerId))
           e.currentTarget.releasePointerCapture(e.pointerId);
         e.stopPropagation();
       }}
-      onPointerCancel={() => {
-        drag.current = null;
-      }}
       onLostPointerCapture={() => {
+        const size = drag.current?.size;
         drag.current = null;
+        if (size !== undefined) onCommit(size);
       }}
       onKeyDown={(e) => {
         if (e.key === "ArrowUp" || e.key === "ArrowDown") {
           e.preventDefault();
           e.stopPropagation();
-          onChange(clampRowHeight(height + (e.key === "ArrowUp" ? -8 : 8)));
+          onCommit(clampRowHeight(height + (e.key === "ArrowUp" ? -8 : 8)));
         }
         if (e.key === "Home") {
           e.preventDefault();

@@ -1,7 +1,12 @@
+import { TableIcon } from "./SheetIcons";
 import { useLayoutEffect, useRef, useState, type HTMLAttributes } from "react";
 
 /** Follow the actual cell size, including manual row and column resizing. */
-export function CellPreview(props: HTMLAttributes<HTMLSpanElement>) {
+export function CellPreview({
+  onOpenTable,
+  title,
+  ...props
+}: HTMLAttributes<HTMLSpanElement> & { onOpenTable?: () => void }) {
   const ref = useRef<HTMLSpanElement>(null);
   const text = useRef<HTMLSpanElement>(null);
   const [clipped, setClipped] = useState(false);
@@ -22,10 +27,36 @@ export function CellPreview(props: HTMLAttributes<HTMLSpanElement>) {
     return () => observer.disconnect();
   }, [props.children]);
   return (
-    <span {...props} ref={ref} data-clipped={clipped || undefined}>
-      <span ref={text} className="cell-preview-text">
+    <span
+      {...props}
+      ref={ref}
+      title={onOpenTable ? undefined : title}
+      data-clipped={clipped || undefined}
+    >
+      <span
+        ref={text}
+        className="cell-preview-text"
+        title={onOpenTable ? title : undefined}
+      >
         {props.children}
       </span>
+      {onOpenTable && (
+        <button
+          type="button"
+          className="cell-open-table"
+          tabIndex={-1}
+          aria-label="Open as table"
+          title="Open as table"
+          onPointerDown={(event) => event.preventDefault()}
+          onDoubleClick={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpenTable();
+          }}
+        >
+          <TableIcon />
+        </button>
+      )}
     </span>
   );
 }
