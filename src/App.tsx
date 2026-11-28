@@ -2903,7 +2903,13 @@ export default function App() {
         <button
           onClick={() => void save()}
           disabled={busy || !doc || !!view?.diagnostics.length || sourceDirty}
-          title={browserSave ? "Save (Ctrl/⌘+S)" : "Download (Ctrl/⌘+S)"}
+          title={
+            browserSave
+              ? doc?.handle
+                ? "Save changes to the linked file (Ctrl/⌘+S)"
+                : "Choose where to save the JSON file (Ctrl/⌘+S)"
+              : "Download an edited JSON copy (Ctrl/⌘+S)"
+          }
           aria-keyshortcuts="Control+S Meta+S"
         >
           {browserSave ? "Save" : "Download"}

@@ -32,22 +32,21 @@ export function HomeScreen({
         Work with cells, rows, and columns. Explore nested data and review your
         changes—without wrestling with JSON syntax.
       </p>
-      <div className="home-screen-actions">
+      <div className="home-screen-open">
         <button className="primary" disabled={busy} onClick={onOpen}>
           Open JSON file…
         </button>
+        <p className="home-screen-drop-hint">or drop a JSON file anywhere</p>
+      </div>
+      <div className="home-screen-actions">
         <button disabled={busy} onClick={onNew}>
           New document
         </button>
+        <button className="text-button" disabled={busy} onClick={onSample}>
+          Try sample
+        </button>
       </div>
-      <button className="text-button" disabled={busy} onClick={onSample}>
-        Explore sample workspace
-      </button>
-      <p className="home-screen-local">
-        Drop a JSON file anywhere to open it. Files are processed locally.
-        Depending on your browser, Save writes changes directly to a file or
-        downloads an edited copy.
-      </p>
+      <p className="home-screen-local">Your files stay in this browser.</p>
       {installPrompt}
       {updateStatus}
       {recoverySetting && (

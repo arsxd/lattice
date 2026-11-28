@@ -33,19 +33,25 @@
   font-size: 15px;
   line-height: 1.75;
 }
+.home-screen-open {
+  margin-top: 28px;
+}
 .home-screen-actions {
   display: flex;
   justify-content: center;
   flex-wrap: wrap;
   gap: 10px;
-  margin: 28px 0 12px;
+  margin-top: 14px;
 }
+.home-screen-drop-hint,
 .home-screen-local {
-  max-width: 420px;
-  margin: 24px auto 0;
+  margin: 8px 0 0;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.7;
+}
+.home-screen-local {
+  margin-top: 16px;
 }
 .home-screen > .update-available {
   margin-top: 12px;

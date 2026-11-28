@@ -10,7 +10,7 @@ All names, titles, prices and transactions are fictional demonstration data.
 | [04-json-value-shapes.json](04-json-value-shapes.json)                           | Empty, missing and null values, simple and nested arrays, and numeric precision             |
 | [review/before.json](review/before.json), [review/after.json](review/after.json) | Added and removed books, changed prices and stock, and a revision change                    |
 
-Choose **Explore sample workspace** in Lattice to open the bookshop directly. Open the other files through **Open JSON file…**.
+Choose **Try sample** in Lattice to open the bookshop directly. Open the other files through **Open JSON file…**.
 
 To try review, open `review/before.json`, choose **Source → Whole document**, replace its text with `review/after.json`, apply it, then choose **Review changes**.
 

@@ -20,7 +20,7 @@ Current release: **[v1.0.0-rc.11](https://github.com/arsxd/lattice/releases/tag/
 
 | Use it your way     | How                                                                                                                                                                                         |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| In your browser     | [Open Lattice](https://arsxd.github.io/lattice/), then open a JSON file or try **Explore sample workspace**.                                                                                |
+| In your browser     | [Open Lattice](https://arsxd.github.io/lattice/), then open a JSON file or choose **Try sample**.                                                                                |
 | As a single file    | [Download Lattice-Offline.html](https://github.com/arsxd/lattice/releases/download/v1.0.0-rc.11/Lattice-Offline.html) and open it in a desktop browser. No Node.js, server or installation. |
 | As an installed app | Open the hosted app and use the browser's install option when available. Load it online once so the app can be cached for offline use.                                                      |
 
@@ -71,7 +71,7 @@ Browsers without the file-save picker use **Download** instead of **Save**. Keep
 
 ## Examples and documentation
 
-The bundled fictional bookshop covers keyed records, orders, arrays, nested details, empty values and precise numbers. Try **Explore sample workspace**, or [download an example JSON](examples/README.md).
+The bundled fictional bookshop covers keyed records, orders, arrays, nested details, empty values and precise numbers. Choose **Try sample**, or [download an example JSON](examples/README.md).
 
 - [User guide](docs/USER-GUIDE.md): editing, Source, Review, saving, recovery and shortcuts.
 - [Documentation index](docs/README.md): architecture, browser checks, accessibility and performance.

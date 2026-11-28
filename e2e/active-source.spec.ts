@@ -3,7 +3,7 @@ test("active Source retains full contrast while unavailable Table stays dimmed",
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Explore sample workspace" }).click();
+  await page.getByRole("button", { name: "Try sample" }).click();
   await page.getByRole("button", { name: "Source", exact: true }).click();
   const source = page.getByRole("button", { name: "Source", exact: true });
   await expect(source).toHaveAttribute("aria-pressed", "true");

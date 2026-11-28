@@ -2,9 +2,7 @@ import { test, expect } from "@playwright/test";
 
 async function sample(page: import("@playwright/test").Page) {
   await page.goto("/");
-  await page
-    .getByRole("button", { name: "Explore sample workspace", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Try sample", exact: true }).click();
   await page.getByRole("grid", { name: "JSON data table" }).waitFor();
 }
 
