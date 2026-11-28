@@ -95,7 +95,7 @@ it("compacts Details JSON while keeping exact string and number tokens", () => {
   const raw =
     '[\n      { "name": "a  b", "precise": 9007199254740993, "value": -0 }\n    ]';
   expect(jsonSelectionPreview(raw)).toEqual({
-    text: '[{"name": "a  b", "precise": 9007199254740993, "value": -0}]',
+    text: '[\n  {\n    "name": "a  b",\n    "precise": 9007199254740993,\n    "value": -0\n  }\n]',
     truncated: false,
   });
 });

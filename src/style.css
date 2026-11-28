@@ -1549,6 +1549,7 @@ select optgroup {
 }
 .update-dialog {
   max-width: 420px;
+  text-align: start;
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 22px;
@@ -1567,8 +1568,13 @@ select optgroup {
   font-size: 13px;
   line-height: 1.6;
 }
+.update-dialog .update-build {
+  color: var(--muted);
+  font-size: 12px;
+}
 .update-dialog .dialog-actions {
   flex-wrap: wrap;
+  gap: 12px;
 }
 .update-available {
   white-space: nowrap;

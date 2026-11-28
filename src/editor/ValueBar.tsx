@@ -249,11 +249,15 @@ export function ValueBarPlaceholder({
   value,
   caption = "Key",
   hint = "Double-click the key in the table to rename it.",
+  onOpenRow,
+  disabled,
 }: {
   address?: string;
   value?: string;
   caption?: string;
   hint?: string;
+  onOpenRow?: () => void;
+  disabled?: boolean;
 }) {
   const selected = value !== undefined;
   return (
@@ -277,6 +281,17 @@ export function ValueBarPlaceholder({
         />
       ) : (
         <span className="value-bar-empty-field">Select a cell</span>
+      )}
+      {onOpenRow && (
+        <button
+          type="button"
+          className="value-bar-open"
+          disabled={disabled}
+          onClick={onOpenRow}
+        >
+          <TableIcon />
+          Open row as table
+        </button>
       )}
     </div>
   );

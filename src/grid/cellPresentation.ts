@@ -1,4 +1,6 @@
+import { parseTree } from "jsonc-parser";
 import { compactJson } from "../document/compactJson";
+import { compactPrettyJson } from "../document/compactPrettyJson";
 import type { Cell } from "../document/engine";
 export function blankState(cell: Cell): string | null {
   if (cell.type === "missing") return "Property not set";
@@ -85,7 +87,11 @@ export function jsonSelectionPreview(raw: string): {
   text: string;
   truncated: boolean;
 } {
-  const preview = compactJson(raw.slice(0, JSON_PREVIEW_LIMIT));
+  const fits = raw.length <= JSON_PREVIEW_LIMIT;
+  const tree = fits ? parseTree(raw) : undefined;
+  const preview = tree
+    ? compactPrettyJson(raw, tree, "\n", "", 42)
+    : compactJson(raw.slice(0, JSON_PREVIEW_LIMIT));
   return {
     text: preview.slice(0, JSON_PREVIEW_LIMIT),
     truncated:

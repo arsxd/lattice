@@ -39,7 +39,13 @@ export type OutlineEntry = {
   expandable: boolean;
 };
 export type OutlineResult = { children: OutlineEntry[]; truncated: boolean };
-export type Row = { id: string; label: string; path: Path; cells: Cell[] };
+export type Row = {
+  id: string;
+  label: string;
+  path: Path;
+  canOpenAsTable: boolean;
+  cells: Cell[];
+};
 export type Query = {
   showIndex?: boolean;
   path: Path;
@@ -1254,6 +1260,7 @@ export class DocumentEngine {
           id: pointer(p),
           label: String(item[0]),
           path: p,
+          canOpenAsTable: item[1].type === "object" || item[1].type === "array",
           cells: headers.map((_, i) => getCell(item, i)),
         };
       });

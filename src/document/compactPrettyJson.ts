@@ -6,8 +6,8 @@ export function compactPrettyJson(
   root: Node,
   eol: string,
   baseIndent = "",
+  width = 120,
 ): string {
-  const width = 120;
   const raw = (node: Node) =>
     text.slice(node.offset, node.offset + node.length);
   // A bounded candidate avoids constructing long inline copies of large subtrees.
